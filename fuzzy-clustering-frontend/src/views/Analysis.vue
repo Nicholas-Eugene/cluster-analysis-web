@@ -265,16 +265,18 @@
 </template>
 
 <script>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, nextTick, computed } from 'vue'
+import { useRoute } from 'vue-router'
 import { Chart, registerables } from 'chart.js'
 import L from 'leaflet'
-import apiService from '../services/apiService'
+import apiService from '../services/apiService.js'
 
 Chart.register(...registerables)
 
 export default {
   name: 'Analysis',
   setup() {
+    const route = useRoute()
     const isLoading = ref(true)
     const error = ref('')
     const results = ref(null)

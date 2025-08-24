@@ -262,11 +262,13 @@
 
 <script>
 import { ref, reactive, computed } from 'vue'
-import apiService from '../services/apiService'
+import { useRouter } from 'vue-router'
+import apiService from '../services/apiService.js'
 
 export default {
   name: 'Upload',
   setup() {
+    const router = useRouter()
     const selectedFile = ref(null)
     const isDragOver = ref(false)
     const uploadError = ref('')
@@ -449,7 +451,7 @@ Makassar,2023,73.2,380000`
         
         // Redirect to analysis page with results
         setTimeout(() => {
-          this.$router.push({
+          router.push({
             name: 'Analysis',
             query: { sessionId: response.session_id }
           })

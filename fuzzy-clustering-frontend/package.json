@@ -1,14 +1,17 @@
 {
   "name": "fuzzy-clustering-frontend",
   "version": "1.0.0",
-  "main": "index.js",
+  "type": "module",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "serve": "vite preview --port 3000"
   },
-  "keywords": [],
+  "keywords": ["vue", "clustering", "fuzzy-c-means", "visualization"],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Frontend aplikasi clustering Fuzzy C-Means untuk analisis profil kemiskinan",
   "dependencies": {
     "@vitejs/plugin-vue": "^6.0.1",
     "@vue-leaflet/vue-leaflet": "^0.10.1",
