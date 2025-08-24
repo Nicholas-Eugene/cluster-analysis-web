@@ -272,7 +272,7 @@ import { ref, reactive, onMounted, nextTick, computed } from 'vue'
 import { useRoute } from 'vue-router'
 import { Chart, registerables } from 'chart.js'
 import L from 'leaflet'
-import mockApiService from '../services/mockData.js'
+import { mockData, mockHelpers } from '../services/mockData.js'
 
 Chart.register(...registerables)
 
@@ -383,8 +383,9 @@ export default {
       try {
         isLoading.value = true
         
-        // Always load demo data for mockup
-        results.value = await mockApiService.getDemoResults()
+        // Load demo data directly without API call
+        await new Promise(resolve => setTimeout(resolve, 800))
+        results.value = mockData.clusteringResults
         
         await nextTick()
         initializeVisualizations()
@@ -530,14 +531,7 @@ export default {
     const exportToCSV = () => {
       if (!results.value) return
 
-      let csv = 'kabupaten_kota,tahun,ipm,garis_kemiskinan,cluster,membership\n'
-      
-      results.value.clusters.forEach((cluster, clusterIndex) => {
-        cluster.members.forEach(member => {
-          csv += `${member.kabupaten_kota},${member.tahun},${member.ipm},${member.garis_kemiskinan},${clusterIndex + 1},${member.membership}\n`
-        })
-      })
-
+      const csv = mockHelpers.generateCSV()
       const blob = new Blob([csv], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
@@ -552,7 +546,7 @@ export default {
     const exportToJSON = () => {
       if (!results.value) return
 
-      const jsonData = JSON.stringify(results.value, null, 2)
+      const jsonData = mockHelpers.generateJSON()
       const blob = new Blob([jsonData], { type: 'application/json' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')

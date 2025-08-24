@@ -271,7 +271,7 @@
 <script>
 import { ref, reactive, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import mockApiService, { mockData } from '../services/mockData.js'
+import { mockData } from '../services/mockData.js'
 
 export default {
   name: 'UploadMockup',
@@ -400,7 +400,12 @@ Makassar,2023,73.2,380000`
           formData.append('selected_year', parameters.selectedYear)
         }
 
-        const response = await mockApiService.uploadAndProcess(formData)
+        // Simulate upload process without API call
+        await new Promise(resolve => setTimeout(resolve, 1500))
+        const response = { 
+          session_id: 'mock-session-' + Date.now(),
+          status: 'completed'
+        }
         
         uploadSuccess.value = 'Dataset berhasil diproses! (Mode Demo)'
         

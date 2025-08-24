@@ -1,4 +1,4 @@
-// Mock data service untuk demo UI tanpa backend
+// Mock data service untuk demo UI tanpa backend - NO API CALLS
 export const mockData = {
   // Sample clustering results
   clusteringResults: {
@@ -256,96 +256,26 @@ export const mockData = {
   processingSessions: new Map()
 }
 
-// Mock API service
-export const mockApiService = {
-  // Simulate file upload and processing
-  async uploadAndProcess(formData) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const sessionId = 'mock-session-' + Date.now()
-        mockData.processingSessions.set(sessionId, {
-          status: 'completed',
-          results: mockData.clusteringResults
-        })
-        
-        resolve({
-          session_id: sessionId,
-          status: 'processing',
-          message: 'Dataset berhasil diterima dan sedang diproses'
-        })
-      }, 1500) // Simulate processing time
+// Helper functions untuk demo tanpa API
+export const mockHelpers = {
+  // Simulate delay for realistic UX
+  delay: (ms) => new Promise(resolve => setTimeout(resolve, ms)),
+  
+  // Generate CSV for export
+  generateCSV: () => {
+    let csv = 'kabupaten_kota,tahun,ipm,garis_kemiskinan,cluster,membership\n'
+    mockData.clusteringResults.clusters.forEach((cluster, clusterIndex) => {
+      cluster.members.forEach(member => {
+        csv += `${member.kabupaten_kota},${member.tahun},${member.ipm},${member.garis_kemiskinan},${clusterIndex + 1},${member.membership}\n`
+      })
     })
+    return csv
   },
-
-  // Get clustering results
-  async getResults(sessionId) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const session = mockData.processingSessions.get(sessionId)
-        if (session) {
-          resolve(session.results)
-        } else {
-          resolve(mockData.clusteringResults) // Fallback to default data
-        }
-      }, 500)
-    })
-  },
-
-  // Get demo results (same as regular results for mockup)
-  async getDemoResults() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockData.clusteringResults)
-      }, 800)
-    })
-  },
-
-  // Validate dataset (always return success for mockup)
-  async validateDataset(file) {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve({
-          valid: true,
-          preview: mockData.datasetPreview,
-          message: 'Dataset valid dan siap diproses'
-        })
-      }, 500)
-    })
-  },
-
-  // Get available years
-  async getAvailableYears() {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(mockData.availableYears)
-      }, 200)
-    })
-  },
-
-  // Export results (simulate download)
-  async exportResults(sessionId, format = 'csv') {
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        let data = ''
-        
-        if (format === 'csv') {
-          data = 'kabupaten_kota,tahun,ipm,garis_kemiskinan,cluster,membership\n'
-          mockData.clusteringResults.clusters.forEach((cluster, clusterIndex) => {
-            cluster.members.forEach(member => {
-              data += `${member.kabupaten_kota},${member.tahun},${member.ipm},${member.garis_kemiskinan},${clusterIndex + 1},${member.membership}\n`
-            })
-          })
-        } else if (format === 'json') {
-          data = JSON.stringify(mockData.clusteringResults, null, 2)
-        }
-        
-        resolve({
-          data: data,
-          filename: `clustering_results_${sessionId}.${format}`
-        })
-      }, 800)
-    })
+  
+  // Generate JSON for export
+  generateJSON: () => {
+    return JSON.stringify(mockData.clusteringResults, null, 2)
   }
 }
 
-export default mockApiService
+export default mockData
