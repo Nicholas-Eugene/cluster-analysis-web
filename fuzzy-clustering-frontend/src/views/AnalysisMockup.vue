@@ -96,7 +96,26 @@
         <div class="card">
           <h2>🗺️ Peta Interaktif Hasil Clustering</h2>
           <div class="map-container">
-            <div id="indonesia-map" class="map-view"></div>
+            <div id="indonesia-map" class="map-view">
+              <!-- Fallback content jika map gagal load -->
+              <div v-if="error && error.includes('Map')" class="map-fallback">
+                <div class="fallback-content">
+                  <div class="fallback-icon">🗺️</div>
+                  <h3>Peta Indonesia</h3>
+                  <p>Visualisasi Cluster Kabupaten/Kota</p>
+                  <div class="cluster-summary">
+                    <div v-for="(cluster, index) in results.clusters" :key="index" class="cluster-item">
+                      <div class="cluster-dot" :style="{ backgroundColor: getClusterColor(index) }"></div>
+                      <span>Cluster {{ index + 1 }}: {{ cluster.members.length }} wilayah</span>
+                    </div>
+                  </div>
+                  <button @click="retryMapLoading" class="btn btn-secondary">
+                🔄 Coba Muat Ulang Map
+              </button>
+              <small>Atau scroll ke bawah untuk melihat visualisasi lainnya</small>
+                </div>
+              </div>
+            </div>
             <div class="map-legend">
               <h4>Legend Cluster</h4>
               <div class="legend-items">
@@ -388,7 +407,7 @@ export default {
         results.value = mockData.clusteringResults
         
         await nextTick()
-        initializeVisualizations()
+        await initializeVisualizations()
         
       } catch (err) {
         error.value = err.message || 'Gagal memuat hasil analisis'
@@ -397,18 +416,40 @@ export default {
       }
     }
 
-    const initializeVisualizations = () => {
-      initializeMap()
+    const initializeVisualizations = async () => {
+      // Wait a bit more for DOM to be ready
+      await new Promise(resolve => setTimeout(resolve, 100))
+      await initializeMap()
       createScatterPlot()
     }
 
-    const initializeMap = () => {
+    const initializeMap = async () => {
       try {
+        // Check if map container exists
+        const mapContainer = document.getElementById('indonesia-map')
+        if (!mapContainer) {
+          console.error('Map container not found')
+          // Try again after a short delay
+          await new Promise(resolve => setTimeout(resolve, 500))
+          const retryContainer = document.getElementById('indonesia-map')
+          if (!retryContainer) {
+            error.value = 'Map container tidak ditemukan. Coba refresh halaman.'
+            return
+          }
+        }
+
+        // Clear any existing map
+        if (map.value) {
+          map.value.remove()
+          map.value = null
+        }
+
         // Initialize Leaflet map
         map.value = L.map('indonesia-map').setView([-2.5, 118], 5)
         
         L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-          attribution: '© OpenStreetMap contributors'
+          attribution: '© OpenStreetMap contributors',
+          maxZoom: 19
         }).addTo(map.value)
 
         // Add cluster markers with sample coordinates
@@ -424,32 +465,61 @@ export default {
             [-3.3194, 114.5906], // Banjarmasin
             [-0.0263, 109.3425], // Pontianak
             [-1.2379, 116.8529], // Balikpapan
+            [-7.7956, 110.3695], // Yogyakarta
+            [-8.6500, 115.2167], // Denpasar
+            [-7.9666, 112.6326], // Malang
+            [-6.2441, 106.8294], // Bekasi
+            [-6.4025, 106.7942], // Depok
+            [-2.2180, 113.9444], // Palangkaraya
+            [-8.5833, 116.1167], // Mataram
+            [-0.8917, 119.8707], // Palu
+            [5.5483, 95.3238],   // Banda Aceh
+            [1.4748, 124.8421],  // Manado
+            [-3.6954, 128.1814], // Ambon
+            [-2.5489, 140.7009], // Jayapura
+            [-10.1772, 123.6070] // Kupang
           ]
 
+          let coordIndex = 0
           results.value.clusters.forEach((cluster, clusterIndex) => {
-            cluster.members.forEach((member, memberIndex) => {
-              const coordIndex = (clusterIndex * cluster.members.length + memberIndex) % sampleCoordinates.length
-              const [lat, lng] = sampleCoordinates[coordIndex]
-              
-              const marker = L.circleMarker([lat, lng], {
-                color: getClusterColor(clusterIndex),
-                fillColor: getClusterColor(clusterIndex),
-                fillOpacity: 0.7,
-                radius: 8
-              }).addTo(map.value)
-              
-              marker.bindPopup(`
-                <strong>${member.kabupaten_kota}</strong><br>
-                Cluster: ${clusterIndex + 1}<br>
-                IPM: ${member.ipm.toFixed(2)}<br>
-                Garis Kemiskinan: Rp ${formatCurrency(member.garis_kemiskinan)}<br>
-                Membership: ${(member.membership * 100).toFixed(1)}%
-              `)
+            cluster.members.forEach((member) => {
+              if (coordIndex < sampleCoordinates.length) {
+                const [lat, lng] = sampleCoordinates[coordIndex]
+                
+                const marker = L.circleMarker([lat, lng], {
+                  color: getClusterColor(clusterIndex),
+                  fillColor: getClusterColor(clusterIndex),
+                  fillOpacity: 0.7,
+                  radius: 8,
+                  weight: 2
+                }).addTo(map.value)
+                
+                marker.bindPopup(`
+                  <div style="font-family: Arial, sans-serif;">
+                    <strong style="color: ${getClusterColor(clusterIndex)};">${member.kabupaten_kota}</strong><br>
+                    <strong>Cluster:</strong> ${clusterIndex + 1}<br>
+                    <strong>IPM:</strong> ${member.ipm.toFixed(2)}<br>
+                    <strong>Garis Kemiskinan:</strong> Rp ${formatCurrency(member.garis_kemiskinan)}<br>
+                    <strong>Membership:</strong> ${(member.membership * 100).toFixed(1)}%
+                  </div>
+                `)
+                
+                coordIndex++
+              }
             })
           })
         }
+
+        // Force map to resize after container is ready
+        setTimeout(() => {
+          if (map.value) {
+            map.value.invalidateSize()
+          }
+        }, 100)
+
       } catch (err) {
         console.error('Error initializing map:', err)
+        error.value = 'Error loading map: ' + err.message
       }
     }
 
@@ -574,6 +644,15 @@ export default {
       alert('Demo: Fitur generate report PDF. Dalam versi production akan menghasilkan laporan PDF lengkap dengan semua visualisasi dan analisis.')
     }
 
+    const retryMapLoading = async () => {
+      error.value = ''
+      try {
+        await initializeMap()
+      } catch (err) {
+        console.error('Retry map loading failed:', err)
+      }
+    }
+
     onMounted(() => {
       loadResults()
     })
@@ -600,7 +679,8 @@ export default {
       exportToCSV,
       exportToJSON,
       exportCharts,
-      generateReport
+      generateReport,
+      retryMapLoading
     }
   }
 }
@@ -738,9 +818,86 @@ export default {
 
 .map-view {
   height: 500px;
+  width: 100%;
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  background: #f0f0f0;
+  position: relative;
+}
+
+/* Ensure Leaflet CSS is properly applied */
+.map-view .leaflet-container {
+  height: 100%;
+  width: 100%;
+  border-radius: 12px;
+}
+
+/* Fix for Leaflet marker icons */
+.map-view .leaflet-marker-icon {
+  margin-left: -12px;
+  margin-top: -41px;
+}
+
+/* Map fallback styles */
+.map-fallback {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+  border-radius: 12px;
+}
+
+.fallback-content {
+  text-align: center;
+  padding: 2rem;
+}
+
+.fallback-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.7;
+}
+
+.fallback-content h3 {
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+  font-size: 1.5rem;
+}
+
+.fallback-content p {
+  color: #718096;
+  margin-bottom: 2rem;
+}
+
+.cluster-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.cluster-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: center;
+}
+
+.cluster-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.fallback-content small {
+  color: #a0aec0;
+  font-style: italic;
 }
 
 .map-legend {
