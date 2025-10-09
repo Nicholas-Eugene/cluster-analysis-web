@@ -5,12 +5,12 @@
       <section class="hero">
         <div class="hero-content">
           <h1 class="hero-title">
-            Cluster Profil Kemiskinan Kabupaten/Kota di Indonesia 
-            Berdasarkan IPM dan Garis Kemiskinan
+            Analisis Clustering Regional Indonesia 
+            Berdasarkan IPM, Garis Kemiskinan & Pengeluaran Per Kapita
           </h1>
           <p class="hero-subtitle">
-            Analisis clustering menggunakan algoritma Fuzzy C-Means untuk mengidentifikasi 
-            pola kemiskinan di berbagai wilayah Indonesia
+            Analisis clustering menggunakan algoritma Fuzzy C-Means dan OPTICS untuk mengidentifikasi 
+            pola pembangunan dan kemiskinan di berbagai wilayah Indonesia (2015-2024)
           </p>
           <div class="hero-actions">
             <router-link to="/upload" class="btn btn-lg">
@@ -33,18 +33,18 @@
       <!-- About Algorithm Section -->
       <section id="about" class="about-section">
         <div class="card">
-          <h2 class="section-title">Tentang Algoritma Fuzzy C-Means</h2>
-          <div class="grid grid-2">
-            <div class="about-content">
-              <h3>Apa itu Fuzzy C-Means?</h3>
+          <h2 class="section-title">Algoritma Clustering yang Didukung</h2>
+          <div class="algorithm-grid">
+            <div class="algorithm-card">
+              <div class="algorithm-header">
+                <div class="algorithm-icon">🌟</div>
+                <h3>Fuzzy C-Means (FCM)</h3>
+              </div>
               <p>
-                Fuzzy C-Means (FCM) adalah algoritma clustering yang menggunakan konsep 
-                logika fuzzy dimana setiap data point dapat menjadi anggota dari beberapa 
-                cluster dengan derajat keanggotaan yang berbeda-beda. Algoritma ini sangat 
-                efektif untuk menganalisis data yang memiliki batas cluster yang tidak jelas.
+                Algoritma clustering fuzzy yang memberikan tingkat keanggotaan untuk setiap data point ke dalam cluster.
+                Sangat efektif untuk data yang memiliki batas cluster yang tidak jelas.
               </p>
-              
-              <h3>Keunggulan FCM</h3>
+              <h4>Keunggulan FCM:</h4>
               <ul class="feature-list">
                 <li>Dapat menangani overlapping cluster</li>
                 <li>Memberikan informasi tingkat ketidakpastian</li>
@@ -53,40 +53,25 @@
               </ul>
             </div>
             
-            <div class="algorithm-steps">
-              <h3>Tahapan Algoritma</h3>
-              <div class="steps">
-                <div class="step">
-                  <div class="step-number">1</div>
-                  <div class="step-content">
-                    <h4>Inisialisasi</h4>
-                    <p>Tentukan jumlah cluster dan parameter fuzzy</p>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-number">2</div>
-                  <div class="step-content">
-                    <h4>Hitung Centroid</h4>
-                    <p>Kalkulasi pusat cluster berdasarkan membership matrix</p>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-number">3</div>
-                  <div class="step-content">
-                    <h4>Update Membership</h4>
-                    <p>Perbarui derajat keanggotaan setiap data point</p>
-                  </div>
-                </div>
-                <div class="step">
-                  <div class="step-number">4</div>
-                  <div class="step-content">
-                    <h4>Konvergensi</h4>
-                    <p>Ulangi hingga kriteria berhenti tercapai</p>
-                  </div>
-                </div>
+            <div class="algorithm-card">
+              <div class="algorithm-header">
+                <div class="algorithm-icon">🔍</div>
+                <h3>OPTICS</h3>
               </div>
+              <p>
+                Algoritma clustering berbasis density yang dapat menemukan cluster dengan bentuk arbitrary 
+                dan menangani noise. Tidak memerlukan penentuan jumlah cluster di awal.
+              </p>
+              <h4>Keunggulan OPTICS:</h4>
+              <ul class="feature-list">
+                <li>Mendeteksi cluster dengan bentuk tidak beraturan</li>
+                <li>Menangani noise dan outlier dengan baik</li>
+                <li>Otomatis menentukan jumlah cluster</li>
+                <li>Robust untuk data dengan densitas bervariasi</li>
+              </ul>
             </div>
           </div>
+            
         </div>
       </section>
 
@@ -112,11 +97,29 @@
               </p>
             </div>
             <div class="data-item">
+              <div class="data-icon">💳</div>
+              <h3>Pengeluaran Per Kapita</h3>
+              <p>
+                Rata-rata pengeluaran per kapita yang mencerminkan daya beli 
+                dan standar hidup masyarakat di suatu wilayah.
+              </p>
+            </div>
+          </div>
+          <div class="grid grid-2" style="margin-top: 2rem;">
+            <div class="data-item">
               <div class="data-icon">🗺️</div>
               <h3>Data Kabupaten/Kota</h3>
               <p>
                 Analisis dilakukan pada tingkat kabupaten/kota di seluruh Indonesia 
                 dengan data time series untuk melihat tren temporal.
+              </p>
+            </div>
+            <div class="data-item">
+              <div class="data-icon">📅</div>
+              <h3>Data Time Series (2015-2024)</h3>
+              <p>
+                Data longitudinal selama 10 tahun untuk menganalisis perubahan 
+                pola pembangunan dan kemiskinan dari waktu ke waktu.
               </p>
             </div>
           </div>
@@ -171,19 +174,19 @@
             <div class="feature-card">
               <div class="feature-icon">📤</div>
               <h3>Upload Dataset</h3>
-              <p>Upload file CSV dengan data IPM dan Garis Kemiskinan per kabupaten/kota</p>
+              <p>Upload file CSV dengan data IPM, Garis Kemiskinan, dan Pengeluaran Per Kapita per kabupaten/kota</p>
               <router-link to="/upload" class="feature-link">Mulai Upload →</router-link>
             </div>
             <div class="feature-card">
               <div class="feature-icon">⚙️</div>
-              <h3>Konfigurasi Parameter</h3>
-              <p>Set parameter clustering seperti jumlah cluster dan fuzzy coefficient</p>
+              <h3>Pilih Algoritma</h3>
+              <p>Pilih antara Fuzzy C-Means atau OPTICS dengan konfigurasi parameter yang sesuai</p>
             </div>
             <div class="feature-card">
               <div class="feature-icon">📊</div>
               <h3>Visualisasi Interaktif</h3>
-              <p>Dashboard dengan peta, scatter plot, dan metrik evaluasi clustering</p>
-              <router-link to="/analysis" class="feature-link">Lihat Demo →</router-link>
+              <p>Dashboard dengan peta interaktif, scatter plot, box plot, dan metrik evaluasi clustering</p>
+              <router-link to="/analysis-mockup" class="feature-link">Lihat Demo →</router-link>
             </div>
           </div>
         </div>
@@ -321,6 +324,48 @@ export default {
 
 .about-section {
   padding: 4rem 0;
+}
+
+.algorithm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  gap: 2rem;
+}
+
+.algorithm-card {
+  background: #f7fafc;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.algorithm-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.algorithm-icon {
+  font-size: 2rem;
+}
+
+.algorithm-card h3 {
+  color: #2d3748;
+  margin: 0;
+  font-size: 1.5rem;
+}
+
+.algorithm-card p {
+  color: #718096;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.algorithm-card h4 {
+  color: #4a5568;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
 }
 
 .about-content h3 {

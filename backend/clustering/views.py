@@ -3,46 +3,10 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
 from .models import ClusteringSession
+from .algorithms import get_clustering_results
 
 import pandas as pd
 import numpy as np
-
-
-def compute_demo_fcm_results(df: pd.DataFrame, num_clusters: int) -> dict:
-    # For initial implementation, return a shaped demo based on df
-    clusters = []
-    # naive split for demo
-    df = df.copy()
-    df['cluster'] = (np.arange(len(df)) % num_clusters)
-    for cluster_id in range(num_clusters):
-        members_df = df[df['cluster'] == cluster_id]
-        centroid = {
-            'ipm': float(members_df['ipm'].astype(float).mean()) if not members_df.empty else 0.0,
-            'garis_kemiskinan': float(members_df['garis_kemiskinan'].astype(float).mean()) if not members_df.empty else 0.0,
-        }
-        members = []
-        for _, row in members_df.iterrows():
-            members.append({
-                'kabupaten_kota': str(row.get('kabupaten_kota', '')),
-                'tahun': int(row.get('tahun', 0)) if str(row.get('tahun', '')).isdigit() else row.get('tahun', 0),
-                'ipm': float(row.get('ipm', 0.0)),
-                'garis_kemiskinan': float(row.get('garis_kemiskinan', 0.0)),
-                'membership': 1.0 / num_clusters,
-            })
-        clusters.append({'id': cluster_id, 'centroid': centroid, 'members': members})
-    return {
-        'summary': {
-            'total_regions': int(df.shape[0]),
-            'num_clusters': int(num_clusters),
-            'iterations': 1,
-            'execution_time': 0.01,
-        },
-        'evaluation': {
-            'davies_bouldin': 0.0,
-            'silhouette_score': 0.0,
-        },
-        'clusters': clusters,
-    }
 
 
 class UploadAndProcessView(APIView):
@@ -52,39 +16,78 @@ class UploadAndProcessView(APIView):
             return Response({'error': 'File tidak ditemukan'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
+            algorithm = request.POST.get('algorithm', 'fcm').lower()
             num_clusters = int(request.POST.get('num_clusters', 3))
             fuzzy_coeff = float(request.POST.get('fuzzy_coeff', 2.0))
             max_iter = int(request.POST.get('max_iter', 300))
             tolerance = float(request.POST.get('tolerance', 0.0001))
             selected_year = request.POST.get('selected_year')
-        except Exception:
-            return Response({'error': 'Parameter tidak valid'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # OPTICS specific parameters
+            min_samples = int(request.POST.get('min_samples', 5))
+            xi = float(request.POST.get('xi', 0.05))
+            min_cluster_size = float(request.POST.get('min_cluster_size', 0.05))
+        except Exception as e:
+            return Response({'error': f'Parameter tidak valid: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
             df = pd.read_csv(file_obj)
-        except Exception:
-            return Response({'error': 'Gagal membaca file CSV'}, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({'error': f'Gagal membaca file CSV: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
-        required_cols = {'kabupaten_kota', 'tahun', 'ipm', 'garis_kemiskinan'}
-        if not required_cols.issubset(set(df.columns)):
-            return Response({'error': 'Kolom wajib hilang: kabupaten_kota, tahun, ipm, garis_kemiskinan'}, status=status.HTTP_400_BAD_REQUEST)
+        required_cols = {'kabupaten_kota', 'tahun', 'ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'}
+        missing_cols = required_cols - set(df.columns)
+        if missing_cols:
+            return Response({'error': f'Kolom wajib hilang: {", ".join(missing_cols)}'}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Filter by year if specified
         if selected_year:
             try:
-                df = df[df['tahun'] == int(selected_year)]
+                year_int = int(selected_year)
+                df = df[df['tahun'] == year_int]
+                if df.empty:
+                    return Response({'error': f'Tidak ada data untuk tahun {selected_year}'}, status=status.HTTP_400_BAD_REQUEST)
             except Exception:
                 pass
 
         parameters = {
+            'algorithm': algorithm,
             'num_clusters': num_clusters,
             'fuzzy_coeff': fuzzy_coeff,
             'max_iter': max_iter,
             'tolerance': tolerance,
             'selected_year': selected_year,
+            'min_samples': min_samples,
+            'xi': xi,
+            'min_cluster_size': min_cluster_size,
         }
 
-        # TODO: replace with actual FCM; for now generate shaped results
-        results = compute_demo_fcm_results(df, num_clusters)
+        try:
+            # Use the new clustering algorithms
+            if algorithm == 'fcm':
+                results = get_clustering_results(
+                    df, 
+                    algorithm='fcm',
+                    features=['ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'],
+                    n_clusters=num_clusters,
+                    m=fuzzy_coeff,
+                    max_iter=max_iter,
+                    error=tolerance
+                )
+            elif algorithm == 'optics':
+                results = get_clustering_results(
+                    df,
+                    algorithm='optics',
+                    features=['ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'],
+                    min_samples=min_samples,
+                    xi=xi,
+                    min_cluster_size=min_cluster_size
+                )
+            else:
+                return Response({'error': 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({'error': f'Gagal melakukan clustering: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         with transaction.atomic():
             session = ClusteringSession.objects.create(

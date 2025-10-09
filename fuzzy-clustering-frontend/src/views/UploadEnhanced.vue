@@ -1,0 +1,1046 @@
+<template>
+  <div class="upload-page">
+    <div class="container">
+      <div class="page-header">
+        <h1>Analisis Clustering Regional Indonesia</h1>
+        <p>Upload dataset dan konfigurasi parameter untuk analisis clustering menggunakan Fuzzy C-Means atau OPTICS</p>
+      </div>
+
+      <!-- Instructions Section -->
+      <div class="card">
+        <h2>📋 Petunjuk Dataset</h2>
+        <div class="instructions">
+          <div class="instruction-item">
+            <h3>Format File</h3>
+            <ul>
+              <li>File harus berformat CSV (.csv)</li>
+              <li>Encoding UTF-8 dengan delimiter koma (,)</li>
+              <li>Baris pertama harus berisi header kolom</li>
+              <li>Maksimal ukuran file: 10 MB</li>
+            </ul>
+          </div>
+          
+          <div class="instruction-item">
+            <h3>Struktur Data yang Diperlukan</h3>
+            <div class="data-structure">
+              <table class="sample-table">
+                <thead>
+                  <tr>
+                    <th>Kolom</th>
+                    <th>Deskripsi</th>
+                    <th>Contoh</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td><strong>kabupaten_kota</strong></td>
+                    <td>Nama kabupaten/kota</td>
+                    <td>Jakarta Pusat</td>
+                  </tr>
+                  <tr>
+                    <td><strong>provinsi</strong></td>
+                    <td>Nama provinsi</td>
+                    <td>DKI Jakarta</td>
+                  </tr>
+                  <tr>
+                    <td><strong>tahun</strong></td>
+                    <td>Tahun data (2015-2024)</td>
+                    <td>2023</td>
+                  </tr>
+                  <tr>
+                    <td><strong>ipm</strong></td>
+                    <td>Nilai Indeks Pembangunan Manusia</td>
+                    <td>75.5</td>
+                  </tr>
+                  <tr>
+                    <td><strong>garis_kemiskinan</strong></td>
+                    <td>Nilai garis kemiskinan (Rupiah)</td>
+                    <td>532000</td>
+                  </tr>
+                  <tr>
+                    <td><strong>pengeluaran_per_kapita</strong></td>
+                    <td>Pengeluaran per kapita (Rupiah)</td>
+                    <td>8500000</td>
+                  </tr>
+                  <tr>
+                    <td><strong>latitude</strong></td>
+                    <td>Koordinat lintang</td>
+                    <td>-6.1745</td>
+                  </tr>
+                  <tr>
+                    <td><strong>longitude</strong></td>
+                    <td>Koordinat bujur</td>
+                    <td>106.8227</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="instruction-item">
+            <h3>Contoh Dataset</h3>
+            <div class="sample-download">
+              <p>Download template dataset untuk referensi:</p>
+              <button @click="downloadSample" class="btn btn-secondary">
+                📥 Download Template CSV
+              </button>
+              <button @click="loadSampleData" class="btn btn-info">
+                📊 Gunakan Data Sample
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- File Upload Section -->
+      <div class="card">
+        <h2>📤 Upload File Dataset</h2>
+        <div class="upload-area">
+          <div 
+            class="file-upload"
+            :class="{ 'dragover': isDragOver }"
+            @dragover.prevent="isDragOver = true"
+            @dragleave.prevent="isDragOver = false"
+            @drop.prevent="handleFileDrop"
+            @click="triggerFileInput"
+          >
+            <input 
+              ref="fileInput"
+              type="file"
+              accept=".csv"
+              @change="handleFileSelect"
+              style="display: none"
+            >
+            
+            <div v-if="!selectedFile" class="upload-placeholder">
+              <div class="upload-icon">📁</div>
+              <h3>Klik atau drag & drop file CSV di sini</h3>
+              <p>Maksimal ukuran file: 10 MB</p>
+            </div>
+            
+            <div v-else class="file-info">
+              <div class="file-icon">📄</div>
+              <div class="file-details">
+                <h3>{{ selectedFile.name }}</h3>
+                <p>{{ formatFileSize(selectedFile.size) }}</p>
+                <button @click.stop="removeFile" class="btn-remove">
+                  ❌ Hapus File
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <div v-if="uploadError" class="alert alert-error">
+            {{ uploadError }}
+          </div>
+          
+          <div v-if="uploadSuccess" class="alert alert-success">
+            {{ uploadSuccess }}
+          </div>
+        </div>
+      </div>
+
+      <!-- Data Preview Section -->
+      <div v-if="dataPreview" class="card">
+        <h2>👀 Preview Data</h2>
+        <div class="data-preview">
+          <div class="preview-stats">
+            <div class="stat-item">
+              <span class="stat-label">Total Baris:</span>
+              <span class="stat-value">{{ dataPreview.totalRows }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Kolom:</span>
+              <span class="stat-value">{{ dataPreview.columns.join(', ') }}</span>
+            </div>
+            <div class="stat-item">
+              <span class="stat-label">Tahun Tersedia:</span>
+              <span class="stat-value">{{ dataPreview.years.join(', ') }}</span>
+            </div>
+          </div>
+          
+          <div class="preview-table-container">
+            <table class="preview-table">
+              <thead>
+                <tr>
+                  <th v-for="column in dataPreview.columns" :key="column">
+                    {{ column }}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr v-for="(row, index) in dataPreview.sampleRows" :key="index">
+                  <td v-for="column in dataPreview.columns" :key="column">
+                    {{ row[column] }}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Algorithm Selection -->
+      <div class="card">
+        <h2>🔬 Pilih Algoritma Clustering</h2>
+        <div class="algorithm-selection">
+          <div class="algorithm-grid">
+            <div 
+              class="algorithm-card"
+              :class="{ active: selectedAlgorithm === 'fcm' }"
+              @click="selectedAlgorithm = 'fcm'"
+            >
+              <h3>🌟 Fuzzy C-Means (FCM)</h3>
+              <p>Algoritma clustering fuzzy yang memberikan tingkat keanggotaan untuk setiap data point ke dalam cluster.</p>
+              <ul>
+                <li>✅ Cocok untuk data dengan batas cluster yang tidak jelas</li>
+                <li>✅ Memberikan tingkat keanggotaan (membership)</li>
+                <li>✅ Stabil dan konsisten</li>
+              </ul>
+            </div>
+            
+            <div 
+              class="algorithm-card"
+              :class="{ active: selectedAlgorithm === 'optics' }"
+              @click="selectedAlgorithm = 'optics'"
+            >
+              <h3>🔍 OPTICS</h3>
+              <p>Algoritma clustering berbasis density yang dapat menemukan cluster dengan bentuk arbitrary dan menangani noise.</p>
+              <ul>
+                <li>✅ Dapat mendeteksi cluster dengan bentuk tidak beraturan</li>
+                <li>✅ Menangani noise dan outlier</li>
+                <li>✅ Tidak perlu menentukan jumlah cluster</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Parameters Configuration Section -->
+      <div class="card">
+        <h2>⚙️ Konfigurasi Parameter</h2>
+        
+        <!-- Year Selection -->
+        <div class="form-group">
+          <label class="form-label">
+            Pilih Tahun untuk Analisis
+            <span class="info-tooltip" title="Pilih tahun tertentu atau gunakan semua data">ℹ️</span>
+          </label>
+          <select v-model="parameters.selectedYear" class="form-select">
+            <option value="">Semua Tahun (2015-2024)</option>
+            <option v-for="year in availableYears" :key="year" :value="year">
+              {{ year }}
+            </option>
+          </select>
+          <small class="form-help">Kosongkan untuk menggunakan semua data tahun</small>
+        </div>
+
+        <!-- FCM Parameters -->
+        <div v-if="selectedAlgorithm === 'fcm'" class="parameters-form">
+          <h3>Parameter Fuzzy C-Means</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label">
+                Jumlah Cluster (c)
+                <span class="info-tooltip" title="Jumlah cluster yang diinginkan (2-10)">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.numClusters"
+                class="form-input"
+                min="2"
+                max="10"
+                placeholder="Contoh: 3"
+              >
+              <small class="form-help">Rentang: 2-10 cluster</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                Fuzzy Coefficient (m)
+                <span class="info-tooltip" title="Parameter fuzziness yang mengontrol tingkat kekaburan cluster">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.fuzzyCoeff"
+                class="form-input"
+                min="1.1"
+                max="5"
+                step="0.1"
+                placeholder="Contoh: 2.0"
+              >
+              <small class="form-help">Rentang: 1.1-5.0 (default: 2.0)</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                Maksimal Iterasi
+                <span class="info-tooltip" title="Jumlah maksimal iterasi algoritma">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.maxIter"
+                class="form-input"
+                min="50"
+                max="1000"
+                placeholder="Contoh: 300"
+              >
+              <small class="form-help">Rentang: 50-1000 iterasi</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                Toleransi Error
+                <span class="info-tooltip" title="Kriteria berhenti berdasarkan perubahan centroid">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.tolerance"
+                class="form-input"
+                min="0.0001"
+                max="0.1"
+                step="0.0001"
+                placeholder="Contoh: 0.0001"
+              >
+              <small class="form-help">Rentang: 0.0001-0.1</small>
+            </div>
+          </div>
+        </div>
+
+        <!-- OPTICS Parameters -->
+        <div v-if="selectedAlgorithm === 'optics'" class="parameters-form">
+          <h3>Parameter OPTICS</h3>
+          <div class="grid grid-2">
+            <div class="form-group">
+              <label class="form-label">
+                Minimum Samples
+                <span class="info-tooltip" title="Jumlah minimum sampel dalam neighborhood">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.minSamples"
+                class="form-input"
+                min="2"
+                max="50"
+                placeholder="Contoh: 5"
+              >
+              <small class="form-help">Rentang: 2-50 (default: 5)</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                Xi Parameter
+                <span class="info-tooltip" title="Minimum steepness pada reachability plot">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.xi"
+                class="form-input"
+                min="0.01"
+                max="1.0"
+                step="0.01"
+                placeholder="Contoh: 0.05"
+              >
+              <small class="form-help">Rentang: 0.01-1.0 (default: 0.05)</small>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">
+                Minimum Cluster Size
+                <span class="info-tooltip" title="Ukuran minimum cluster sebagai fraksi dari data">ℹ️</span>
+              </label>
+              <input 
+                type="number" 
+                v-model.number="parameters.minClusterSize"
+                class="form-input"
+                min="0.01"
+                max="0.5"
+                step="0.01"
+                placeholder="Contoh: 0.05"
+              >
+              <small class="form-help">Rentang: 0.01-0.5 (default: 0.05)</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="actions">
+        <button 
+          @click="validateAndProcess"
+          :disabled="!canProcess || isProcessing"
+          class="btn btn-lg btn-primary"
+        >
+          <span v-if="isProcessing" class="loading-spinner"></span>
+          {{ isProcessing ? 'Memproses...' : `Mulai Clustering ${selectedAlgorithm.toUpperCase()}` }}
+        </button>
+        
+        <button @click="resetForm" class="btn btn-secondary btn-lg">
+          🔄 Reset Form
+        </button>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+import { ref, reactive, computed } from 'vue'
+import { useRouter } from 'vue-router'
+import apiService from '../services/apiService.js'
+
+export default {
+  name: 'UploadEnhanced',
+  setup() {
+    const router = useRouter()
+    const selectedFile = ref(null)
+    const isDragOver = ref(false)
+    const uploadError = ref('')
+    const uploadSuccess = ref('')
+    const isProcessing = ref(false)
+    const dataPreview = ref(null)
+    const fileInput = ref(null)
+    const selectedAlgorithm = ref('fcm')
+
+    const parameters = reactive({
+      selectedYear: '',
+      // FCM parameters
+      numClusters: 3,
+      fuzzyCoeff: 2.0,
+      maxIter: 300,
+      tolerance: 0.0001,
+      // OPTICS parameters
+      minSamples: 5,
+      xi: 0.05,
+      minClusterSize: 0.05
+    })
+
+    const availableYears = computed(() => {
+      return Array.from({length: 10}, (_, i) => 2015 + i)
+    })
+
+    const canProcess = computed(() => {
+      return selectedFile.value || dataPreview.value
+    })
+
+    const triggerFileInput = () => {
+      fileInput.value.click()
+    }
+
+    const handleFileSelect = (event) => {
+      const file = event.target.files[0]
+      if (file) {
+        validateAndSetFile(file)
+      }
+    }
+
+    const handleFileDrop = (event) => {
+      isDragOver.value = false
+      const file = event.dataTransfer.files[0]
+      if (file) {
+        validateAndSetFile(file)
+      }
+    }
+
+    const validateAndSetFile = (file) => {
+      uploadError.value = ''
+      uploadSuccess.value = ''
+
+      // Validate file type
+      if (!file.name.toLowerCase().endsWith('.csv')) {
+        uploadError.value = 'File harus berformat CSV (.csv)'
+        return
+      }
+
+      // Validate file size (10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        uploadError.value = 'Ukuran file tidak boleh lebih dari 10 MB'
+        return
+      }
+
+      selectedFile.value = file
+      uploadSuccess.value = 'File berhasil dipilih'
+      
+      // Parse CSV for preview
+      parseCSVPreview(file)
+    }
+
+    const parseCSVPreview = (file) => {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result
+          const lines = text.split('\n').filter(line => line.trim())
+          
+          if (lines.length < 2) {
+            uploadError.value = 'File CSV harus memiliki minimal 2 baris (header + data)'
+            return
+          }
+
+          const headers = lines[0].split(',').map(h => h.trim())
+          const sampleRows = lines.slice(1, 6).map(line => {
+            const values = line.split(',').map(v => v.trim())
+            const row = {}
+            headers.forEach((header, index) => {
+              row[header] = values[index] || ''
+            })
+            return row
+          })
+
+          // Extract years from data
+          const years = [...new Set(lines.slice(1).map(line => {
+            const values = line.split(',')
+            const yearIndex = headers.indexOf('tahun')
+            return yearIndex >= 0 ? values[yearIndex]?.trim() : null
+          }).filter(year => year && !isNaN(year)))].sort()
+
+          dataPreview.value = {
+            totalRows: lines.length - 1,
+            columns: headers,
+            sampleRows: sampleRows,
+            years: years
+          }
+        } catch (error) {
+          uploadError.value = 'Gagal membaca file CSV. Pastikan format file benar.'
+        }
+      }
+      reader.readAsText(file)
+    }
+
+    const removeFile = () => {
+      selectedFile.value = null
+      dataPreview.value = null
+      uploadError.value = ''
+      uploadSuccess.value = ''
+      fileInput.value.value = ''
+    }
+
+    const formatFileSize = (bytes) => {
+      if (bytes === 0) return '0 Bytes'
+      const k = 1024
+      const sizes = ['Bytes', 'KB', 'MB', 'GB']
+      const i = Math.floor(Math.log(bytes) / Math.log(k))
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
+    }
+
+    const downloadSample = () => {
+      const sampleData = `kabupaten_kota,provinsi,tahun,ipm,garis_kemiskinan,pengeluaran_per_kapita,latitude,longitude
+Jakarta Pusat,DKI Jakarta,2023,82.5,532000,8500000,-6.1745,106.8227
+Jakarta Utara,DKI Jakarta,2023,78.2,548000,7800000,-6.1388,106.8650
+Jakarta Barat,DKI Jakarta,2023,79.1,525000,7200000,-6.1352,106.7644
+Jakarta Selatan,DKI Jakarta,2023,81.3,580000,9200000,-6.2615,106.8106
+Jakarta Timur,DKI Jakarta,2023,77.8,510000,6800000,-6.2250,106.9004
+Bandung,Jawa Barat,2023,75.2,485000,5800000,-6.9175,107.6191
+Surabaya,Jawa Timur,2023,76.8,465000,6500000,-7.2575,112.7521
+Medan,Sumatera Utara,2023,72.1,420000,5200000,3.5952,98.6722
+Semarang,Jawa Tengah,2023,74.5,445000,4900000,-6.9667,110.4167
+Makassar,Sulawesi Selatan,2023,73.2,380000,4300000,-5.1477,119.4327`
+
+      const blob = new Blob([sampleData], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'template_dataset_indonesia.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+
+    const loadSampleData = async () => {
+      try {
+        // Load the sample data file from backend
+        const response = await fetch('/backend/sample_data_indonesia.csv')
+        const text = await response.text()
+        
+        // Create a file object from the text
+        const blob = new Blob([text], { type: 'text/csv' })
+        const file = new File([blob], 'sample_data_indonesia.csv', { type: 'text/csv' })
+        
+        validateAndSetFile(file)
+        uploadSuccess.value = 'Data sample berhasil dimuat'
+      } catch (error) {
+        uploadError.value = 'Gagal memuat data sample'
+      }
+    }
+
+    const validateAndProcess = async () => {
+      uploadError.value = ''
+      
+      if (!selectedFile.value) {
+        uploadError.value = 'Silakan pilih file terlebih dahulu'
+        return
+      }
+
+      // Validate parameters based on algorithm
+      if (selectedAlgorithm.value === 'fcm') {
+        if (parameters.numClusters < 2 || parameters.numClusters > 10) {
+          uploadError.value = 'Jumlah cluster harus antara 2-10'
+          return
+        }
+
+        if (parameters.fuzzyCoeff < 1.1 || parameters.fuzzyCoeff > 5) {
+          uploadError.value = 'Fuzzy coefficient harus antara 1.1-5.0'
+          return
+        }
+      } else if (selectedAlgorithm.value === 'optics') {
+        if (parameters.minSamples < 2 || parameters.minSamples > 50) {
+          uploadError.value = 'Minimum samples harus antara 2-50'
+          return
+        }
+
+        if (parameters.xi < 0.01 || parameters.xi > 1.0) {
+          uploadError.value = 'Xi parameter harus antara 0.01-1.0'
+          return
+        }
+      }
+
+      isProcessing.value = true
+      
+      try {
+        const formData = new FormData()
+        formData.append('file', selectedFile.value)
+        formData.append('algorithm', selectedAlgorithm.value)
+        
+        if (parameters.selectedYear) {
+          formData.append('selected_year', parameters.selectedYear)
+        }
+
+        // Add algorithm-specific parameters
+        if (selectedAlgorithm.value === 'fcm') {
+          formData.append('num_clusters', parameters.numClusters)
+          formData.append('fuzzy_coeff', parameters.fuzzyCoeff)
+          formData.append('max_iter', parameters.maxIter)
+          formData.append('tolerance', parameters.tolerance)
+        } else if (selectedAlgorithm.value === 'optics') {
+          formData.append('min_samples', parameters.minSamples)
+          formData.append('xi', parameters.xi)
+          formData.append('min_cluster_size', parameters.minClusterSize)
+        }
+
+        const response = await apiService.uploadAndProcess(formData)
+        
+        uploadSuccess.value = 'Dataset berhasil diproses!'
+        
+        // Redirect to analysis page with results
+        setTimeout(() => {
+          router.push({
+            name: 'AnalysisFull',
+            query: { sessionId: response.session_id }
+          })
+        }, 1500)
+
+      } catch (error) {
+        uploadError.value = error.message || 'Terjadi kesalahan saat memproses data'
+      } finally {
+        isProcessing.value = false
+      }
+    }
+
+    const resetForm = () => {
+      removeFile()
+      selectedAlgorithm.value = 'fcm'
+      parameters.selectedYear = ''
+      parameters.numClusters = 3
+      parameters.fuzzyCoeff = 2.0
+      parameters.maxIter = 300
+      parameters.tolerance = 0.0001
+      parameters.minSamples = 5
+      parameters.xi = 0.05
+      parameters.minClusterSize = 0.05
+    }
+
+    return {
+      selectedFile,
+      isDragOver,
+      uploadError,
+      uploadSuccess,
+      isProcessing,
+      dataPreview,
+      fileInput,
+      selectedAlgorithm,
+      parameters,
+      availableYears,
+      canProcess,
+      triggerFileInput,
+      handleFileSelect,
+      handleFileDrop,
+      removeFile,
+      formatFileSize,
+      downloadSample,
+      loadSampleData,
+      validateAndProcess,
+      resetForm
+    }
+  }
+}
+</script>
+
+<style scoped>
+.upload-page {
+  padding: 2rem 0;
+}
+
+.page-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.page-header h1 {
+  font-size: 2.5rem;
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.page-header p {
+  font-size: 1.2rem;
+  color: #718096;
+}
+
+.instructions {
+  display: grid;
+  gap: 2rem;
+}
+
+.instruction-item h3 {
+  color: #4a5568;
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.instruction-item ul {
+  color: #718096;
+  padding-left: 1.5rem;
+}
+
+.instruction-item li {
+  margin-bottom: 0.5rem;
+  line-height: 1.6;
+}
+
+.sample-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.sample-table th,
+.sample-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.sample-table th {
+  background: #f7fafc;
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.sample-table td {
+  color: #718096;
+}
+
+.sample-download {
+  background: #f7fafc;
+  padding: 2rem;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.sample-download p {
+  margin-bottom: 1rem;
+  color: #4a5568;
+}
+
+.upload-area {
+  margin-top: 2rem;
+}
+
+.file-upload {
+  border: 3px dashed #cbd5e0;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f7fafc;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.file-upload:hover,
+.file-upload.dragover {
+  border-color: #667eea;
+  background: #edf2f7;
+  transform: translateY(-2px);
+}
+
+.upload-placeholder {
+  text-align: center;
+}
+
+.upload-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+  opacity: 0.6;
+}
+
+.upload-placeholder h3 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.upload-placeholder p {
+  color: #718096;
+  margin-bottom: 0.5rem;
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  text-align: left;
+}
+
+.file-icon {
+  font-size: 3rem;
+}
+
+.file-details h3 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
+  font-size: 1.25rem;
+}
+
+.file-details p {
+  color: #718096;
+  margin-bottom: 1rem;
+}
+
+.btn-remove {
+  background: #e53e3e;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.3s ease;
+}
+
+.btn-remove:hover {
+  background: #c53030;
+}
+
+.data-preview {
+  margin-top: 1rem;
+}
+
+.preview-stats {
+  display: flex;
+  gap: 2rem;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  background: #f7fafc;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.stat-label {
+  font-weight: 600;
+  color: #4a5568;
+  margin-right: 0.5rem;
+}
+
+.stat-value {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.preview-table-container {
+  overflow-x: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.preview-table th,
+.preview-table td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.preview-table th {
+  background: #f7fafc;
+  font-weight: 600;
+  color: #4a5568;
+  position: sticky;
+  top: 0;
+}
+
+.preview-table td {
+  color: #718096;
+}
+
+.algorithm-selection {
+  margin-top: 2rem;
+}
+
+.algorithm-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1rem;
+}
+
+.algorithm-card {
+  border: 2px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.algorithm-card:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.algorithm-card.active {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.algorithm-card h3 {
+  margin-bottom: 1rem;
+  font-size: 1.25rem;
+}
+
+.algorithm-card p {
+  margin-bottom: 1rem;
+  line-height: 1.6;
+}
+
+.algorithm-card ul {
+  list-style: none;
+  padding: 0;
+}
+
+.algorithm-card li {
+  margin-bottom: 0.5rem;
+  line-height: 1.4;
+}
+
+.parameters-form {
+  margin-top: 2rem;
+}
+
+.parameters-form h3 {
+  color: #4a5568;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+}
+
+.form-help {
+  color: #718096;
+  font-size: 0.875rem;
+  margin-top: 0.25rem;
+  display: block;
+}
+
+.info-tooltip {
+  cursor: help;
+  color: #667eea;
+  margin-left: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 3rem;
+  flex-wrap: wrap;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.btn-primary:hover {
+  background: linear-gradient(135deg, #5a67d8 0%, #6b46c1 100%);
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+  margin-left: 1rem;
+}
+
+.btn-info:hover {
+  background: linear-gradient(135deg, #3182ce 0%, #2c5282 100%);
+}
+
+@media (max-width: 768px) {
+  .upload-page {
+    padding: 1rem 0;
+  }
+  
+  .page-header h1 {
+    font-size: 2rem;
+  }
+  
+  .page-header p {
+    font-size: 1rem;
+  }
+  
+  .file-upload {
+    padding: 2rem 1rem;
+  }
+  
+  .file-info {
+    flex-direction: column;
+    text-align: center;
+  }
+  
+  .preview-stats {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .algorithm-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .actions {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .btn-lg {
+    width: 100%;
+    max-width: 300px;
+  }
+}
+</style>
