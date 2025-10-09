@@ -33,44 +33,24 @@
                 </thead>
                 <tbody>
                   <tr>
-                    <td><strong>kabupaten_kota</strong></td>
+                    <td><strong>kabupaten/kota</strong></td>
                     <td>Nama kabupaten/kota</td>
                     <td>Jakarta Pusat</td>
                   </tr>
                   <tr>
-                    <td><strong>provinsi</strong></td>
-                    <td>Nama provinsi</td>
-                    <td>DKI Jakarta</td>
+                    <td><strong>ipm_2016, ipm_2017, ..., ipm_2024</strong></td>
+                    <td>Nilai IPM per tahun (2016-2024)</td>
+                    <td>75.5, 76.2, 77.1, ...</td>
                   </tr>
                   <tr>
-                    <td><strong>tahun</strong></td>
-                    <td>Tahun data (2015-2024)</td>
-                    <td>2023</td>
+                    <td><strong>pengeluaran_2016, pengeluaran_2017, ..., pengeluaran_2024</strong></td>
+                    <td>Pengeluaran per kapita per tahun (Rupiah)</td>
+                    <td>8500000, 8700000, 8900000, ...</td>
                   </tr>
                   <tr>
-                    <td><strong>ipm</strong></td>
-                    <td>Nilai Indeks Pembangunan Manusia</td>
-                    <td>75.5</td>
-                  </tr>
-                  <tr>
-                    <td><strong>garis_kemiskinan</strong></td>
-                    <td>Nilai garis kemiskinan (Rupiah)</td>
-                    <td>532000</td>
-                  </tr>
-                  <tr>
-                    <td><strong>pengeluaran_per_kapita</strong></td>
-                    <td>Pengeluaran per kapita (Rupiah)</td>
-                    <td>8500000</td>
-                  </tr>
-                  <tr>
-                    <td><strong>latitude</strong></td>
-                    <td>Koordinat lintang</td>
-                    <td>-6.1745</td>
-                  </tr>
-                  <tr>
-                    <td><strong>longitude</strong></td>
-                    <td>Koordinat bujur</td>
-                    <td>106.8227</td>
+                    <td><strong>garis_kemiskinan_2016, garis_kemiskinan_2017, ..., garis_kemiskinan_2024</strong></td>
+                    <td>Garis kemiskinan per tahun (Rupiah)</td>
+                    <td>532000, 548000, 565000, ...</td>
                   </tr>
                 </tbody>
               </table>
@@ -523,23 +503,23 @@ export default {
     }
 
     const downloadSample = () => {
-      const sampleData = `kabupaten_kota,provinsi,tahun,ipm,garis_kemiskinan,pengeluaran_per_kapita,latitude,longitude
-Jakarta Pusat,DKI Jakarta,2023,82.5,532000,8500000,-6.1745,106.8227
-Jakarta Utara,DKI Jakarta,2023,78.2,548000,7800000,-6.1388,106.8650
-Jakarta Barat,DKI Jakarta,2023,79.1,525000,7200000,-6.1352,106.7644
-Jakarta Selatan,DKI Jakarta,2023,81.3,580000,9200000,-6.2615,106.8106
-Jakarta Timur,DKI Jakarta,2023,77.8,510000,6800000,-6.2250,106.9004
-Bandung,Jawa Barat,2023,75.2,485000,5800000,-6.9175,107.6191
-Surabaya,Jawa Timur,2023,76.8,465000,6500000,-7.2575,112.7521
-Medan,Sumatera Utara,2023,72.1,420000,5200000,3.5952,98.6722
-Semarang,Jawa Tengah,2023,74.5,445000,4900000,-6.9667,110.4167
-Makassar,Sulawesi Selatan,2023,73.2,380000,4300000,-5.1477,119.4327`
+      const sampleData = `kabupaten/kota,ipm_2016,pengeluaran_2016,garis_kemiskinan_2016,ipm_2017,pengeluaran_2017,garis_kemiskinan_2017,ipm_2018,pengeluaran_2018,garis_kemiskinan_2018,ipm_2019,pengeluaran_2019,garis_kemiskinan_2019,ipm_2020,pengeluaran_2020,garis_kemiskinan_2020,ipm_2021,pengeluaran_2021,garis_kemiskinan_2021,ipm_2022,pengeluaran_2022,garis_kemiskinan_2022,ipm_2023,pengeluaran_2023,garis_kemiskinan_2023,ipm_2024,pengeluaran_2024,garis_kemiskinan_2024
+Jakarta Pusat,79.32,7800000,540000,79.78,8100000,560000,80.45,8400000,580000,81.12,8700000,600000,81.56,9000000,620000,82.12,9300000,640000,82.67,9600000,660000,83.23,9900000,680000,83.78,10200000,700000
+Jakarta Utara,78.91,7200000,540000,79.45,7500000,560000,79.98,7800000,580000,80.52,8100000,600000,81.05,8400000,620000,81.58,8700000,640000,82.12,9000000,660000,82.65,9300000,680000,83.19,9600000,700000
+Jakarta Barat,81.65,9200000,540000,82.23,9500000,560000,82.89,9800000,580000,83.56,10100000,600000,84.23,10400000,620000,84.89,10700000,640000,85.56,11000000,660000,86.23,11300000,680000,86.89,11600000,700000
+Jakarta Selatan,79.88,6800000,540000,80.34,7100000,560000,80.78,7400000,580000,81.23,7700000,600000,81.67,8000000,620000,82.12,8300000,640000,82.56,8600000,660000,83.01,8900000,680000,83.45,9200000,700000
+Jakarta Timur,78.23,6500000,420000,78.78,6800000,440000,79.34,7100000,460000,79.89,7400000,480000,80.45,7700000,500000,81.01,8000000,520000,81.56,8300000,540000,82.12,8600000,560000,82.67,8900000,580000
+Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000,78.78,6700000,440000,79.23,7000000,460000,79.67,7300000,480000,80.12,7600000,500000,80.56,7900000,520000,81.01,8200000,540000
+Bandung,76.12,5200000,350000,76.67,5500000,370000,77.23,5800000,390000,77.78,6100000,410000,78.34,6400000,430000,78.89,6700000,450000,79.45,7000000,470000,80.01,7300000,490000,80.56,7600000,510000
+Medan,75.89,4900000,340000,76.34,5200000,360000,76.78,5500000,380000,77.23,5800000,400000,77.67,6100000,420000,78.12,6400000,440000,78.56,6700000,460000,79.01,7000000,480000,79.45,7300000,500000
+Semarang,74.56,4600000,320000,75.12,4900000,340000,75.67,5200000,360000,76.23,5500000,380000,76.78,5800000,400000,77.34,6100000,420000,77.89,6400000,440000,78.45,6700000,460000,79.01,7000000,480000
+Palembang,73.78,4300000,310000,74.23,4600000,330000,74.78,4900000,350000,75.34,5200000,370000,75.89,5500000,390000,76.45,5800000,410000,77.01,6100000,430000,77.56,6400000,450000,78.12,6700000,470000`
 
       const blob = new Blob([sampleData], { type: 'text/csv' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = 'template_dataset_indonesia.csv'
+      a.download = 'template_dataset_indonesia_wide.csv'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -549,17 +529,27 @@ Makassar,Sulawesi Selatan,2023,73.2,380000,4300000,-5.1477,119.4327`
     const loadSampleData = async () => {
       try {
         // Load the sample data file from backend
-        const response = await fetch('/backend/sample_data_indonesia.csv')
+        const response = await fetch('/backend/sample_data_indonesia_wide.csv')
         const text = await response.text()
         
         // Create a file object from the text
         const blob = new Blob([text], { type: 'text/csv' })
-        const file = new File([blob], 'sample_data_indonesia.csv', { type: 'text/csv' })
+        const file = new File([blob], 'sample_data_indonesia_wide.csv', { type: 'text/csv' })
         
         validateAndSetFile(file)
         uploadSuccess.value = 'Data sample berhasil dimuat'
       } catch (error) {
-        uploadError.value = 'Gagal memuat data sample'
+        // Fallback to creating sample data directly
+        const sampleData = `kabupaten/kota,ipm_2016,pengeluaran_2016,garis_kemiskinan_2016,ipm_2017,pengeluaran_2017,garis_kemiskinan_2017,ipm_2018,pengeluaran_2018,garis_kemiskinan_2018
+Jakarta Pusat,79.32,7800000,540000,79.78,8100000,560000,80.45,8400000,580000
+Jakarta Utara,78.91,7200000,540000,79.45,7500000,560000,79.98,7800000,580000
+Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000`
+        
+        const blob = new Blob([sampleData], { type: 'text/csv' })
+        const file = new File([blob], 'sample_data_wide.csv', { type: 'text/csv' })
+        
+        validateAndSetFile(file)
+        uploadSuccess.value = 'Data sample berhasil dimuat'
       }
     }
 

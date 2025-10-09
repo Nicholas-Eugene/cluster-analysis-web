@@ -21,19 +21,100 @@ class ClusteringAlgorithms:
     def __init__(self):
         self.scaler = StandardScaler()
         
-    def preprocess_data(self, df: pd.DataFrame, features: List[str]) -> Tuple[np.ndarray, pd.DataFrame]:
+    def reshape_wide_to_long(self, df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Reshape wide format data (year columns) to long format (year rows).
+        
+        Args:
+            df: Wide format dataframe with columns like ipm_2016, pengeluaran_2016, etc.
+            
+        Returns:
+            Long format dataframe with year as a column
+        """
+        # Extract available years from column names
+        years = set()
+        for col in df.columns:
+            if '_' in col:
+                try:
+                    year = int(col.split('_')[-1])
+                    if 2015 <= year <= 2025:  # Valid year range
+                        years.add(year)
+                except ValueError:
+                    continue
+        
+        years = sorted(years)
+        
+        # Prepare long format data
+        long_data = []
+        
+        for _, row in df.iterrows():
+            kabupaten_kota = row.get('kabupaten/kota', row.get('kabupaten_kota', ''))
+            
+            for year in years:
+                # Get values for this year
+                ipm_col = f'ipm_{year}'
+                pengeluaran_col = f'pengeluaran_{year}'
+                garis_kemiskinan_col = f'garis_kemiskinan_{year}'
+                
+                # Check if all required columns exist and have values
+                if (ipm_col in df.columns and pengeluaran_col in df.columns and 
+                    garis_kemiskinan_col in df.columns):
+                    
+                    ipm_val = row.get(ipm_col)
+                    pengeluaran_val = row.get(pengeluaran_col)
+                    garis_kemiskinan_val = row.get(garis_kemiskinan_col)
+                    
+                    # Only add if all values are not null
+                    if (pd.notna(ipm_val) and pd.notna(pengeluaran_val) and 
+                        pd.notna(garis_kemiskinan_val)):
+                        
+                        long_data.append({
+                            'kabupaten_kota': kabupaten_kota,
+                            'tahun': year,
+                            'ipm': float(ipm_val),
+                            'pengeluaran_per_kapita': float(pengeluaran_val),
+                            'garis_kemiskinan': float(garis_kemiskinan_val)
+                        })
+        
+        return pd.DataFrame(long_data)
+        
+    def preprocess_data(self, df: pd.DataFrame, features: List[str], 
+                       selected_year: str = None) -> Tuple[np.ndarray, pd.DataFrame]:
         """
         Preprocess data for clustering.
         
         Args:
-            df: Input dataframe
+            df: Input dataframe (can be wide or long format)
             features: List of feature column names
+            selected_year: Optional year filter
             
         Returns:
             Tuple of (scaled_data, original_dataframe)
         """
-        # Remove rows with missing values
-        df_clean = df.dropna(subset=features)
+        # Check if data is in wide format (has year columns)
+        has_year_columns = any('_' in col and col.split('_')[-1].isdigit() 
+                              for col in df.columns)
+        
+        if has_year_columns:
+            # Convert wide format to long format
+            df_long = self.reshape_wide_to_long(df)
+        else:
+            # Already in long format
+            df_long = df.copy()
+        
+        # Filter by year if specified
+        if selected_year:
+            try:
+                year_int = int(selected_year)
+                df_long = df_long[df_long['tahun'] == year_int]
+            except (ValueError, KeyError):
+                pass
+        
+        # Remove rows with missing values in required features
+        df_clean = df_long.dropna(subset=features)
+        
+        if df_clean.empty:
+            raise ValueError("No valid data found after preprocessing")
         
         # Extract feature data
         feature_data = df_clean[features].values
@@ -45,7 +126,8 @@ class ClusteringAlgorithms:
     
     def fuzzy_c_means(self, df: pd.DataFrame, features: List[str], 
                      n_clusters: int = 3, m: float = 2.0, 
-                     max_iter: int = 300, error: float = 1e-5) -> Dict[str, Any]:
+                     max_iter: int = 300, error: float = 1e-5, 
+                     selected_year: str = None) -> Dict[str, Any]:
         """
         Perform Fuzzy C-Means clustering.
         
@@ -63,7 +145,7 @@ class ClusteringAlgorithms:
         start_time = time.time()
         
         # Preprocess data
-        scaled_data, df_clean = self.preprocess_data(df, features)
+        scaled_data, df_clean = self.preprocess_data(df, features, selected_year)
         
         # Transpose data for skfuzzy (expects features x samples)
         data_T = scaled_data.T
@@ -142,7 +224,8 @@ class ClusteringAlgorithms:
     
     def optics_clustering(self, df: pd.DataFrame, features: List[str],
                          min_samples: int = 5, xi: float = 0.05,
-                         min_cluster_size: float = 0.05) -> Dict[str, Any]:
+                         min_cluster_size: float = 0.05, 
+                         selected_year: str = None) -> Dict[str, Any]:
         """
         Perform OPTICS clustering.
         
@@ -159,7 +242,7 @@ class ClusteringAlgorithms:
         start_time = time.time()
         
         # Preprocess data
-        scaled_data, df_clean = self.preprocess_data(df, features)
+        scaled_data, df_clean = self.preprocess_data(df, features, selected_year)
         
         # Perform OPTICS clustering
         optics = OPTICS(

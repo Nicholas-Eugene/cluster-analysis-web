@@ -39,18 +39,23 @@ A comprehensive web application for clustering Indonesian kabupaten/kota based o
 
 ## 📊 Data Structure
 
-The application expects CSV files with the following columns:
+The application expects CSV files in **wide format** with the following structure:
 
-| Column | Description | Example |
-|--------|-------------|---------|
-| `kabupaten_kota` | District/City name | Jakarta Pusat |
-| `provinsi` | Province name | DKI Jakarta |
-| `tahun` | Year (2015-2024) | 2023 |
-| `ipm` | Human Development Index | 75.5 |
-| `garis_kemiskinan` | Poverty line (IDR) | 532000 |
-| `pengeluaran_per_kapita` | Per capita expenditure (IDR) | 8500000 |
-| `latitude` | Latitude coordinate | -6.1745 |
-| `longitude` | Longitude coordinate | 106.8227 |
+| Column Pattern | Description | Example |
+|----------------|-------------|---------|
+| `kabupaten/kota` | District/City name | Jakarta Pusat |
+| `ipm_YYYY` | Human Development Index for year YYYY | `ipm_2016`, `ipm_2017`, ..., `ipm_2024` |
+| `pengeluaran_YYYY` | Per capita expenditure (IDR) for year YYYY | `pengeluaran_2016`, `pengeluaran_2017`, ..., `pengeluaran_2024` |
+| `garis_kemiskinan_YYYY` | Poverty line (IDR) for year YYYY | `garis_kemiskinan_2016`, `garis_kemiskinan_2017`, ..., `garis_kemiskinan_2024` |
+
+### Example CSV Structure:
+```csv
+kabupaten/kota,ipm_2016,pengeluaran_2016,garis_kemiskinan_2016,ipm_2017,pengeluaran_2017,garis_kemiskinan_2017,...
+Jakarta Pusat,79.32,7800000,540000,79.78,8100000,560000,...
+Jakarta Utara,78.91,7200000,540000,79.45,7500000,560000,...
+```
+
+**Note**: The application automatically converts this wide format to long format internally for processing.
 
 ## 🚀 Installation & Setup
 
