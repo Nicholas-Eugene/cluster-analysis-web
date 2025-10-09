@@ -31,9 +31,21 @@ class UploadAndProcessView(APIView):
             return Response({'error': f'Parameter tidak valid: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 
         try:
-            df = pd.read_csv(file_obj)
+            # Detect file type and read accordingly
+            filename = getattr(file_obj, 'name', '').lower()
+            if filename.endswith('.xlsx') or filename.endswith('.xls'):
+                df = pd.read_excel(file_obj, engine='openpyxl')
+            elif filename.endswith('.csv'):
+                df = pd.read_csv(file_obj)
+            else:
+                # Try CSV first, then Excel
+                try:
+                    df = pd.read_csv(file_obj)
+                except:
+                    file_obj.seek(0)  # Reset file pointer
+                    df = pd.read_excel(file_obj, engine='openpyxl')
         except Exception as e:
-            return Response({'error': f'Gagal membaca file CSV: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'error': f'Gagal membaca file: {str(e)}. Pastikan file dalam format CSV atau Excel (.xlsx)'}, status=status.HTTP_400_BAD_REQUEST)
 
         # Check for required columns - either long format or wide format
         has_kabupaten_col = 'kabupaten/kota' in df.columns or 'kabupaten_kota' in df.columns

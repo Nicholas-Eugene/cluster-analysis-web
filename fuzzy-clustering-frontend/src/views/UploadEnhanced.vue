@@ -13,8 +13,8 @@
           <div class="instruction-item">
             <h3>Format File</h3>
             <ul>
-              <li>File harus berformat CSV (.csv)</li>
-              <li>Encoding UTF-8 dengan delimiter koma (,)</li>
+              <li>File harus berformat CSV (.csv) atau Excel (.xlsx)</li>
+              <li>Untuk CSV: Encoding UTF-8 dengan delimiter koma (,)</li>
               <li>Baris pertama harus berisi header kolom</li>
               <li>Maksimal ukuran file: 10 MB</li>
             </ul>
@@ -61,12 +61,17 @@
             <h3>Contoh Dataset</h3>
             <div class="sample-download">
               <p>Download template dataset untuk referensi:</p>
-              <button @click="downloadSample" class="btn btn-secondary">
-                📥 Download Template CSV
-              </button>
-              <button @click="loadSampleData" class="btn btn-info">
-                📊 Gunakan Data Sample
-              </button>
+              <div class="download-buttons">
+                <button @click="downloadSample" class="btn btn-secondary">
+                  📥 Download Template CSV
+                </button>
+                <button @click="downloadExcelSample" class="btn btn-secondary">
+                  📊 Download Template Excel
+                </button>
+                <button @click="loadSampleData" class="btn btn-info">
+                  📂 Gunakan Data Sample
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -87,15 +92,15 @@
             <input 
               ref="fileInput"
               type="file"
-              accept=".csv"
+              accept=".csv,.xlsx,.xls"
               @change="handleFileSelect"
               style="display: none"
             >
             
             <div v-if="!selectedFile" class="upload-placeholder">
               <div class="upload-icon">📁</div>
-              <h3>Klik atau drag & drop file CSV di sini</h3>
-              <p>Maksimal ukuran file: 10 MB</p>
+              <h3>Klik atau drag & drop file CSV atau Excel di sini</h3>
+              <p>Format: .csv, .xlsx | Maksimal: 10 MB</p>
             </div>
             
             <div v-else class="file-info">
@@ -426,8 +431,12 @@ export default {
       uploadSuccess.value = ''
 
       // Validate file type
-      if (!file.name.toLowerCase().endsWith('.csv')) {
-        uploadError.value = 'File harus berformat CSV (.csv)'
+      const fileName = file.name.toLowerCase()
+      const validExtensions = ['.csv', '.xlsx', '.xls']
+      const isValidType = validExtensions.some(ext => fileName.endsWith(ext))
+      
+      if (!isValidType) {
+        uploadError.value = 'File harus berformat CSV (.csv) atau Excel (.xlsx, .xls)'
         return
       }
 
@@ -440,8 +449,12 @@ export default {
       selectedFile.value = file
       uploadSuccess.value = 'File berhasil dipilih'
       
-      // Parse CSV for preview
-      parseCSVPreview(file)
+      // Parse file for preview
+      if (fileName.endsWith('.csv')) {
+        parseCSVPreview(file)
+      } else {
+        parseExcelPreview(file)
+      }
     }
 
     const parseCSVPreview = (file) => {
@@ -486,6 +499,30 @@ export default {
       reader.readAsText(file)
     }
 
+    const parseExcelPreview = (file) => {
+      // For Excel files, we'll show a basic preview without parsing
+      // The actual parsing will be done on the backend
+      const fileName = file.name
+      
+      // Create a mock preview for Excel files
+      dataPreview.value = {
+        totalRows: 'Unknown (akan diproses di server)',
+        columns: ['kabupaten/kota', 'ipm_2016', 'pengeluaran_2016', 'garis_kemiskinan_2016', '...'],
+        sampleRows: [
+          {
+            'kabupaten/kota': 'Akan ditampilkan setelah upload',
+            'ipm_2016': '...',
+            'pengeluaran_2016': '...',
+            'garis_kemiskinan_2016': '...',
+            '...': '...'
+          }
+        ],
+        years: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024']
+      }
+      
+      uploadSuccess.value = `File Excel ${fileName} berhasil dipilih. Preview lengkap akan tersedia setelah upload.`
+    }
+
     const removeFile = () => {
       selectedFile.value = null
       dataPreview.value = null
@@ -524,6 +561,38 @@ Palembang,73.78,4300000,310000,74.23,4600000,330000,74.78,4900000,350000,75.34,5
       a.click()
       document.body.removeChild(a)
       window.URL.revokeObjectURL(url)
+    }
+
+    const downloadExcelSample = async () => {
+      try {
+        // Try to download the sample Excel file from backend
+        const response = await fetch('/backend/sample_data_indonesia.xlsx')
+        
+        if (response.ok) {
+          const blob = await response.blob()
+          const url = window.URL.createObjectURL(blob)
+          const a = document.createElement('a')
+          a.href = url
+          a.download = 'template_dataset_indonesia.xlsx'
+          document.body.appendChild(a)
+          a.click()
+          document.body.removeChild(a)
+          window.URL.revokeObjectURL(url)
+        } else {
+          throw new Error('File not found')
+        }
+      } catch (error) {
+        // Fallback: show message to create Excel manually
+        alert(`Template Excel tidak tersedia untuk download otomatis.
+        
+Silakan buat file Excel dengan struktur berikut:
+- Kolom A: kabupaten/kota
+- Kolom B-J: imp_2016, ipm_2017, ..., ipm_2024
+- Kolom K-S: pengeluaran_2016, pengeluaran_2017, ..., pengeluaran_2024
+- Kolom T-AB: garis_kemiskinan_2016, garis_kemiskinan_2017, ..., garis_kemiskinan_2024
+
+Atau gunakan template CSV yang tersedia.`)
+      }
     }
 
     const loadSampleData = async () => {
@@ -657,6 +726,7 @@ Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000`
       removeFile,
       formatFileSize,
       downloadSample,
+      downloadExcelSample,
       loadSampleData,
       validateAndProcess,
       resetForm
@@ -744,6 +814,18 @@ Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000`
 .sample-download p {
   margin-bottom: 1rem;
   color: #4a5568;
+}
+
+.download-buttons {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.download-buttons .btn {
+  flex: 1;
+  min-width: 150px;
 }
 
 .upload-area {

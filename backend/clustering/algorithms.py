@@ -31,10 +31,13 @@ class ClusteringAlgorithms:
         Returns:
             Long format dataframe with year as a column
         """
+        print(f"🔄 Reshaping wide format data...")
+        print(f"📊 Input columns: {list(df.columns)}")
+        
         # Extract available years from column names
         years = set()
         for col in df.columns:
-            if '_' in col:
+            if '_' in col and any(metric in col for metric in ['ipm_', 'pengeluaran_', 'garis_kemiskinan_']):
                 try:
                     year = int(col.split('_')[-1])
                     if 2015 <= year <= 2025:  # Valid year range
@@ -43,20 +46,32 @@ class ClusteringAlgorithms:
                     continue
         
         years = sorted(years)
+        print(f"📅 Years found: {years}")
+        
+        if not years:
+            raise ValueError("Tidak ditemukan kolom tahun yang valid. Pastikan format kolom seperti: ipm_2016, pengeluaran_2016, garis_kemiskinan_2016")
         
         # Prepare long format data
         long_data = []
         
         for _, row in df.iterrows():
-            kabupaten_kota = row.get('kabupaten/kota', row.get('kabupaten_kota', ''))
+            # Handle different possible column names for kabupaten/kota
+            kabupaten_kota = ''
+            for possible_col in ['kabupaten/kota', 'kabupaten_kota', 'Kabupaten/Kota', 'Kabupaten_Kota']:
+                if possible_col in df.columns:
+                    kabupaten_kota = str(row.get(possible_col, ''))
+                    break
+            
+            if not kabupaten_kota:
+                continue  # Skip rows without kabupaten/kota info
             
             for year in years:
-                # Get values for this year
+                # Get values for this year - exact format as specified
                 ipm_col = f'ipm_{year}'
                 pengeluaran_col = f'pengeluaran_{year}'
                 garis_kemiskinan_col = f'garis_kemiskinan_{year}'
                 
-                # Check if all required columns exist and have values
+                # Check if all required columns exist
                 if (ipm_col in df.columns and pengeluaran_col in df.columns and 
                     garis_kemiskinan_col in df.columns):
                     
@@ -64,19 +79,32 @@ class ClusteringAlgorithms:
                     pengeluaran_val = row.get(pengeluaran_col)
                     garis_kemiskinan_val = row.get(garis_kemiskinan_col)
                     
-                    # Only add if all values are not null
+                    # Only add if all values are not null and not empty
                     if (pd.notna(ipm_val) and pd.notna(pengeluaran_val) and 
-                        pd.notna(garis_kemiskinan_val)):
+                        pd.notna(garis_kemiskinan_val) and
+                        str(ipm_val).strip() != '' and 
+                        str(pengeluaran_val).strip() != '' and 
+                        str(garis_kemiskinan_val).strip() != ''):
                         
-                        long_data.append({
-                            'kabupaten_kota': kabupaten_kota,
-                            'tahun': year,
-                            'ipm': float(ipm_val),
-                            'pengeluaran_per_kapita': float(pengeluaran_val),
-                            'garis_kemiskinan': float(garis_kemiskinan_val)
-                        })
+                        try:
+                            long_data.append({
+                                'kabupaten_kota': kabupaten_kota,
+                                'tahun': year,
+                                'ipm': float(ipm_val),
+                                'pengeluaran_per_kapita': float(pengeluaran_val),
+                                'garis_kemiskinan': float(garis_kemiskinan_val)
+                            })
+                        except (ValueError, TypeError) as e:
+                            print(f"⚠️ Skipping invalid data for {kabupaten_kota} year {year}: {e}")
+                            continue
         
-        return pd.DataFrame(long_data)
+        result_df = pd.DataFrame(long_data)
+        print(f"✅ Reshaped to long format: {result_df.shape[0]} rows")
+        
+        if result_df.empty:
+            raise ValueError("Tidak ada data valid yang dapat diproses. Periksa format kolom dan data.")
+        
+        return result_df
         
     def preprocess_data(self, df: pd.DataFrame, features: List[str], 
                        selected_year: str = None) -> Tuple[np.ndarray, pd.DataFrame]:
