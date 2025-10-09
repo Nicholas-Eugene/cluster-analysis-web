@@ -30,40 +30,47 @@
       <!-- Results Section -->
       <div v-if="results && !isLoading" class="results-section">
         
-        <!-- Summary Cards -->
-        <div class="summary-cards">
-          <div class="summary-card">
-            <div class="card-icon">📊</div>
-            <div class="card-content">
-              <h3>{{ results.summary.total_regions }}</h3>
-              <p>Total Daerah</p>
-            </div>
-          </div>
-          
-          <div class="summary-card">
-            <div class="card-icon">🎯</div>
-            <div class="card-content">
-              <h3>{{ results.summary.num_clusters }}</h3>
-              <p>Jumlah Cluster</p>
-            </div>
-          </div>
-          
-          <div class="summary-card">
-            <div class="card-icon">⏱️</div>
-            <div class="card-content">
-              <h3>{{ results.summary.execution_time?.toFixed(2) }}s</h3>
-              <p>Waktu Eksekusi</p>
-            </div>
-          </div>
-          
-          <div v-if="results.summary.iterations" class="summary-card">
-            <div class="card-icon">🔄</div>
-            <div class="card-content">
-              <h3>{{ results.summary.iterations }}</h3>
-              <p>Iterasi</p>
-            </div>
-          </div>
+        <!-- Per Year Results -->
+        <div v-if="results.clustering_type === 'per_year'">
+          <YearlyResults :results="results" />
         </div>
+        
+        <!-- Single Year Results (Legacy) -->
+        <div v-else class="single-year-results">
+          <!-- Summary Cards -->
+          <div class="summary-cards">
+            <div class="summary-card">
+              <div class="card-icon">📊</div>
+              <div class="card-content">
+                <h3>{{ results.summary.total_regions }}</h3>
+                <p>Total Daerah</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="card-icon">🎯</div>
+              <div class="card-content">
+                <h3>{{ results.summary.num_clusters }}</h3>
+                <p>Jumlah Cluster</p>
+              </div>
+            </div>
+            
+            <div class="summary-card">
+              <div class="card-icon">⏱️</div>
+              <div class="card-content">
+                <h3>{{ results.summary.execution_time?.toFixed(2) }}s</h3>
+                <p>Waktu Eksekusi</p>
+              </div>
+            </div>
+            
+            <div v-if="results.summary.iterations" class="summary-card">
+              <div class="card-icon">🔄</div>
+              <div class="card-content">
+                <h3>{{ results.summary.iterations }}</h3>
+                <p>Iterasi</p>
+              </div>
+            </div>
+          </div>
 
         <!-- Evaluation Metrics -->
         <div class="card">
@@ -239,21 +246,23 @@
           </div>
         </div>
 
-        <!-- Export Options -->
-        <div class="card">
-          <h2>📥 Export Hasil</h2>
-          <div class="export-options">
-            <button @click="exportToCSV" class="btn btn-secondary">
-              📊 Export ke CSV
-            </button>
-            <button @click="exportToJSON" class="btn btn-secondary">
-              📄 Export ke JSON
-            </button>
-            <button @click="generateReport" class="btn btn-primary">
-              📋 Generate Report
-            </button>
+          <!-- Export Options -->
+          <div class="card">
+            <h2>📥 Export Hasil</h2>
+            <div class="export-options">
+              <button @click="exportToCSV" class="btn btn-secondary">
+                📊 Export ke CSV
+              </button>
+              <button @click="exportToJSON" class="btn btn-secondary">
+                📄 Export ke JSON
+              </button>
+              <button @click="generateReport" class="btn btn-primary">
+                📋 Generate Report
+              </button>
+            </div>
           </div>
         </div>
+        <!-- End Single Year Results -->
 
       </div>
     </div>
@@ -266,6 +275,7 @@ import { useRoute, useRouter } from 'vue-router'
 import ScatterPlot from '../components/ScatterPlot.vue'
 import BoxPlot from '../components/BoxPlot.vue'
 import InteractiveMap from '../components/InteractiveMap.vue'
+import YearlyResults from '../components/YearlyResults.vue'
 import apiService from '../services/apiService.js'
 
 export default {
@@ -273,7 +283,8 @@ export default {
   components: {
     ScatterPlot,
     BoxPlot,
-    InteractiveMap
+    InteractiveMap,
+    YearlyResults
   },
   setup() {
     const route = useRoute()

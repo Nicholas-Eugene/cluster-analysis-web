@@ -126,24 +126,36 @@ The frontend will be available at `http://localhost:5173`
 ### 1. Upload Dataset
 - Navigate to the Upload page
 - Choose between FCM or OPTICS algorithm
-- Upload your CSV file or use the sample data
+- Upload your CSV or Excel file (or use sample data)
+- Choose clustering mode:
+  - **Per Year Mode**: Clustering dilakukan terpisah untuk setiap tahun (2016-2024) - **DEFAULT**
+  - **Single Year Mode**: Clustering hanya untuk tahun tertentu
 - Configure algorithm parameters:
   - **FCM**: Number of clusters, fuzzy coefficient, max iterations, tolerance
   - **OPTICS**: Min samples, xi parameter, min cluster size
 
 ### 2. View Results
-- **Summary**: Total regions, clusters, execution time, iterations
-- **Evaluation Metrics**: Davies-Bouldin Index and Silhouette Score with quality indicators
+
+#### **Per Year Mode (Default)**
+- **Overall Summary**: Statistics across all years
+- **Year Selection**: Choose specific year to analyze in detail
+- **Per-Year Metrics**: Davies-Bouldin Index and Silhouette Score for each year
+- **Year Comparison**: Compare clustering patterns across years
+- **Temporal Analysis**: Track how regions move between clusters over time
+
+#### **Single Year Mode**
+- **Summary**: Total regions, clusters, execution time for selected year
+- **Evaluation Metrics**: Davies-Bouldin Index and Silhouette Score
 - **Visualizations**: 
   - Scatter plots with customizable axes
   - Box plots for statistical analysis
   - Interactive map with cluster coloring
 - **Cluster Details**: Detailed information about each cluster and its members
 
-### 3. Year Analysis
-- Filter by specific years (2015-2024)
-- Compare temporal changes in clustering patterns
-- Analyze development trends over time
+### 3. Visualizations (Available for Each Year)
+- **Interactive Scatter Plots**: Explore relationships between IPM, Garis Kemiskinan, Pengeluaran Per Kapita
+- **Box Plots**: Statistical distribution analysis per cluster
+- **Interactive Maps**: Geographic visualization with cluster coloring and detailed popups
 
 ### 4. Export Results
 - Export to CSV for further analysis

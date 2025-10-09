@@ -107,7 +107,17 @@ class UploadAndProcessView(APIView):
         }
 
         try:
-            # Use the new clustering algorithms
+            # Determine clustering mode based on selected_year
+            if selected_year:
+                # Single year clustering
+                clustering_mode = 'single_year'
+                print(f"🎯 Single year clustering for {selected_year}")
+            else:
+                # Per year clustering (default new behavior)
+                clustering_mode = 'per_year'
+                print(f"🗓️ Per year clustering for all available years")
+            
+            # Use the clustering algorithms
             if algorithm == 'fcm':
                 results = get_clustering_results(
                     df, 
@@ -131,6 +141,9 @@ class UploadAndProcessView(APIView):
                 )
             else:
                 return Response({'error': 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Add clustering mode to results
+            results['clustering_mode'] = clustering_mode
                 
         except Exception as e:
             return Response({'error': f'Gagal melakukan clustering: {str(e)}'}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

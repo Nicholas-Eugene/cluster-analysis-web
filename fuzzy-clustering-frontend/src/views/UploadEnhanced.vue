@@ -3,7 +3,13 @@
     <div class="container">
       <div class="page-header">
         <h1>Analisis Clustering Regional Indonesia</h1>
-        <p>Upload dataset dan konfigurasi parameter untuk analisis clustering menggunakan Fuzzy C-Means atau OPTICS</p>
+        <p>Upload dataset dan konfigurasi parameter untuk analisis clustering <strong>per tahun</strong> menggunakan Fuzzy C-Means atau OPTICS</p>
+        <div class="clustering-info">
+          <div class="info-badge">
+            <span class="info-icon">🗓️</span>
+            <span>Clustering dilakukan terpisah untuk setiap tahun (2016-2024)</span>
+          </div>
+        </div>
       </div>
 
       <!-- Instructions Section -->
@@ -208,16 +214,31 @@
         <!-- Year Selection -->
         <div class="form-group">
           <label class="form-label">
-            Pilih Tahun untuk Analisis
-            <span class="info-tooltip" title="Pilih tahun tertentu atau gunakan semua data">ℹ️</span>
+            Mode Analisis Clustering
+            <span class="info-tooltip" title="Pilih tahun tertentu atau clustering per tahun">ℹ️</span>
           </label>
           <select v-model="parameters.selectedYear" class="form-select">
-            <option value="">Semua Tahun (2015-2024)</option>
+            <option value="">Clustering Per Tahun (Semua Tahun 2016-2024)</option>
             <option v-for="year in availableYears" :key="year" :value="year">
-              {{ year }}
+              Clustering Tahun {{ year }} Saja
             </option>
           </select>
-          <small class="form-help">Kosongkan untuk menggunakan semua data tahun</small>
+          <div class="mode-explanation">
+            <div v-if="!parameters.selectedYear" class="mode-info per-year">
+              <span class="mode-icon">🗓️</span>
+              <div class="mode-text">
+                <strong>Mode Per Tahun:</strong> Clustering akan dilakukan secara terpisah untuk setiap tahun (2016-2024).
+                Hasil akan menampilkan perbandingan clustering antar tahun.
+              </div>
+            </div>
+            <div v-else class="mode-info single-year">
+              <span class="mode-icon">🎯</span>
+              <div class="mode-text">
+                <strong>Mode Tahun Tunggal:</strong> Clustering hanya untuk tahun {{ parameters.selectedYear }}.
+                Hasil akan fokus pada analisis tahun tersebut.
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- FCM Parameters -->
@@ -754,6 +775,69 @@ Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000`
 .page-header p {
   font-size: 1.2rem;
   color: #718096;
+}
+
+.clustering-info {
+  margin-top: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.info-badge {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 25px;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 500;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.info-icon {
+  font-size: 1.2rem;
+}
+
+.mode-explanation {
+  margin-top: 1rem;
+}
+
+.mode-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid;
+}
+
+.mode-info.per-year {
+  background: #e6fffa;
+  border-color: #38b2ac;
+  color: #234e52;
+}
+
+.mode-info.single-year {
+  background: #fef5e7;
+  border-color: #ed8936;
+  color: #744210;
+}
+
+.mode-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.mode-text {
+  line-height: 1.5;
+  font-size: 0.875rem;
+}
+
+.mode-text strong {
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 .instructions {
