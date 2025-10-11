@@ -185,6 +185,10 @@
                   <span class="stat-label">Rata-rata Garis Kemiskinan:</span>
                   <span class="stat-value">Rp {{ formatCurrency(results.clusters[activeCluster].centroid.garis_kemiskinan) }}</span>
                 </div>
+                <div class="cluster-stat">
+                  <span class="stat-label">Rata-rata Pengeluaran Per Kapita:</span>
+                  <span class="stat-value">Rp {{ formatCurrency(results.clusters[activeCluster].centroid.pengeluaran_per_kapita || 0) }}</span>
+                </div>
               </div>
             </div>
             
@@ -198,6 +202,7 @@
                       <th>Tahun</th>
                       <th>IPM</th>
                       <th>Garis Kemiskinan</th>
+                      <th>Pengeluaran Per Kapita</th>
                       <th>Membership</th>
                     </tr>
                   </thead>
@@ -210,6 +215,7 @@
                       <td>{{ member.tahun }}</td>
                       <td>{{ member.ipm.toFixed(2) }}</td>
                       <td>Rp {{ formatCurrency(member.garis_kemiskinan) }}</td>
+                      <td>Rp {{ formatCurrency(member.pengeluaran_per_kapita || 0) }}</td>
                       <td>
                         <div class="membership-bar">
                           <div 

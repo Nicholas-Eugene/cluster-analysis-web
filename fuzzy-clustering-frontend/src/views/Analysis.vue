@@ -163,6 +163,10 @@
                   <span class="stat-label">Rata-rata Garis Kemiskinan:</span>
                   <span class="stat-value">Rp {{ formatCurrency(results.clusters[activeCluster].centroid.garis_kemiskinan) }}</span>
                 </div>
+                <div class="cluster-stat">
+                  <span class="stat-label">Rata-rata Pengeluaran Per Kapita:</span>
+                  <span class="stat-value">Rp {{ formatCurrency(results.clusters[activeCluster].centroid.pengeluaran_per_kapita) }}</span>
+                </div>
               </div>
             </div>
             
@@ -176,6 +180,7 @@
                       <th>Tahun</th>
                       <th>IPM</th>
                       <th>Garis Kemiskinan</th>
+                      <th>Pengeluaran Per Kapita</th>
                       <th>Membership</th>
                     </tr>
                   </thead>
@@ -188,6 +193,7 @@
                       <td>{{ member.tahun }}</td>
                       <td>{{ member.ipm.toFixed(2) }}</td>
                       <td>Rp {{ formatCurrency(member.garis_kemiskinan) }}</td>
+                      <td>Rp {{ formatCurrency(member.pengeluaran_per_kapita) }}</td>
                       <td>
                         <div class="membership-bar">
                           <div 
@@ -511,11 +517,11 @@ export default {
     const exportToCSV = () => {
       if (!results.value) return
 
-      let csv = 'kabupaten_kota,tahun,ipm,garis_kemiskinan,cluster,membership\n'
+      let csv = 'kabupaten_kota,tahun,ipm,garis_kemiskinan,pengeluaran_per_kapita,cluster,membership\n'
       
       results.value.clusters.forEach((cluster, clusterIndex) => {
         cluster.members.forEach(member => {
-          csv += `${member.kabupaten_kota},${member.tahun},${member.ipm},${member.garis_kemiskinan},${clusterIndex + 1},${member.membership}\n`
+          csv += `${member.kabupaten_kota},${member.tahun},${member.ipm},${member.garis_kemiskinan},${member.pengeluaran_per_kapita},${clusterIndex + 1},${member.membership}\n`
         })
       })
 
