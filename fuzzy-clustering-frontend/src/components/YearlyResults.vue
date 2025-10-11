@@ -89,17 +89,14 @@
       </p>
     </div>
 
-    <!-- Selected Year Results -->
-    <div v-if="selectedYear && selectedYearResults" class="selected-year-results">
-      
-      <!-- Error State -->
-      <div v-if="selectedYearResults.error" class="error-card card">
-        <h3>❌ Error untuk Tahun {{ selectedYear }}</h3>
-        <p>{{ selectedYearResults.error }}</p>
-      </div>
+    <!-- Error State for Selected Year -->
+    <div v-if="selectedYear && selectedYearResults && selectedYearResults.error" class="error-card card">
+      <h3>❌ Error untuk Tahun {{ selectedYear }}</h3>
+      <p>{{ selectedYearResults.error }}</p>
+    </div>
 
-      <!-- Success State -->
-      <div v-else>
+    <!-- Selected Year Results -->
+    <div v-if="selectedYear && selectedYearResults && !selectedYearResults.error" class="selected-year-results">
         <!-- Year Summary -->
         <div class="year-summary card">
           <h3>📊 Ringkasan Tahun {{ selectedYear }}</h3>
@@ -153,7 +150,7 @@
         </div>
 
         <!-- Visualizations for Selected Year -->
-        <div class="year-visualizations">
+        <div v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0" class="year-visualizations">
           <ScatterPlot 
             :clusters="selectedYearResults.clusters" 
             :title="`Scatter Plot - ${selectedYearResults.algorithm} Clustering (${selectedYear})`"
@@ -171,7 +168,7 @@
         </div>
 
         <!-- Cluster Details for Selected Year -->
-        <div class="year-cluster-details card">
+        <div v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0" class="year-cluster-details card">
           <h3>🔍 Detail Cluster Tahun {{ selectedYear }}</h3>
           <div class="cluster-tabs">
             <button 
@@ -252,7 +249,7 @@
 </template>
 
 <script>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import ScatterPlot from './ScatterPlot.vue'
 import BoxPlot from './BoxPlot.vue'
 import InteractiveMap from './InteractiveMap.vue'
@@ -343,10 +340,26 @@ export default {
       return 'Perlu Perbaikan'
     }
 
-    // Set default selected year
-    if (availableYears.value.length > 0) {
-      selectedYear.value = availableYears.value[availableYears.value.length - 1] // Latest year
+    // Set default selected year when component mounts or data changes
+    const setDefaultYear = async () => {
+      await nextTick()
+      try {
+        if (availableYears.value && availableYears.value.length > 0 && !selectedYear.value) {
+          selectedYear.value = availableYears.value[availableYears.value.length - 1] // Latest year
+        }
+      } catch (error) {
+        console.warn('Error setting default year in YearlyResults:', error)
+      }
     }
+
+    onMounted(() => {
+      setDefaultYear()
+    })
+
+    // Watch for data changes and reset selected year if needed
+    watch(() => props.results, () => {
+      setDefaultYear()
+    }, { deep: true })
 
     return {
       selectedYear,

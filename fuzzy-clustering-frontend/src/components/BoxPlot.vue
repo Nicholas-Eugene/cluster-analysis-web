@@ -53,7 +53,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
 
 export default {
@@ -148,10 +148,36 @@ export default {
       })
     }
 
-    const createChart = () => {
-      if (!chartCanvas.value || !props.clusters) return
+    const createChart = async () => {
+      try {
+        // Multiple validation checks
+        if (!chartCanvas.value || !props.clusters || props.clusters.length === 0) return
 
-      const ctx = chartCanvas.value.getContext('2d')
+        // Wait for DOM to be ready
+        await nextTick()
+        
+        // Re-check after nextTick
+        if (!chartCanvas.value || !chartCanvas.value.offsetParent) return
+        
+        // Destroy existing chart first
+        if (chart.value) {
+          try {
+            chart.value.destroy()
+          } catch (e) {
+            console.warn('Error destroying existing chart:', e)
+          }
+          chart.value = null
+        }
+        
+        // Get context with additional validation
+        const ctx = chartCanvas.value.getContext('2d')
+        if (!ctx || !ctx.canvas) return
+        
+        // Ensure canvas has dimensions
+        if (ctx.canvas.width === 0 || ctx.canvas.height === 0) {
+          setTimeout(() => createChart(), 100)
+          return
+        }
       
       // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
       // using bar charts to simulate box plots
@@ -231,11 +257,15 @@ export default {
         }
       }
 
-      if (chart.value) {
-        chart.value.destroy()
-      }
-
       chart.value = new Chart(ctx, config)
+      
+      } catch (error) {
+        console.warn('Error creating box plot chart:', error)
+        if (chart.value) {
+          chart.value.destroy()
+          chart.value = null
+        }
+      }
     }
 
     const getMetricLabel = (metric) => {
@@ -248,21 +278,33 @@ export default {
     }
 
     const updateChart = () => {
-      createChart()
+      // Debounce chart updates to prevent rapid recreation
+      if (updateChart.timeout) {
+        clearTimeout(updateChart.timeout)
+      }
+      updateChart.timeout = setTimeout(() => {
+        createChart()
+      }, 100)
     }
 
-    onMounted(() => {
-      createChart()
+    onMounted(async () => {
+      await createChart()
     })
 
     onUnmounted(() => {
+      // Clear any pending timeouts
+      if (updateChart.timeout) {
+        clearTimeout(updateChart.timeout)
+      }
+      
       if (chart.value) {
         chart.value.destroy()
+        chart.value = null
       }
     })
 
     watch(() => props.clusters, () => {
-      createChart()
+      updateChart()
     }, { deep: true })
 
     return {

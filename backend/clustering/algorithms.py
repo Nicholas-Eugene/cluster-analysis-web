@@ -119,16 +119,8 @@ class ClusteringAlgorithms:
         Returns:
             Tuple of (scaled_data, original_dataframe)
         """
-        # Check if data is in wide format (has year columns)
-        has_year_columns = any('_' in col and col.split('_')[-1].isdigit() 
-                              for col in df.columns)
-        
-        if has_year_columns:
-            # Convert wide format to long format
-            df_long = self.reshape_wide_to_long(df)
-        else:
-            # Already in long format
-            df_long = df.copy()
+        # Data is already in long format with standardized column names
+        df_long = df.copy()
         
         # Filter by year if specified
         if selected_year:
@@ -196,11 +188,11 @@ class ClusteringAlgorithms:
         results = {
             'algorithm': 'Fuzzy C-Means',
             'summary': {
-                'total_regions': len(df_clean),
-                'num_clusters': n_clusters,
-                'iterations': p,
-                'execution_time': execution_time,
-                'fuzziness_parameter': m,
+                'total_regions': int(len(df_clean)),
+                'num_clusters': int(n_clusters),
+                'iterations': int(p),
+                'execution_time': float(execution_time),
+                'fuzziness_parameter': float(m),
                 'partition_coefficient': float(fpc)
             },
             'evaluation': {
@@ -240,9 +232,9 @@ class ClusteringAlgorithms:
                     members.append(member_info)
                 
                 cluster_info = {
-                    'id': i,
+                    'id': int(i),
                     'centroid': centroid,
-                    'size': len(members),
+                    'size': int(len(members)),
                     'members': members
                 }
                 
@@ -304,12 +296,12 @@ class ClusteringAlgorithms:
         results = {
             'algorithm': 'OPTICS',
             'summary': {
-                'total_regions': len(df_clean),
-                'num_clusters': n_clusters,
+                'total_regions': int(len(df_clean)),
+                'num_clusters': int(n_clusters),
                 'noise_points': int(np.sum(cluster_labels == -1)),
-                'execution_time': execution_time,
-                'min_samples': min_samples,
-                'xi': xi
+                'execution_time': float(execution_time),
+                'min_samples': int(min_samples),
+                'xi': float(xi)
             },
             'evaluation': {
                 'davies_bouldin': float(db_score) if db_score != float('inf') else None,
@@ -345,7 +337,7 @@ class ClusteringAlgorithms:
                 cluster_info = {
                     'id': 'noise',
                     'centroid': None,
-                    'size': len(members),
+                    'size': int(len(members)),
                     'members': members
                 }
                 
@@ -381,7 +373,7 @@ class ClusteringAlgorithms:
                     cluster_info = {
                         'id': int(label),
                         'centroid': centroid,
-                        'size': len(members),
+                        'size': int(len(members)),
                         'members': members
                     }
                     
@@ -409,17 +401,16 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
     
     clustering = ClusteringAlgorithms()
     
-    # Convert wide format to long format first to get available years
-    df_long = clustering.reshape_wide_to_long(df)
-    available_years = sorted(df_long['tahun'].unique())
+    # Data is already in long format with standardized column names
+    available_years = sorted(df['tahun'].unique())
     
     print(f"🗓️ Processing clustering for years: {available_years}")
     
     results_per_year = {}
     overall_summary = {
         'algorithm': algorithm.upper(),
-        'years_processed': available_years,
-        'total_years': len(available_years),
+        'years_processed': [int(year) for year in available_years],
+        'total_years': int(len(available_years)),
         'features_used': features
     }
     
@@ -428,15 +419,19 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
         
         try:
             # Get clustering results for this specific year
+            # Create a copy of kwargs and set the selected_year for this iteration
+            year_kwargs = kwargs.copy()
+            year_kwargs['selected_year'] = str(year)
+            
             if algorithm.lower() == 'fcm':
-                year_results = clustering.fuzzy_c_means(df, features, selected_year=str(year), **kwargs)
+                year_results = clustering.fuzzy_c_means(df, features, **year_kwargs)
             elif algorithm.lower() == 'optics':
-                year_results = clustering.optics_clustering(df, features, selected_year=str(year), **kwargs)
+                year_results = clustering.optics_clustering(df, features, **year_kwargs)
             else:
                 raise ValueError(f"Unknown algorithm: {algorithm}. Use 'fcm' or 'optics'.")
             
             # Add year information to the results
-            year_results['year'] = year
+            year_results['year'] = int(year)
             results_per_year[str(year)] = year_results
             
             print(f"✅ Year {year}: {year_results['summary']['num_clusters']} clusters, "
@@ -445,7 +440,7 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
         except Exception as e:
             print(f"❌ Error processing year {year}: {str(e)}")
             results_per_year[str(year)] = {
-                'year': year,
+                'year': int(year),
                 'error': str(e),
                 'algorithm': algorithm.upper(),
                 'summary': {'total_regions': 0, 'num_clusters': 0},
@@ -458,9 +453,9 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
     failed_years = [year for year, result in results_per_year.items() if 'error' in result]
     
     overall_summary.update({
-        'successful_years': len(successful_years),
-        'failed_years': len(failed_years),
-        'success_rate': len(successful_years) / len(available_years) if available_years else 0
+        'successful_years': int(len(successful_years)),
+        'failed_years': int(len(failed_years)),
+        'success_rate': float(len(successful_years) / len(available_years)) if available_years else 0.0
     })
     
     # Calculate average evaluation metrics across years
@@ -476,8 +471,8 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
                 avg_sil_scores.append(result['evaluation']['silhouette_score'])
         
         overall_summary['average_evaluation'] = {
-            'davies_bouldin': sum(avg_db_scores) / len(avg_db_scores) if avg_db_scores else None,
-            'silhouette_score': sum(avg_sil_scores) / len(avg_sil_scores) if avg_sil_scores else None
+            'davies_bouldin': float(sum(avg_db_scores) / len(avg_db_scores)) if avg_db_scores else None,
+            'silhouette_score': float(sum(avg_sil_scores) / len(avg_sil_scores)) if avg_sil_scores else None
         }
     
     return {
