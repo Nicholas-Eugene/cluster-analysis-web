@@ -5,8 +5,14 @@
       <div class="page-header">
         <h1>Hasil Analisis Clustering</h1>
         <p v-if="results">
-          Analisis menggunakan algoritma <strong>{{ results.algorithm }}</strong>
-          {{ results.summary.selectedYear ? `untuk tahun ${results.summary.selectedYear}` : 'untuk semua tahun (2015-2024)' }}
+          <span v-if="results.clustering_type === 'per_year'">
+            Analisis menggunakan algoritma <strong>{{ results.overall_summary.algorithm }}</strong>
+            untuk semua tahun ({{ results.overall_summary.years_processed.join(', ') }})
+          </span>
+          <span v-else>
+            Analisis menggunakan algoritma <strong>{{ results.algorithm }}</strong>
+            {{ results.summary?.selectedYear ? `untuk tahun ${results.summary.selectedYear}` : 'untuk semua tahun' }}
+          </span>
         </p>
       </div>
 
@@ -111,7 +117,7 @@
         </div>
 
         <!-- Year Selector for Multi-Year Analysis -->
-        <div v-if="!results.summary.selectedYear && availableYears.length > 1" class="card">
+        <div v-if="results.clustering_type !== 'per_year' && !results.summary?.selectedYear && availableYears.length > 1" class="card">
           <h2>📅 Filter Tahun</h2>
           <div class="year-selector">
             <div class="year-controls">
@@ -306,7 +312,15 @@ export default {
     }
 
     const availableYears = computed(() => {
-      if (!results.value || !results.value.clusters) return []
+      if (!results.value) return []
+      
+      // For per-year clustering, years are already available in overall_summary
+      if (results.value.clustering_type === 'per_year') {
+        return results.value.overall_summary?.years_processed || []
+      }
+      
+      // For single year clustering, extract years from clusters
+      if (!results.value.clusters) return []
       
       const years = new Set()
       results.value.clusters.forEach(cluster => {
@@ -319,7 +333,15 @@ export default {
     })
 
     const filteredClusters = computed(() => {
-      if (!results.value || !results.value.clusters) return []
+      if (!results.value) return []
+      
+      // For per-year clustering, this filtering is handled by YearlyResults component
+      if (results.value.clustering_type === 'per_year') {
+        return []
+      }
+      
+      // For single year clustering
+      if (!results.value.clusters) return []
       
       if (!selectedYear.value) return results.value.clusters
       
