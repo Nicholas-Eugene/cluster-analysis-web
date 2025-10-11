@@ -150,21 +150,34 @@ export default {
 
     const createChart = async () => {
       try {
+        // Multiple validation checks
         if (!chartCanvas.value || !props.clusters || props.clusters.length === 0) return
 
         // Wait for DOM to be ready
         await nextTick()
         
-        if (!chartCanvas.value) return
+        // Re-check after nextTick
+        if (!chartCanvas.value || !chartCanvas.value.offsetParent) return
         
         // Destroy existing chart first
         if (chart.value) {
-          chart.value.destroy()
+          try {
+            chart.value.destroy()
+          } catch (e) {
+            console.warn('Error destroying existing chart:', e)
+          }
           chart.value = null
         }
         
+        // Get context with additional validation
         const ctx = chartCanvas.value.getContext('2d')
-        if (!ctx) return
+        if (!ctx || !ctx.canvas) return
+        
+        // Ensure canvas has dimensions
+        if (ctx.canvas.width === 0 || ctx.canvas.height === 0) {
+          setTimeout(() => createChart(), 100)
+          return
+        }
       
       // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
       // using bar charts to simulate box plots
