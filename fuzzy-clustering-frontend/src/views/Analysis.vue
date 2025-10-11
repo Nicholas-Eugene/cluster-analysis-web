@@ -389,7 +389,23 @@ export default {
         // Check if we have session ID from upload
         const sessionId = route.query.sessionId
         if (sessionId) {
-          results.value = await apiService.getResults(sessionId)
+          const rawResults = await apiService.getResults(sessionId)
+          
+          // Check if it's per-year clustering results
+          if (rawResults.clustering_type === 'per_year') {
+            // For now, use the first available year's results
+            const firstYear = Object.keys(rawResults.results_per_year)[0]
+            if (firstYear && rawResults.results_per_year[firstYear]) {
+              results.value = rawResults.results_per_year[firstYear]
+              // Add overall summary info
+              results.value.overall_summary = rawResults.overall_summary
+            } else {
+              throw new Error('No valid clustering results found')
+            }
+          } else {
+            // Single year clustering results
+            results.value = rawResults
+          }
         } else {
           // Load demo data if no session
           results.value = await apiService.getDemoResults()

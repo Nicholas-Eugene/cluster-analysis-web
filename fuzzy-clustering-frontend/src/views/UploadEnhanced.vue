@@ -791,7 +791,7 @@ Surabaya,2018,78.34,420000,6400000`
         // Redirect to analysis page with results
         setTimeout(() => {
           router.push({
-            name: 'AnalysisFull',
+            name: 'Analysis',
             query: { sessionId: response.session_id }
           })
         }, 1500)

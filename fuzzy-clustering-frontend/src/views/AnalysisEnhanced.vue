@@ -386,12 +386,22 @@ export default {
           throw new Error('Session ID tidak ditemukan')
         }
 
-        const data = await apiService.getResults(sessionId)
-        results.value = data
+        const rawResults = await apiService.getResults(sessionId)
+        
+        // Handle both single year and per-year clustering results
+        if (rawResults.clustering_type === 'per_year') {
+          results.value = rawResults
+        } else {
+          // Single year clustering results
+          results.value = rawResults
+        }
         
         // Set default selected cluster
-        if (data.clusters && data.clusters.length > 0) {
-          selectedCluster.value = data.clusters[0].id
+        if (results.value.clusters && results.value.clusters.length > 0) {
+          selectedCluster.value = results.value.clusters[0].id
+        } else if (results.value.clustering_type === 'per_year') {
+          // For per-year results, no need to set selected cluster here
+          // YearlyResults component will handle it
         }
         
       } catch (err) {
