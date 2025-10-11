@@ -119,16 +119,8 @@ class ClusteringAlgorithms:
         Returns:
             Tuple of (scaled_data, original_dataframe)
         """
-        # Check if data is in wide format (has year columns)
-        has_year_columns = any('_' in col and col.split('_')[-1].isdigit() 
-                              for col in df.columns)
-        
-        if has_year_columns:
-            # Convert wide format to long format
-            df_long = self.reshape_wide_to_long(df)
-        else:
-            # Already in long format
-            df_long = df.copy()
+        # Data is already in long format with standardized column names
+        df_long = df.copy()
         
         # Filter by year if specified
         if selected_year:
@@ -409,9 +401,8 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
     
     clustering = ClusteringAlgorithms()
     
-    # Convert wide format to long format first to get available years
-    df_long = clustering.reshape_wide_to_long(df)
-    available_years = sorted(df_long['tahun'].unique())
+    # Data is already in long format with standardized column names
+    available_years = sorted(df['tahun'].unique())
     
     print(f"🗓️ Processing clustering for years: {available_years}")
     

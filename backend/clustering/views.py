@@ -47,52 +47,69 @@ class UploadAndProcessView(APIView):
         except Exception as e:
             return Response({'error': f'Gagal membaca file: {str(e)}. Pastikan file dalam format CSV atau Excel (.xlsx)'}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Check for required columns - either long format or wide format
-        has_kabupaten_col = 'kabupaten/kota' in df.columns or 'kabupaten_kota' in df.columns
+        # Check for required columns - long format only (5 columns)
+        # Normalize column names for flexible matching
+        df_columns_lower = [col.lower().replace('/', '_').replace(' ', '_') for col in df.columns]
+        df_columns_map = {col.lower().replace('/', '_').replace(' ', '_'): col for col in df.columns}
         
-        if not has_kabupaten_col:
-            return Response({'error': 'Kolom "kabupaten/kota" atau "kabupaten_kota" diperlukan'}, status=status.HTTP_400_BAD_REQUEST)
+        required_cols = {
+            'kabupaten_kota': ['kabupaten_kota', 'kabupaten/kota', 'kabupaten kota'],
+            'tahun': ['tahun'],
+            'ipm': ['ipm'],
+            'garis_kemiskinan': ['garis_kemiskinan', 'garis kemiskinan'],
+            'pengeluaran_per_kapita': ['pengeluaran_per_kapita', 'pengeluaran per kapita', 'pengeluaran_perkapita']
+        }
         
-        # Check if it's wide format (has year columns) or long format
-        has_year_columns = any('_' in col and col.split('_')[-1].isdigit() for col in df.columns)
+        missing_cols = []
+        column_mapping = {}
         
-        if has_year_columns:
-            # Wide format - check for year-specific columns
-            years_found = set()
-            for col in df.columns:
-                if '_' in col:
-                    try:
-                        year = int(col.split('_')[-1])
-                        if 2015 <= year <= 2025:
-                            years_found.add(year)
-                    except ValueError:
-                        continue
-            
-            if not years_found:
-                return Response({'error': 'Tidak ditemukan kolom tahun yang valid (format: ipm_2016, pengeluaran_2016, dll.)'}, status=status.HTTP_400_BAD_REQUEST)
-            
-            # Check if we have the required metric columns for at least one year
-            required_metrics = ['ipm', 'pengeluaran', 'garis_kemiskinan']
-            has_complete_year = False
-            
-            for year in years_found:
-                year_cols = [f'{metric}_{year}' for metric in required_metrics]
-                if all(col in df.columns for col in year_cols):
-                    has_complete_year = True
+        for required_col, possible_names in required_cols.items():
+            found = False
+            for possible_name in possible_names:
+                normalized_name = possible_name.lower().replace('/', '_').replace(' ', '_')
+                if normalized_name in df_columns_lower:
+                    # Map the required column to the actual column name in the dataframe
+                    actual_col_name = df_columns_map[normalized_name]
+                    column_mapping[required_col] = actual_col_name
+                    found = True
                     break
             
-            if not has_complete_year:
-                return Response({'error': 'Tidak ditemukan tahun dengan data lengkap (ipm, pengeluaran, garis_kemiskinan)'}, status=status.HTTP_400_BAD_REQUEST)
+            if not found:
+                missing_cols.append(required_col)
         
-        else:
-            # Long format - check for required columns
-            required_cols = {'tahun', 'ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'}
-            missing_cols = required_cols - set(df.columns)
-            if missing_cols:
-                return Response({'error': f'Kolom wajib hilang: {", ".join(missing_cols)}'}, status=status.HTTP_400_BAD_REQUEST)
+        if missing_cols:
+            return Response({'error': f'Kolom wajib hilang: {", ".join(missing_cols)}'}, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Rename columns to standardized names for consistent processing
+        df = df.rename(columns={v: k for k, v in column_mapping.items()})
 
-        # Note: Year filtering will be handled in the clustering algorithms
-        # for wide format data, as it needs to be converted to long format first
+        # Validate data types and clean data
+        try:
+            # Ensure tahun is numeric
+            df['tahun'] = pd.to_numeric(df['tahun'], errors='coerce')
+            
+            # Ensure numeric columns are numeric
+            df['ipm'] = pd.to_numeric(df['ipm'], errors='coerce')
+            df['garis_kemiskinan'] = pd.to_numeric(df['garis_kemiskinan'], errors='coerce')
+            df['pengeluaran_per_kapita'] = pd.to_numeric(df['pengeluaran_per_kapita'], errors='coerce')
+            
+            # Remove rows with invalid data
+            df = df.dropna(subset=['tahun', 'ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'])
+            
+            if df.empty:
+                return Response({'error': 'Tidak ada data valid yang dapat diproses. Pastikan semua kolom numerik berisi angka yang valid.'}, status=status.HTTP_400_BAD_REQUEST)
+            
+            # Ensure kabupaten_kota is string and not empty
+            df['kabupaten_kota'] = df['kabupaten_kota'].astype(str).str.strip()
+            df = df[df['kabupaten_kota'] != '']
+            
+            if df.empty:
+                return Response({'error': 'Tidak ada data valid yang dapat diproses. Pastikan kolom kabupaten_kota tidak kosong.'}, status=status.HTTP_400_BAD_REQUEST)
+                
+        except Exception as e:
+            return Response({'error': f'Error dalam validasi data: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Data is now in standardized long format with consistent column names and validated data types
 
         parameters = {
             'algorithm': algorithm,
