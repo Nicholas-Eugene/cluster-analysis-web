@@ -7,7 +7,11 @@
         <div class="clustering-info">
           <div class="info-badge">
             <span class="info-icon">🗓️</span>
-            <span>Clustering dilakukan terpisah untuk setiap tahun (2016-2024)</span>
+            <span>Clustering dilakukan terpisah untuk setiap tahun</span>
+          </div>
+          <div class="info-badge">
+            <span class="info-icon">🎯</span>
+            <span>Contoh: 2016 → Cluster A,B,C | 2017 → Cluster A,B,C</span>
           </div>
         </div>
       </div>
@@ -227,32 +231,14 @@
       <div class="card">
         <h2>⚙️ Konfigurasi Parameter</h2>
         
-        <!-- Year Selection -->
-        <div class="form-group">
-          <label class="form-label">
-            Mode Analisis Clustering
-            <span class="info-tooltip" title="Pilih tahun tertentu atau clustering per tahun">ℹ️</span>
-          </label>
-          <select v-model="parameters.selectedYear" class="form-select">
-            <option value="">Clustering Per Tahun (Semua Tahun 2016-2024)</option>
-            <option v-for="year in availableYears" :key="year" :value="year">
-              Clustering Tahun {{ year }} Saja
-            </option>
-          </select>
-          <div class="mode-explanation">
-            <div v-if="!parameters.selectedYear" class="mode-info per-year">
-              <span class="mode-icon">🗓️</span>
-              <div class="mode-text">
-                <strong>Mode Per Tahun:</strong> Clustering akan dilakukan secara terpisah untuk setiap tahun (2016-2024).
-                Hasil akan menampilkan perbandingan clustering antar tahun.
-              </div>
-            </div>
-            <div v-else class="mode-info single-year">
-              <span class="mode-icon">🎯</span>
-              <div class="mode-text">
-                <strong>Mode Tahun Tunggal:</strong> Clustering hanya untuk tahun {{ parameters.selectedYear }}.
-                Hasil akan fokus pada analisis tahun tersebut.
-              </div>
+        <!-- Clustering Mode Info -->
+        <div class="clustering-mode-info">
+          <div class="mode-info per-year">
+            <span class="mode-icon">🗓️</span>
+            <div class="mode-text">
+              <strong>Mode Clustering Per Tahun:</strong> Sistem akan melakukan clustering secara terpisah untuk setiap tahun yang tersedia dalam data.
+              <br>
+              <small>Contoh: Data 2016 akan di-cluster menjadi grup A,B,C - Data 2017 akan di-cluster menjadi grup A,B,C - dan seterusnya.</small>
             </div>
           </div>
         </div>
@@ -424,7 +410,6 @@ export default {
     const selectedAlgorithm = ref('fcm')
 
     const parameters = reactive({
-      selectedYear: '',
       // FCM parameters
       numClusters: 3,
       fuzzyCoeff: 2.0,
@@ -434,10 +419,6 @@ export default {
       minSamples: 5,
       xi: 0.05,
       minClusterSize: 0.05
-    })
-
-    const availableYears = computed(() => {
-      return Array.from({length: 10}, (_, i) => 2015 + i)
     })
 
     const canProcess = computed(() => {
@@ -768,9 +749,7 @@ Surabaya,2018,78.34,420000,6400000`
         formData.append('file', selectedFile.value)
         formData.append('algorithm', selectedAlgorithm.value)
         
-        if (parameters.selectedYear) {
-          formData.append('selected_year', parameters.selectedYear)
-        }
+        // Always use per-year clustering (no selected_year parameter)
 
         // Add algorithm-specific parameters
         if (selectedAlgorithm.value === 'fcm') {
@@ -806,7 +785,6 @@ Surabaya,2018,78.34,420000,6400000`
     const resetForm = () => {
       removeFile()
       selectedAlgorithm.value = 'fcm'
-      parameters.selectedYear = ''
       parameters.numClusters = 3
       parameters.fuzzyCoeff = 2.0
       parameters.maxIter = 300
@@ -826,7 +804,6 @@ Surabaya,2018,78.34,420000,6400000`
       fileInput,
       selectedAlgorithm,
       parameters,
-      availableYears,
       canProcess,
       triggerFileInput,
       handleFileSelect,
@@ -868,6 +845,8 @@ Surabaya,2018,78.34,420000,6400000`
   margin-top: 1.5rem;
   display: flex;
   justify-content: center;
+  gap: 1rem;
+  flex-wrap: wrap;
 }
 
 .info-badge {
@@ -1024,6 +1003,42 @@ Surabaya,2018,78.34,420000,6400000`
   border-radius: 4px;
   font-family: 'Courier New', monospace;
   font-size: 0.875rem;
+}
+
+.clustering-mode-info {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #e6fffa 0%, #f0fff4 100%);
+  border-radius: 12px;
+  border-left: 4px solid #38b2ac;
+}
+
+.clustering-mode-info .mode-info {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+}
+
+.clustering-mode-info .mode-icon {
+  font-size: 1.5rem;
+  flex-shrink: 0;
+  margin-top: 0.25rem;
+}
+
+.clustering-mode-info .mode-text {
+  line-height: 1.6;
+  color: #234e52;
+}
+
+.clustering-mode-info .mode-text strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-size: 1.1rem;
+}
+
+.clustering-mode-info .mode-text small {
+  color: #2d5a5e;
+  font-style: italic;
 }
 
 .sample-download {
