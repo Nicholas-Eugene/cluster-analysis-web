@@ -428,10 +428,14 @@ def get_clustering_results_per_year(df: pd.DataFrame, algorithm: str = 'fcm',
         
         try:
             # Get clustering results for this specific year
+            # Create a copy of kwargs and set the selected_year for this iteration
+            year_kwargs = kwargs.copy()
+            year_kwargs['selected_year'] = str(year)
+            
             if algorithm.lower() == 'fcm':
-                year_results = clustering.fuzzy_c_means(df, features, selected_year=str(year), **kwargs)
+                year_results = clustering.fuzzy_c_means(df, features, **year_kwargs)
             elif algorithm.lower() == 'optics':
-                year_results = clustering.optics_clustering(df, features, selected_year=str(year), **kwargs)
+                year_results = clustering.optics_clustering(df, features, **year_kwargs)
             else:
                 raise ValueError(f"Unknown algorithm: {algorithm}. Use 'fcm' or 'optics'.")
             
