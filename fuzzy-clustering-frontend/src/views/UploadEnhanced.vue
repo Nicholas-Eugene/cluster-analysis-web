@@ -28,38 +28,83 @@
           
           <div class="instruction-item">
             <h3>Struktur Data yang Diperlukan</h3>
-            <div class="data-structure">
-              <table class="sample-table">
-                <thead>
-                  <tr>
-                    <th>Kolom</th>
-                    <th>Deskripsi</th>
-                    <th>Contoh</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><strong>kabupaten/kota</strong></td>
-                    <td>Nama kabupaten/kota</td>
-                    <td>Jakarta Pusat</td>
-                  </tr>
-                  <tr>
-                    <td><strong>ipm_2016, ipm_2017, ..., ipm_2024</strong></td>
-                    <td>Nilai IPM per tahun (2016-2024)</td>
-                    <td>75.5, 76.2, 77.1, ...</td>
-                  </tr>
-                  <tr>
-                    <td><strong>pengeluaran_2016, pengeluaran_2017, ..., pengeluaran_2024</strong></td>
-                    <td>Pengeluaran per kapita per tahun (Rupiah)</td>
-                    <td>8500000, 8700000, 8900000, ...</td>
-                  </tr>
-                  <tr>
-                    <td><strong>garis_kemiskinan_2016, garis_kemiskinan_2017, ..., garis_kemiskinan_2024</strong></td>
-                    <td>Garis kemiskinan per tahun (Rupiah)</td>
-                    <td>532000, 548000, 565000, ...</td>
-                  </tr>
-                </tbody>
-              </table>
+            <p><strong>Sistem mendukung 2 format data:</strong></p>
+            
+            <div class="format-tabs">
+              <h4>📊 Format Wide (Per Tahun) - Direkomendasikan</h4>
+              <div class="data-structure">
+                <table class="sample-table">
+                  <thead>
+                    <tr>
+                      <th>Kolom</th>
+                      <th>Deskripsi</th>
+                      <th>Contoh</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>kabupaten/kota</strong></td>
+                      <td>Nama kabupaten/kota</td>
+                      <td>Jakarta Pusat</td>
+                    </tr>
+                    <tr>
+                      <td><strong>ipm_2016, ipm_2017, ..., ipm_2024</strong></td>
+                      <td>Nilai IPM per tahun (2016-2024)</td>
+                      <td>75.5, 76.2, 77.1, ...</td>
+                    </tr>
+                    <tr>
+                      <td><strong>pengeluaran_2016, pengeluaran_2017, ..., pengeluaran_2024</strong></td>
+                      <td>Pengeluaran per kapita per tahun (Rupiah)</td>
+                      <td>8500000, 8700000, 8900000, ...</td>
+                    </tr>
+                    <tr>
+                      <td><strong>garis_kemiskinan_2016, garis_kemiskinan_2017, ..., garis_kemiskinan_2024</strong></td>
+                      <td>Garis kemiskinan per tahun (Rupiah)</td>
+                      <td>532000, 548000, 565000, ...</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              
+              <h4>📋 Format Long (Baris per Tahun) - Alternatif</h4>
+              <div class="data-structure">
+                <table class="sample-table">
+                  <thead>
+                    <tr>
+                      <th>Kolom</th>
+                      <th>Deskripsi</th>
+                      <th>Contoh</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td><strong>kabupaten_kota</strong></td>
+                      <td>Nama kabupaten/kota</td>
+                      <td>Jakarta Pusat</td>
+                    </tr>
+                    <tr>
+                      <td><strong>tahun</strong></td>
+                      <td>Tahun data</td>
+                      <td>2016, 2017, 2018, ...</td>
+                    </tr>
+                    <tr>
+                      <td><strong>ipm</strong></td>
+                      <td>Nilai IPM</td>
+                      <td>75.5</td>
+                    </tr>
+                    <tr>
+                      <td><strong>garis_kemiskinan</strong></td>
+                      <td>Garis kemiskinan (Rupiah)</td>
+                      <td>532000</td>
+                    </tr>
+                    <tr>
+                      <td><strong>pengeluaran_per_kapita</strong></td>
+                      <td>Pengeluaran per kapita (Rupiah)</td>
+                      <td>8500000</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
 
@@ -68,11 +113,14 @@
             <div class="sample-download">
               <p>Download template dataset untuk referensi:</p>
               <div class="download-buttons">
-                <button @click="downloadSample" class="btn btn-secondary">
-                  📥 Download Template CSV
+                <button @click="downloadSampleWide" class="btn btn-secondary">
+                  📥 Template Wide Format (CSV)
+                </button>
+                <button @click="downloadSampleLong" class="btn btn-secondary">
+                  📋 Template Long Format (CSV)
                 </button>
                 <button @click="downloadExcelSample" class="btn btn-secondary">
-                  📊 Download Template Excel
+                  📊 Template Excel
                 </button>
                 <button @click="loadSampleData" class="btn btn-info">
                   📂 Gunakan Data Sample
@@ -491,6 +539,71 @@ export default {
           }
 
           const headers = lines[0].split(',').map(h => h.trim())
+          
+          // Detect format and validate
+          const hasKabupatenCol = headers.some(h => h.toLowerCase().includes('kabupaten') || h.toLowerCase().includes('kota'))
+          const hasTahunCol = headers.includes('tahun')
+          const hasYearColumns = headers.some(h => /_\d{4}$/.test(h))
+          
+          let validationError = null
+          let years = []
+          
+          if (!hasKabupatenCol) {
+            validationError = 'Kolom yang hilang: kabupaten_kota (atau kabupaten/kota)'
+          } else if (hasYearColumns) {
+            // Wide format validation
+            const yearCols = headers.filter(h => /_\d{4}$/.test(h))
+            const yearSet = new Set()
+            yearCols.forEach(col => {
+              const match = col.match(/_(\d{4})$/)
+              if (match) yearSet.add(match[1])
+            })
+            years = Array.from(yearSet).sort()
+            
+            // Check for required metrics
+            const requiredMetrics = ['ipm', 'pengeluaran', 'garis_kemiskinan']
+            const missingMetrics = []
+            
+            for (const metric of requiredMetrics) {
+              const hasMetricForAnyYear = years.some(year => 
+                headers.includes(`${metric}_${year}`)
+              )
+              if (!hasMetricForAnyYear) {
+                missingMetrics.push(metric)
+              }
+            }
+            
+            if (missingMetrics.length > 0) {
+              validationError = `Kolom yang hilang untuk format wide: ${missingMetrics.map(m => `${m}_YYYY`).join(', ')}`
+            }
+          } else {
+            // Long format validation
+            const requiredColumns = ['kabupaten_kota', 'tahun', 'ipm', 'garis_kemiskinan']
+            const normalizedHeaders = headers.map(h => h.toLowerCase().replace(/[\/\s]/g, '_'))
+            const missingColumns = requiredColumns.filter(col => {
+              const normalizedCol = col.toLowerCase()
+              return !normalizedHeaders.includes(normalizedCol) && 
+                     !normalizedHeaders.some(h => h.includes(normalizedCol.replace('_', '')))
+            })
+            
+            if (missingColumns.length > 0) {
+              validationError = `Kolom yang hilang: ${missingColumns.join(', ')}`
+            } else {
+              // Extract years from data for long format
+              years = [...new Set(lines.slice(1).map(line => {
+                const values = line.split(',')
+                const yearIndex = headers.findIndex(h => h.toLowerCase() === 'tahun')
+                return yearIndex >= 0 ? values[yearIndex]?.trim() : null
+              }).filter(year => year && !isNaN(year)))].sort()
+            }
+          }
+          
+          if (validationError) {
+            uploadError.value = validationError
+            uploadSuccess.value = ''
+            return
+          }
+
           const sampleRows = lines.slice(1, 6).map(line => {
             const values = line.split(',').map(v => v.trim())
             const row = {}
@@ -500,18 +613,12 @@ export default {
             return row
           })
 
-          // Extract years from data
-          const years = [...new Set(lines.slice(1).map(line => {
-            const values = line.split(',')
-            const yearIndex = headers.indexOf('tahun')
-            return yearIndex >= 0 ? values[yearIndex]?.trim() : null
-          }).filter(year => year && !isNaN(year)))].sort()
-
           dataPreview.value = {
             totalRows: lines.length - 1,
             columns: headers,
             sampleRows: sampleRows,
-            years: years
+            years: years,
+            format: hasYearColumns ? 'wide' : 'long'
           }
         } catch (error) {
           uploadError.value = 'Gagal membaca file CSV. Pastikan format file benar.'
@@ -525,23 +632,27 @@ export default {
       // The actual parsing will be done on the backend
       const fileName = file.name
       
-      // Create a mock preview for Excel files
+      // Create a mock preview for Excel files showing both possible formats
       dataPreview.value = {
         totalRows: 'Unknown (akan diproses di server)',
-        columns: ['kabupaten/kota', 'ipm_2016', 'pengeluaran_2016', 'garis_kemiskinan_2016', '...'],
+        columns: ['Format akan dideteksi otomatis'],
         sampleRows: [
           {
-            'kabupaten/kota': 'Akan ditampilkan setelah upload',
-            'ipm_2016': '...',
-            'pengeluaran_2016': '...',
-            'garis_kemiskinan_2016': '...',
-            '...': '...'
+            'Format akan dideteksi otomatis': 'Wide format: kabupaten/kota, ipm_2016, pengeluaran_2016, garis_kemiskinan_2016, ...'
+          },
+          {
+            'Format akan dideteksi otomatis': 'Long format: kabupaten_kota, tahun, ipm, garis_kemiskinan, pengeluaran_per_kapita'
           }
         ],
-        years: ['2016', '2017', '2018', '2019', '2020', '2021', '2022', '2023', '2024']
+        years: ['Akan dideteksi dari data'],
+        format: 'unknown'
       }
       
-      uploadSuccess.value = `File Excel ${fileName} berhasil dipilih. Preview lengkap akan tersedia setelah upload.`
+      uploadSuccess.value = `File Excel ${fileName} berhasil dipilih. Format akan divalidasi saat upload. 
+      
+Pastikan file memiliki salah satu format berikut:
+- Wide format: kabupaten/kota, ipm_YYYY, pengeluaran_YYYY, garis_kemiskinan_YYYY
+- Long format: kabupaten_kota, tahun, ipm, garis_kemiskinan, pengeluaran_per_kapita`
     }
 
     const removeFile = () => {
@@ -560,7 +671,7 @@ export default {
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i]
     }
 
-    const downloadSample = () => {
+    const downloadSampleWide = () => {
       const sampleData = `kabupaten/kota,ipm_2016,pengeluaran_2016,garis_kemiskinan_2016,ipm_2017,pengeluaran_2017,garis_kemiskinan_2017,ipm_2018,pengeluaran_2018,garis_kemiskinan_2018,ipm_2019,pengeluaran_2019,garis_kemiskinan_2019,ipm_2020,pengeluaran_2020,garis_kemiskinan_2020,ipm_2021,pengeluaran_2021,garis_kemiskinan_2021,ipm_2022,pengeluaran_2022,garis_kemiskinan_2022,ipm_2023,pengeluaran_2023,garis_kemiskinan_2023,ipm_2024,pengeluaran_2024,garis_kemiskinan_2024
 Jakarta Pusat,79.32,7800000,540000,79.78,8100000,560000,80.45,8400000,580000,81.12,8700000,600000,81.56,9000000,620000,82.12,9300000,640000,82.67,9600000,660000,83.23,9900000,680000,83.78,10200000,700000
 Jakarta Utara,78.91,7200000,540000,79.45,7500000,560000,79.98,7800000,580000,80.52,8100000,600000,81.05,8400000,620000,81.58,8700000,640000,82.12,9000000,660000,82.65,9300000,680000,83.19,9600000,700000
@@ -578,6 +689,45 @@ Palembang,73.78,4300000,310000,74.23,4600000,330000,74.78,4900000,350000,75.34,5
       const a = document.createElement('a')
       a.href = url
       a.download = 'template_dataset_indonesia_wide.csv'
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+
+    const downloadSampleLong = () => {
+      const sampleData = `kabupaten_kota,tahun,ipm,garis_kemiskinan,pengeluaran_per_kapita
+Jakarta Pusat,2016,79.32,540000,7800000
+Jakarta Pusat,2017,79.78,560000,8100000
+Jakarta Pusat,2018,80.45,580000,8400000
+Jakarta Pusat,2019,81.12,600000,8700000
+Jakarta Pusat,2020,81.56,620000,9000000
+Jakarta Utara,2016,78.91,540000,7200000
+Jakarta Utara,2017,79.45,560000,7500000
+Jakarta Utara,2018,79.98,580000,7800000
+Jakarta Utara,2019,80.52,600000,8100000
+Jakarta Utara,2020,81.05,620000,8400000
+Jakarta Barat,2016,81.65,540000,9200000
+Jakarta Barat,2017,82.23,560000,9500000
+Jakarta Barat,2018,82.89,580000,9800000
+Jakarta Barat,2019,83.56,600000,10100000
+Jakarta Barat,2020,84.23,620000,10400000
+Surabaya,2016,77.45,380000,5800000
+Surabaya,2017,77.89,400000,6100000
+Surabaya,2018,78.34,420000,6400000
+Surabaya,2019,78.78,440000,6700000
+Surabaya,2020,79.23,460000,7000000
+Bandung,2016,76.12,350000,5200000
+Bandung,2017,76.67,370000,5500000
+Bandung,2018,77.23,390000,5800000
+Bandung,2019,77.78,410000,6100000
+Bandung,2020,78.34,430000,6400000`
+
+      const blob = new Blob([sampleData], { type: 'text/csv' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'template_dataset_indonesia_long.csv'
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -746,7 +896,8 @@ Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000`
       handleFileDrop,
       removeFile,
       formatFileSize,
-      downloadSample,
+      downloadSampleWide,
+      downloadSampleLong,
       downloadExcelSample,
       loadSampleData,
       validateAndProcess,
@@ -886,6 +1037,24 @@ Surabaya,77.45,5800000,380000,77.89,6100000,400000,78.34,6400000,420000`
 
 .sample-table td {
   color: #718096;
+}
+
+.format-tabs {
+  margin-top: 1rem;
+}
+
+.format-tabs h4 {
+  color: #4a5568;
+  margin: 2rem 0 1rem 0;
+  font-size: 1.1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+}
+
+.format-tabs h4:first-child {
+  margin-top: 1rem;
 }
 
 .sample-download {
