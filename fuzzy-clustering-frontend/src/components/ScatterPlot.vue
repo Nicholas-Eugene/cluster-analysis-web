@@ -29,7 +29,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch } from 'vue'
+import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
 
 export default {
@@ -79,10 +79,16 @@ export default {
       return value.toFixed(2)
     }
 
-    const createChart = () => {
+    const createChart = async () => {
       if (!chartCanvas.value || !props.clusters) return
 
+      // Wait for DOM to be ready
+      await nextTick()
+      
+      if (!chartCanvas.value) return
+      
       const ctx = chartCanvas.value.getContext('2d')
+      if (!ctx) return
       
       // Prepare datasets
       const datasets = props.clusters.map((cluster, index) => {
@@ -183,8 +189,8 @@ export default {
       createChart()
     }
 
-    onMounted(() => {
-      createChart()
+    onMounted(async () => {
+      await createChart()
     })
 
     onUnmounted(() => {
@@ -193,8 +199,8 @@ export default {
       }
     })
 
-    watch(() => props.clusters, () => {
-      createChart()
+    watch(() => props.clusters, async () => {
+      await createChart()
     }, { deep: true })
 
     return {

@@ -53,7 +53,7 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
 
 export default {
@@ -148,10 +148,16 @@ export default {
       })
     }
 
-    const createChart = () => {
+    const createChart = async () => {
       if (!chartCanvas.value || !props.clusters) return
 
+      // Wait for DOM to be ready
+      await nextTick()
+      
+      if (!chartCanvas.value) return
+      
       const ctx = chartCanvas.value.getContext('2d')
+      if (!ctx) return
       
       // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
       // using bar charts to simulate box plots
@@ -251,8 +257,8 @@ export default {
       createChart()
     }
 
-    onMounted(() => {
-      createChart()
+    onMounted(async () => {
+      await createChart()
     })
 
     onUnmounted(() => {
@@ -261,8 +267,8 @@ export default {
       }
     })
 
-    watch(() => props.clusters, () => {
-      createChart()
+    watch(() => props.clusters, async () => {
+      await createChart()
     }, { deep: true })
 
     return {
