@@ -149,15 +149,22 @@ export default {
     }
 
     const createChart = async () => {
-      if (!chartCanvas.value || !props.clusters) return
+      try {
+        if (!chartCanvas.value || !props.clusters || props.clusters.length === 0) return
 
-      // Wait for DOM to be ready
-      await nextTick()
-      
-      if (!chartCanvas.value) return
-      
-      const ctx = chartCanvas.value.getContext('2d')
-      if (!ctx) return
+        // Wait for DOM to be ready
+        await nextTick()
+        
+        if (!chartCanvas.value) return
+        
+        // Destroy existing chart first
+        if (chart.value) {
+          chart.value.destroy()
+          chart.value = null
+        }
+        
+        const ctx = chartCanvas.value.getContext('2d')
+        if (!ctx) return
       
       // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
       // using bar charts to simulate box plots
@@ -237,11 +244,15 @@ export default {
         }
       }
 
-      if (chart.value) {
-        chart.value.destroy()
-      }
-
       chart.value = new Chart(ctx, config)
+      
+      } catch (error) {
+        console.warn('Error creating box plot chart:', error)
+        if (chart.value) {
+          chart.value.destroy()
+          chart.value = null
+        }
+      }
     }
 
     const getMetricLabel = (metric) => {
@@ -254,7 +265,13 @@ export default {
     }
 
     const updateChart = () => {
-      createChart()
+      // Debounce chart updates to prevent rapid recreation
+      if (updateChart.timeout) {
+        clearTimeout(updateChart.timeout)
+      }
+      updateChart.timeout = setTimeout(() => {
+        createChart()
+      }, 100)
     }
 
     onMounted(async () => {
@@ -262,13 +279,19 @@ export default {
     })
 
     onUnmounted(() => {
+      // Clear any pending timeouts
+      if (updateChart.timeout) {
+        clearTimeout(updateChart.timeout)
+      }
+      
       if (chart.value) {
         chart.value.destroy()
+        chart.value = null
       }
     })
 
-    watch(() => props.clusters, async () => {
-      await createChart()
+    watch(() => props.clusters, () => {
+      updateChart()
     }, { deep: true })
 
     return {
