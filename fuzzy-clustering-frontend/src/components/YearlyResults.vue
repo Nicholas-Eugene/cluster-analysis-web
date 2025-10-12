@@ -151,6 +151,11 @@
 
         <!-- Visualizations for Selected Year -->
         <div v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0" class="year-visualizations">
+          <CorrelationMatrix 
+            :clusters="selectedYearResults.clusters" 
+            :title="`Analisis Korelasi Variabel - ${selectedYearResults.algorithm} (${selectedYear})`"
+          />
+          
           <ScatterPlot 
             :clusters="selectedYearResults.clusters" 
             :title="`Scatter Plot - ${selectedYearResults.algorithm} Clustering (${selectedYear})`"
@@ -212,10 +217,26 @@
             </div>
             
             <div class="cluster-members">
-              <h5>Daftar Daerah:</h5>
+              <div class="members-header">
+                <h5>Daftar Daerah:</h5>
+                <div class="sort-controls">
+                  <label for="yearly-sort-field">Urutkan:</label>
+                  <select id="yearly-sort-field" v-model="sortField" class="sort-select">
+                    <option value="kabupaten_kota">Nama Daerah</option>
+                    <option value="ipm">IPM</option>
+                    <option value="garis_kemiskinan">Garis Kemiskinan</option>
+                    <option value="pengeluaran_per_kapita">Pengeluaran Per Kapita</option>
+                    <option v-if="selectedYearResults?.algorithm === 'Fuzzy C-Means'" value="membership">Membership</option>
+                  </select>
+                  <button @click="toggleSortOrder" class="sort-order-btn" :title="sortOrder === 'asc' ? 'Urutkan Menurun' : 'Urutkan Menaik'">
+                    <span v-if="sortOrder === 'asc'">↑</span>
+                    <span v-else>↓</span>
+                  </button>
+                </div>
+              </div>
               <div class="members-grid">
                 <div 
-                  v-for="member in activeCluster.members" 
+                  v-for="member in sortedClusterMembers" 
                   :key="member.kabupaten_kota"
                   class="member-card"
                 >
@@ -252,13 +273,15 @@ import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import ScatterPlot from './ScatterPlot.vue'
 import BoxPlot from './BoxPlot.vue'
 import InteractiveMap from './InteractiveMap.vue'
+import CorrelationMatrix from './CorrelationMatrix.vue'
 
 export default {
   name: 'YearlyResults',
   components: {
     ScatterPlot,
     BoxPlot,
-    InteractiveMap
+    InteractiveMap,
+    CorrelationMatrix
   },
   props: {
     results: {
@@ -269,6 +292,8 @@ export default {
   setup(props) {
     const selectedYear = ref(null)
     const selectedCluster = ref(null)
+    const sortField = ref('kabupaten_kota')
+    const sortOrder = ref('asc')
 
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
@@ -317,6 +342,36 @@ export default {
       })
       
       return found
+    })
+
+    const sortedClusterMembers = computed(() => {
+      if (!activeCluster.value || !activeCluster.value.members) return []
+      
+      const members = [...activeCluster.value.members]
+      
+      return members.sort((a, b) => {
+        let aValue = a[sortField.value]
+        let bValue = b[sortField.value]
+        
+        // Handle null/undefined values
+        if (aValue == null) aValue = ''
+        if (bValue == null) bValue = ''
+        
+        // Convert to appropriate type for comparison
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase()
+          bValue = bValue.toLowerCase()
+        }
+        
+        let comparison = 0
+        if (aValue < bValue) {
+          comparison = -1
+        } else if (aValue > bValue) {
+          comparison = 1
+        }
+        
+        return sortOrder.value === 'asc' ? comparison : -comparison
+      })
     })
 
     const hasError = (year) => {
@@ -368,6 +423,10 @@ export default {
       return 'Perlu Perbaikan'
     }
 
+    const toggleSortOrder = () => {
+      sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+    }
+
     // Set default selected year when component mounts or data changes
     const setDefaultYear = async () => {
       await nextTick()
@@ -412,16 +471,20 @@ export default {
     return {
       selectedYear,
       selectedCluster,
+      sortField,
+      sortOrder,
       availableYears,
       selectedYearResults,
       activeCluster,
+      sortedClusterMembers,
       hasError,
       getClusterColor,
       formatCurrency,
       getDBIQuality,
       getDBIQualityText,
       getSilhouetteQuality,
-      getSilhouetteQualityText
+      getSilhouetteQualityText,
+      toggleSortOrder
     }
   }
 }
@@ -716,9 +779,56 @@ export default {
   font-size: 0.875rem;
 }
 
-.cluster-members h5 {
-  color: #2d3748;
+.members-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.members-header h5 {
+  color: #2d3748;
+  margin: 0;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.sort-controls label {
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.sort-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  color: #4a5568;
+  font-size: 0.875rem;
+}
+
+.sort-order-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  color: #4a5568;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.sort-order-btn:hover {
+  background: #f7fafc;
+  border-color: #667eea;
 }
 
 .members-grid {

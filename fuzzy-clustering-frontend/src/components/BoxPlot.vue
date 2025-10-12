@@ -237,22 +237,10 @@ export default {
           return
         }
       
-      // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
-      // using bar charts to simulate box plots
+      // Create a more comprehensive box plot visualization
       const labels = props.clusters.map(cluster => `Cluster ${cluster.id}`)
-      const data = props.clusters.map((cluster, index) => {
-        const values = cluster.members
-          .map(member => member[selectedMetric.value])
-          .filter(val => val != null)
-        
-        const stats = calculateStatistics(values)
-        return stats.median // Show median as the main value
-      })
       
-      const backgroundColors = props.clusters.map((cluster, index) => getClusterColor(index) + '80')
-      const borderColors = props.clusters.map((cluster, index) => getClusterColor(index))
-      
-      // Store stats for tooltip access
+      // Calculate statistics for all clusters
       const allStats = props.clusters.map((cluster, index) => {
         const values = cluster.members
           .map(member => member[selectedMetric.value])
@@ -260,19 +248,59 @@ export default {
         return calculateStatistics(values)
       })
 
+      // Create datasets for different parts of the box plot
+      const datasets = [
+        // Main box (Q1 to Q3)
+        {
+          label: 'Interquartile Range (Q1-Q3)',
+          data: allStats.map(stats => stats.q3 - stats.q1),
+          backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index) + '60'),
+          borderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+          borderWidth: 2,
+          base: allStats.map(stats => stats.q1),
+          allStats: allStats,
+          type: 'bar'
+        },
+        // Median line
+        {
+          label: 'Median',
+          data: allStats.map(stats => stats.median),
+          backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+          borderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          showLine: false,
+          type: 'line'
+        },
+        // Outliers and whiskers (represented as scatter points)
+        {
+          label: 'Min/Max',
+          data: labels.map((label, index) => ({
+            x: label,
+            y: allStats[index].min
+          })).concat(labels.map((label, index) => ({
+            x: label,
+            y: allStats[index].max
+          }))),
+          backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index)).concat(
+            props.clusters.map((cluster, index) => getClusterColor(index))
+          ),
+          borderColor: props.clusters.map((cluster, index) => getClusterColor(index)).concat(
+            props.clusters.map((cluster, index) => getClusterColor(index))
+          ),
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          showLine: false,
+          type: 'scatter'
+        }
+      ]
+
       const config = {
         type: 'bar',
         data: {
           labels: labels,
-          datasets: [{
-            label: `${getMetricLabel(selectedMetric.value)} per Cluster`,
-            data: data,
-            backgroundColor: backgroundColors,
-            borderColor: borderColors,
-            borderWidth: 2,
-            // Store additional stats for tooltip
-            allStats: allStats
-          }]
+          datasets: datasets
         },
         options: {
           responsive: true,
@@ -301,15 +329,27 @@ export default {
                   return context[0].label
                 },
                 label: (context) => {
-                  const stats = context.dataset.allStats[context.dataIndex]
-                  return [
-                    `Min: ${formatValue(stats.min)}`,
-                    `Q1: ${formatValue(stats.q1)}`,
-                    `Median: ${formatValue(stats.median)}`,
-                    `Q3: ${formatValue(stats.q3)}`,
-                    `Max: ${formatValue(stats.max)}`,
-                    `Mean: ${formatValue(stats.mean)}`
-                  ]
+                  const datasetIndex = context.datasetIndex
+                  const dataIndex = context.dataIndex
+                  
+                  if (datasetIndex === 0) { // Box plot bars
+                    const stats = allStats[dataIndex]
+                    return [
+                      `Min: ${formatValue(stats.min)}`,
+                      `Q1: ${formatValue(stats.q1)}`,
+                      `Median: ${formatValue(stats.median)}`,
+                      `Q3: ${formatValue(stats.q3)}`,
+                      `Max: ${formatValue(stats.max)}`,
+                      `Mean: ${formatValue(stats.mean)}`
+                    ]
+                  } else if (datasetIndex === 1) { // Median line
+                    const stats = allStats[dataIndex]
+                    return `Median: ${formatValue(stats.median)}`
+                  } else { // Min/Max points
+                    const value = context.parsed.y
+                    const isMin = dataIndex < labels.length
+                    return `${isMin ? 'Minimum' : 'Maximum'}: ${formatValue(value)}`
+                  }
                 }
               }
             }
