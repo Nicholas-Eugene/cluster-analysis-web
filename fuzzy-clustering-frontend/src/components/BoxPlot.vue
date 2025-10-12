@@ -3,7 +3,7 @@
     <div class="chart-header">
       <h3>{{ title }}</h3>
       <div class="chart-controls">
-        <select v-model="selectedMetric" @change="updateChart" class="metric-select">
+        <select v-model="selectedMetric" @change="handleMetricChange" class="metric-select">
           <option value="ipm">IPM</option>
           <option value="garis_kemiskinan">Garis Kemiskinan</option>
           <option value="pengeluaran_per_kapita">Pengeluaran Per Kapita</option>
@@ -204,53 +204,102 @@ export default {
         try {
           ctx = chartCanvas.value.getContext('2d')
         } catch (e) {
-          console.error('Failed to get 2d context:', e)
+          console.error('BoxPlot: Failed to get 2d context:', e)
           return
         }
         
         if (!ctx || !ctx.canvas) {
-          console.warn('Invalid canvas context')
+          console.warn('BoxPlot: Invalid canvas context')
           return
         }
         
         // Ensure canvas has proper dimensions
         const canvas = ctx.canvas
         if (canvas.width === 0 || canvas.height === 0) {
-          console.warn('Canvas has zero dimensions, retrying...')
+          console.warn('BoxPlot: Canvas has zero dimensions, retrying...')
           setTimeout(() => createChart(), 200)
           return
         }
         
         // Check if canvas is still attached to DOM
         if (!document.contains(canvas)) {
-          console.warn('Canvas is not attached to DOM')
+          console.warn('BoxPlot: Canvas is not attached to DOM')
+          return
+        }
+        
+        // Additional context validation
+        try {
+          // Test if context is still valid by calling a simple method
+          ctx.save()
+          ctx.restore()
+        } catch (contextError) {
+          console.error('BoxPlot: Canvas context is invalid:', contextError)
           return
         }
       
-      // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
-      // using bar charts to simulate box plots
-      const datasets = props.clusters.map((cluster, index) => {
+      // Create a more comprehensive box plot visualization
+      const labels = props.clusters.map(cluster => `Cluster ${cluster.id}`)
+      
+      // Calculate statistics for all clusters
+      const allStats = props.clusters.map((cluster, index) => {
         const values = cluster.members
           .map(member => member[selectedMetric.value])
           .filter(val => val != null)
-        
-        const stats = calculateStatistics(values)
-        
-        return {
-          label: `Cluster ${cluster.id}`,
-          data: [stats.median], // Show median as the main value
-          backgroundColor: getClusterColor(index) + '80',
-          borderColor: getClusterColor(index),
-          borderWidth: 2,
-          // Store additional stats for tooltip
-          stats: stats
-        }
+        return calculateStatistics(values)
       })
+
+      // Create datasets for different parts of the box plot
+      const datasets = [
+        // Main box (Q1 to Q3)
+        {
+          label: 'Interquartile Range (Q1-Q3)',
+          data: allStats.map(stats => stats.q3 - stats.q1),
+          backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index) + '60'),
+          borderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+          borderWidth: 2,
+          base: allStats.map(stats => stats.q1),
+          allStats: allStats,
+          type: 'bar'
+        },
+        // Median line
+        {
+          label: 'Median',
+          data: allStats.map(stats => stats.median),
+          backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+          borderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+          borderWidth: 3,
+          pointRadius: 0,
+          pointHoverRadius: 0,
+          showLine: false,
+          type: 'line'
+        },
+        // Outliers and whiskers (represented as scatter points)
+        {
+          label: 'Min/Max',
+          data: labels.map((label, index) => ({
+            x: label,
+            y: allStats[index].min
+          })).concat(labels.map((label, index) => ({
+            x: label,
+            y: allStats[index].max
+          }))),
+          backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index)).concat(
+            props.clusters.map((cluster, index) => getClusterColor(index))
+          ),
+          borderColor: props.clusters.map((cluster, index) => getClusterColor(index)).concat(
+            props.clusters.map((cluster, index) => getClusterColor(index))
+          ),
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          showLine: false,
+          type: 'scatter'
+        }
+      ]
 
       const config = {
         type: 'bar',
         data: {
-          labels: props.clusters.map(cluster => `Cluster ${cluster.id}`),
+          labels: labels,
           datasets: datasets
         },
         options: {
@@ -280,15 +329,27 @@ export default {
                   return context[0].label
                 },
                 label: (context) => {
-                  const stats = context.dataset.stats
-                  return [
-                    `Min: ${formatValue(stats.min)}`,
-                    `Q1: ${formatValue(stats.q1)}`,
-                    `Median: ${formatValue(stats.median)}`,
-                    `Q3: ${formatValue(stats.q3)}`,
-                    `Max: ${formatValue(stats.max)}`,
-                    `Mean: ${formatValue(stats.mean)}`
-                  ]
+                  const datasetIndex = context.datasetIndex
+                  const dataIndex = context.dataIndex
+                  
+                  if (datasetIndex === 0) { // Box plot bars
+                    const stats = allStats[dataIndex]
+                    return [
+                      `Min: ${formatValue(stats.min)}`,
+                      `Q1: ${formatValue(stats.q1)}`,
+                      `Median: ${formatValue(stats.median)}`,
+                      `Q3: ${formatValue(stats.q3)}`,
+                      `Max: ${formatValue(stats.max)}`,
+                      `Mean: ${formatValue(stats.mean)}`
+                    ]
+                  } else if (datasetIndex === 1) { // Median line
+                    const stats = allStats[dataIndex]
+                    return `Median: ${formatValue(stats.median)}`
+                  } else { // Min/Max points
+                    const value = context.parsed.y
+                    const isMin = dataIndex < labels.length
+                    return `${isMin ? 'Minimum' : 'Maximum'}: ${formatValue(value)}`
+                  }
                 }
               }
             }
@@ -315,17 +376,49 @@ export default {
         }
       }
 
-      chart.value = new Chart(ctx, config)
-      
-      } catch (error) {
-        console.warn('Error creating box plot chart:', error)
+      // Final validation before creating chart
+      if (!ctx || !ctx.canvas) {
+        console.error('BoxPlot: Context became invalid before chart creation')
+        return
+      }
+
+      try {
+        chart.value = new Chart(ctx, config)
+        console.log('BoxPlot: Chart created successfully')
+      } catch (chartError) {
+        console.error('BoxPlot: Error creating Chart.js instance:', chartError)
+        
+        // Clean up any partial chart creation
         if (chart.value) {
           try {
             if (typeof chart.value.destroy === 'function') {
               chart.value.destroy()
             }
           } catch (destroyError) {
-            console.warn('Error destroying chart after creation error:', destroyError)
+            console.warn('BoxPlot: Error destroying chart after creation error:', destroyError)
+          }
+          chart.value = null
+        }
+        
+        // Try to clear the canvas
+        try {
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+        } catch (clearError) {
+          console.warn('BoxPlot: Error clearing canvas after chart creation error:', clearError)
+        }
+        
+        return
+      }
+      
+      } catch (error) {
+        console.warn('BoxPlot: General error in createChart:', error)
+        if (chart.value) {
+          try {
+            if (typeof chart.value.destroy === 'function') {
+              chart.value.destroy()
+            }
+          } catch (destroyError) {
+            console.warn('BoxPlot: Error destroying chart after general error:', destroyError)
           }
           chart.value = null
         }
@@ -347,7 +440,7 @@ export default {
     const updateChart = () => {
       // Prevent multiple simultaneous updates
       if (isUpdating) {
-        console.warn('Chart update already in progress, skipping')
+        console.warn('BoxPlot: Chart update already in progress, skipping')
         return
       }
       
@@ -358,20 +451,59 @@ export default {
       
       // Debounce chart updates with longer delay to prevent rapid recreation
       updateTimeout = setTimeout(async () => {
+        // Double-check canvas availability
         if (!chartCanvas.value) {
-          console.warn('Canvas not available for update')
+          console.warn('BoxPlot: Canvas not available for update')
+          return
+        }
+        
+        // Check if component is still mounted
+        if (!chartCanvas.value.offsetParent && chartCanvas.value.style.display !== 'none') {
+          console.warn('BoxPlot: Canvas not visible, skipping update')
           return
         }
         
         isUpdating = true
         try {
+          // Destroy existing chart first to prevent context issues
+          if (chart.value) {
+            try {
+              chart.value.destroy()
+              chart.value = null
+            } catch (destroyError) {
+              console.warn('BoxPlot: Error destroying chart before update:', destroyError)
+            }
+          }
+          
+          // Wait a bit to ensure cleanup is complete
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Recreate chart
           await createChart()
         } catch (error) {
-          console.error('Error during chart update:', error)
+          console.error('BoxPlot: Error during chart update:', error)
         } finally {
           isUpdating = false
         }
-      }, 300) // Increased debounce time
+      }, 500) // Increased debounce time for more stability
+    }
+
+    const handleMetricChange = () => {
+      console.log('BoxPlot: Metric changed to:', selectedMetric.value)
+      
+      // Only update if component is properly mounted and canvas is available
+      if (!chartCanvas.value) {
+        console.warn('BoxPlot: Canvas not available for metric change, skipping update')
+        return
+      }
+      
+      // Check if we have valid cluster data
+      if (!props.clusters || props.clusters.length === 0) {
+        console.warn('BoxPlot: No cluster data available for metric change')
+        return
+      }
+      
+      updateChart()
     }
 
     onMounted(async () => {
@@ -423,7 +555,8 @@ export default {
       getClusterColor,
       getStatistics,
       formatValue,
-      updateChart
+      updateChart,
+      handleMetricChange
     }
   }
 }

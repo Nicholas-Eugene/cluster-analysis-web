@@ -145,6 +145,12 @@
         <!-- Visualizations -->
         <div class="visualizations">
           
+          <!-- Correlation Matrix -->
+          <CorrelationMatrix 
+            :clusters="filteredClusters" 
+            :title="`Analisis Korelasi Variabel - ${results.algorithm}`"
+          />
+          
           <!-- Scatter Plot -->
           <ScatterPlot 
             :clusters="filteredClusters" 
@@ -210,22 +216,61 @@
             </div>
             
             <div class="cluster-members">
-              <h4>Daftar Daerah:</h4>
+              <div class="members-header">
+                <h4>Daftar Daerah:</h4>
+                <div class="sort-controls">
+                  <label for="sort-field">Urutkan berdasarkan:</label>
+                  <select id="sort-field" v-model="sortField" class="sort-select">
+                    <option value="kabupaten_kota">Nama Daerah</option>
+                    <option value="provinsi">Provinsi</option>
+                    <option value="tahun">Tahun</option>
+                    <option value="ipm">IPM</option>
+                    <option value="garis_kemiskinan">Garis Kemiskinan</option>
+                    <option value="pengeluaran_per_kapita">Pengeluaran Per Kapita</option>
+                    <option v-if="results.algorithm === 'Fuzzy C-Means'" value="membership">Membership</option>
+                  </select>
+                  <button @click="toggleSortOrder" class="sort-order-btn" :title="sortOrder === 'asc' ? 'Urutkan Menurun' : 'Urutkan Menaik'">
+                    <span v-if="sortOrder === 'asc'">↑</span>
+                    <span v-else>↓</span>
+                  </button>
+                </div>
+              </div>
               <div class="members-table-container">
                 <table class="members-table">
                   <thead>
                     <tr>
-                      <th>Kabupaten/Kota</th>
-                      <th>Provinsi</th>
-                      <th>Tahun</th>
-                      <th>IPM</th>
-                      <th>Garis Kemiskinan</th>
-                      <th>Pengeluaran Per Kapita</th>
-                      <th v-if="results.algorithm === 'Fuzzy C-Means'">Membership</th>
+                      <th @click="setSortField('kabupaten_kota')" class="sortable-header" :class="{ active: sortField === 'kabupaten_kota' }">
+                        Kabupaten/Kota
+                        <span v-if="sortField === 'kabupaten_kota'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
+                      <th @click="setSortField('provinsi')" class="sortable-header" :class="{ active: sortField === 'provinsi' }">
+                        Provinsi
+                        <span v-if="sortField === 'provinsi'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
+                      <th @click="setSortField('tahun')" class="sortable-header" :class="{ active: sortField === 'tahun' }">
+                        Tahun
+                        <span v-if="sortField === 'tahun'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
+                      <th @click="setSortField('ipm')" class="sortable-header" :class="{ active: sortField === 'ipm' }">
+                        IPM
+                        <span v-if="sortField === 'ipm'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
+                      <th @click="setSortField('garis_kemiskinan')" class="sortable-header" :class="{ active: sortField === 'garis_kemiskinan' }">
+                        Garis Kemiskinan
+                        <span v-if="sortField === 'garis_kemiskinan'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
+                      <th @click="setSortField('pengeluaran_per_kapita')" class="sortable-header" :class="{ active: sortField === 'pengeluaran_per_kapita' }">
+                        Pengeluaran Per Kapita
+                        <span v-if="sortField === 'pengeluaran_per_kapita'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
+                      <th v-if="results.algorithm === 'Fuzzy C-Means'" @click="setSortField('membership')" class="sortable-header" :class="{ active: sortField === 'membership' }">
+                        Membership
+                        <span v-if="sortField === 'membership'" class="sort-indicator">{{ sortOrder === 'asc' ? '↑' : '↓' }}</span>
+                      </th>
                     </tr>
                   </thead>
                   <tbody>
-                    <tr v-for="member in activeCluster.members" :key="`${member.kabupaten_kota}-${member.tahun}`">
+                    <tr v-for="member in sortedClusterMembers" :key="`${member.kabupaten_kota}-${member.tahun}`">
                       <td>{{ member.kabupaten_kota }}</td>
                       <td>{{ member.provinsi || 'N/A' }}</td>
                       <td>{{ member.tahun }}</td>
@@ -282,6 +327,7 @@ import ScatterPlot from '../components/ScatterPlot.vue'
 import BoxPlot from '../components/BoxPlot.vue'
 import InteractiveMap from '../components/InteractiveMap.vue'
 import YearlyResults from '../components/YearlyResults.vue'
+import CorrelationMatrix from '../components/CorrelationMatrix.vue'
 import apiService from '../services/apiService.js'
 
 export default {
@@ -290,7 +336,8 @@ export default {
     ScatterPlot,
     BoxPlot,
     InteractiveMap,
-    YearlyResults
+    YearlyResults,
+    CorrelationMatrix
   },
   setup() {
     const route = useRoute()
@@ -301,6 +348,8 @@ export default {
     const results = ref(null)
     const selectedYear = ref(null)
     const selectedCluster = ref(null)
+    const sortField = ref('kabupaten_kota')
+    const sortOrder = ref('asc')
 
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
@@ -353,8 +402,53 @@ export default {
     })
 
     const activeCluster = computed(() => {
-      if (!selectedCluster.value || !filteredClusters.value) return null
-      return filteredClusters.value.find(cluster => cluster.id === selectedCluster.value)
+      if (selectedCluster.value === null || selectedCluster.value === undefined || !filteredClusters.value) return null
+      
+      // Handle both string and number cluster IDs
+      const clusterId = selectedCluster.value
+      const found = filteredClusters.value.find(cluster => 
+        cluster.id === clusterId || 
+        cluster.id === String(clusterId) || 
+        cluster.id === Number(clusterId)
+      )
+      
+      console.log('🔍 ActiveCluster Debug:', {
+        selectedClusterId: selectedCluster.value,
+        availableClusters: filteredClusters.value.map(c => ({ id: c.id, size: c.size })),
+        foundCluster: found ? { id: found.id, size: found.size } : null
+      })
+      
+      return found
+    })
+
+    const sortedClusterMembers = computed(() => {
+      if (!activeCluster.value || !activeCluster.value.members) return []
+      
+      const members = [...activeCluster.value.members]
+      
+      return members.sort((a, b) => {
+        let aValue = a[sortField.value]
+        let bValue = b[sortField.value]
+        
+        // Handle null/undefined values
+        if (aValue == null) aValue = ''
+        if (bValue == null) bValue = ''
+        
+        // Convert to appropriate type for comparison
+        if (typeof aValue === 'string' && typeof bValue === 'string') {
+          aValue = aValue.toLowerCase()
+          bValue = bValue.toLowerCase()
+        }
+        
+        let comparison = 0
+        if (aValue < bValue) {
+          comparison = -1
+        } else if (aValue > bValue) {
+          comparison = 1
+        }
+        
+        return sortOrder.value === 'asc' ? comparison : -comparison
+      })
     })
 
     const formatCurrency = (value) => {
@@ -421,9 +515,11 @@ export default {
         // Set default selected cluster
         if (results.value.clusters && results.value.clusters.length > 0) {
           selectedCluster.value = results.value.clusters[0].id
+          console.log('🎯 Default cluster selected:', selectedCluster.value)
         } else if (results.value.clustering_type === 'per_year') {
           // For per-year results, no need to set selected cluster here
           // YearlyResults component will handle it
+          console.log('📅 Per-year clustering detected, cluster selection handled by YearlyResults')
         }
         
       } catch (err) {
@@ -547,15 +643,45 @@ export default {
       window.URL.revokeObjectURL(url)
     }
 
+    const setSortField = (field) => {
+      if (sortField.value === field) {
+        // If clicking the same field, toggle sort order
+        toggleSortOrder()
+      } else {
+        // If clicking a different field, set it and default to ascending
+        sortField.value = field
+        sortOrder.value = 'asc'
+      }
+    }
+
+    const toggleSortOrder = () => {
+      sortOrder.value = sortOrder.value === 'asc' ? 'desc' : 'asc'
+    }
+
     onMounted(() => {
       loadResults()
     })
 
     watch(() => filteredClusters.value, (newClusters) => {
-      if (newClusters.length > 0 && !activeCluster.value) {
-        selectedCluster.value = newClusters[0].id
+      console.log('🔄 Filtered clusters changed:', newClusters.map(c => ({ id: c.id, size: c.size })))
+      
+      if (newClusters.length > 0) {
+        // If no cluster is selected or the selected cluster is not in the new list, select the first one
+        const currentClusterExists = newClusters.some(cluster => 
+          cluster.id === selectedCluster.value || 
+          cluster.id === String(selectedCluster.value) || 
+          cluster.id === Number(selectedCluster.value)
+        )
+        
+        if (!currentClusterExists) {
+          selectedCluster.value = newClusters[0].id
+          console.log('🎯 New cluster selected due to filter change:', selectedCluster.value)
+        }
+      } else {
+        selectedCluster.value = null
+        console.log('❌ No clusters available, clearing selection')
       }
-    })
+    }, { deep: true })
 
     return {
       isLoading,
@@ -563,15 +689,20 @@ export default {
       results,
       selectedYear,
       selectedCluster,
+      sortField,
+      sortOrder,
       availableYears,
       filteredClusters,
       activeCluster,
+      sortedClusterMembers,
       getClusterColor,
       formatCurrency,
       getDBIQuality,
       getDBIQualityText,
       getSilhouetteQuality,
       getSilhouetteQualityText,
+      setSortField,
+      toggleSortOrder,
       exportToCSV,
       exportToJSON,
       generateReport
@@ -855,9 +986,56 @@ export default {
   font-size: 0.875rem;
 }
 
-.cluster-members h4 {
-  color: #2d3748;
+.members-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.members-header h4 {
+  color: #2d3748;
+  margin: 0;
+}
+
+.sort-controls {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.sort-controls label {
+  color: #4a5568;
+  font-weight: 500;
+}
+
+.sort-select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  color: #4a5568;
+  font-size: 0.875rem;
+}
+
+.sort-order-btn {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  background: white;
+  color: #4a5568;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  transition: all 0.2s ease;
+}
+
+.sort-order-btn:hover {
+  background: #f7fafc;
+  border-color: #667eea;
 }
 
 .members-table-container {
@@ -886,6 +1064,29 @@ export default {
   color: #4a5568;
   position: sticky;
   top: 0;
+}
+
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.sortable-header:hover {
+  background: #e2e8f0;
+  color: #2d3748;
+}
+
+.sortable-header.active {
+  background: #667eea;
+  color: white;
+}
+
+.sort-indicator {
+  margin-left: 0.5rem;
+  font-weight: bold;
+  font-size: 0.875rem;
 }
 
 .members-table td {
