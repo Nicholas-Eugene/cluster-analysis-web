@@ -32,10 +32,12 @@ class UploadAndProcessView(APIView):
             tolerance = float(request.POST.get('tolerance', 0.0001))
             selected_year = request.POST.get('selected_year')
             
-            # OPTICS specific parameters
+            # OPTICS specific parameters - make them more adaptive
             min_samples = int(request.POST.get('min_samples', 5))
             xi = float(request.POST.get('xi', 0.05))
             min_cluster_size = float(request.POST.get('min_cluster_size', 0.05))
+            
+            # Adaptive parameter adjustment based on data size will be done in algorithms.py
         except Exception as e:
             return Response({'error': f'Parameter tidak valid: {str(e)}'}, status=status.HTTP_400_BAD_REQUEST)
 

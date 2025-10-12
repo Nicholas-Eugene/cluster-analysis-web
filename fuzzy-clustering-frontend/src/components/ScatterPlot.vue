@@ -336,7 +336,16 @@ export default {
       chartCanvas.value = null
     })
 
-    watch(() => props.clusters, () => {
+    watch(() => props.clusters, (newClusters) => {
+      console.log('📈 ScatterPlot received new clusters:', newClusters)
+      if (newClusters && newClusters.length > 0) {
+        console.log(`ScatterPlot: ${newClusters.length} clusters received`)
+        newClusters.forEach((cluster, index) => {
+          console.log(`  Cluster ${cluster.id}: ${cluster.size} members`)
+        })
+      } else {
+        console.log('ScatterPlot: No clusters received or empty clusters')
+      }
       updateChart()
     }, { deep: true })
 

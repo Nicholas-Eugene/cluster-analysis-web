@@ -404,7 +404,16 @@ export default {
       chartCanvas.value = null
     })
 
-    watch(() => props.clusters, () => {
+    watch(() => props.clusters, (newClusters) => {
+      console.log('📊 BoxPlot received new clusters:', newClusters)
+      if (newClusters && newClusters.length > 0) {
+        console.log(`BoxPlot: ${newClusters.length} clusters received`)
+        newClusters.forEach((cluster, index) => {
+          console.log(`  Cluster ${cluster.id}: ${cluster.size} members`)
+        })
+      } else {
+        console.log('BoxPlot: No clusters received or empty clusters')
+      }
       updateChart()
     }, { deep: true })
 

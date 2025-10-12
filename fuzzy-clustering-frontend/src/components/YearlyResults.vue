@@ -283,7 +283,21 @@ export default {
 
     const selectedYearResults = computed(() => {
       if (!selectedYear.value || !props.results?.results_per_year) return null
-      return props.results.results_per_year[selectedYear.value]
+      const yearResults = props.results.results_per_year[selectedYear.value]
+      
+      // Debug logging
+      console.log(`🔍 YearlyResults Debug for year ${selectedYear.value}:`)
+      console.log('Year results:', yearResults)
+      if (yearResults?.clusters) {
+        console.log(`Found ${yearResults.clusters.length} clusters:`)
+        yearResults.clusters.forEach((cluster, index) => {
+          console.log(`  Cluster ${cluster.id}: ${cluster.size} members`)
+        })
+      } else {
+        console.log('No clusters found in year results')
+      }
+      
+      return yearResults
     })
 
     const activeCluster = computed(() => {

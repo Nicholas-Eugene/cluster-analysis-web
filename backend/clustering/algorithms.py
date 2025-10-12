@@ -167,6 +167,36 @@ class ClusteringAlgorithms:
         # Preprocess data
         scaled_data, df_clean = self.preprocess_data(df, features, selected_year)
         
+        print(f"🔧 FCM clustering parameters:")
+        print(f"   Data size: {len(scaled_data)}")
+        print(f"   Features: {features}")
+        print(f"   n_clusters: {n_clusters}")
+        print(f"   fuzziness (m): {m}")
+        print(f"   max_iter: {max_iter}")
+        print(f"   tolerance: {error}")
+        
+        # Check data variance to ensure clustering makes sense
+        feature_variance = np.var(scaled_data, axis=0)
+        print(f"   Feature variances (scaled): {feature_variance}")
+        if np.any(feature_variance < 0.01):
+            print("   ⚠️  Warning: Low variance detected in some features")
+            
+        # Check if we have enough data points for the requested number of clusters
+        if len(scaled_data) < n_clusters * 2:
+            print(f"   ⚠️  Warning: Only {len(scaled_data)} data points for {n_clusters} clusters")
+            print("   Consider reducing the number of clusters")
+            
+        # Check for duplicate data points
+        unique_points = np.unique(scaled_data, axis=0)
+        if len(unique_points) < len(scaled_data):
+            print(f"   ⚠️  Warning: Found duplicate data points ({len(scaled_data)} -> {len(unique_points)} unique)")
+            
+        # If we have very few unique points, reduce cluster count
+        if len(unique_points) < n_clusters:
+            suggested_clusters = max(1, len(unique_points) - 1)
+            print(f"   ⚠️  Auto-adjusting clusters: {n_clusters} -> {suggested_clusters} (based on unique points)")
+            n_clusters = suggested_clusters
+        
         # Transpose data for skfuzzy (expects features x samples)
         data_T = scaled_data.T
         
@@ -178,9 +208,24 @@ class ClusteringAlgorithms:
         # Get cluster assignments (highest membership)
         cluster_labels = np.argmax(u, axis=0)
         
+        print(f"✅ FCM clustering completed:")
+        print(f"   Iterations: {p}")
+        print(f"   Partition coefficient: {fpc:.4f}")
+        print(f"   Cluster assignments: {np.bincount(cluster_labels)}")
+        print(f"   Unique clusters: {np.unique(cluster_labels)}")
+        
         # Calculate evaluation metrics
-        db_score = davies_bouldin_score(scaled_data, cluster_labels)
-        sil_score = silhouette_score(scaled_data, cluster_labels)
+        try:
+            db_score = davies_bouldin_score(scaled_data, cluster_labels)
+        except ValueError as e:
+            print(f"   ⚠️  Cannot calculate Davies-Bouldin score: {e}")
+            db_score = float('inf')
+            
+        try:
+            sil_score = silhouette_score(scaled_data, cluster_labels)
+        except ValueError as e:
+            print(f"   ⚠️  Cannot calculate Silhouette score: {e}")
+            sil_score = -1.0
         
         execution_time = time.time() - start_time
         
@@ -264,17 +309,44 @@ class ClusteringAlgorithms:
         # Preprocess data
         scaled_data, df_clean = self.preprocess_data(df, features, selected_year)
         
+        # Adaptive parameter adjustment based on data size
+        n_samples = len(scaled_data)
+        
+        # Adjust min_samples based on data size
+        adaptive_min_samples = max(2, min(min_samples, n_samples // 10))
+        
+        # Adjust min_cluster_size - use absolute number if fraction results in too large minimum
+        if min_cluster_size < 1.0:  # It's a fraction
+            min_cluster_absolute = max(2, int(n_samples * min_cluster_size))
+            # If the fraction results in too large minimum, use a smaller absolute number
+            if min_cluster_absolute > n_samples // 3:
+                min_cluster_absolute = max(2, n_samples // 10)
+            adaptive_min_cluster_size = min_cluster_absolute / n_samples
+        else:  # It's already an absolute number
+            adaptive_min_cluster_size = min_cluster_size / n_samples
+        
+        print(f"🔧 OPTICS adaptive parameters:")
+        print(f"   Data size: {n_samples}")
+        print(f"   min_samples: {min_samples} -> {adaptive_min_samples}")
+        print(f"   min_cluster_size: {min_cluster_size} -> {adaptive_min_cluster_size:.4f}")
+        
         # Perform OPTICS clustering
         optics = OPTICS(
-            min_samples=min_samples,
+            min_samples=adaptive_min_samples,
             xi=xi,
-            min_cluster_size=min_cluster_size
+            min_cluster_size=adaptive_min_cluster_size
         )
         
         cluster_labels = optics.fit_predict(scaled_data)
         
         # Handle noise points (labeled as -1)
         n_clusters = len(set(cluster_labels)) - (1 if -1 in cluster_labels else 0)
+        
+        print(f"✅ OPTICS clustering completed:")
+        print(f"   Found {n_clusters} clusters")
+        print(f"   Cluster assignments: {np.bincount(cluster_labels + 1) if -1 in cluster_labels else np.bincount(cluster_labels)}")
+        print(f"   Unique labels: {np.unique(cluster_labels)}")
+        print(f"   Noise points: {np.sum(cluster_labels == -1)}")
         
         execution_time = time.time() - start_time
         
@@ -283,8 +355,17 @@ class ClusteringAlgorithms:
             # Only calculate metrics if we have valid clusters
             valid_mask = cluster_labels != -1
             if np.sum(valid_mask) > 1:
-                db_score = davies_bouldin_score(scaled_data[valid_mask], cluster_labels[valid_mask])
-                sil_score = silhouette_score(scaled_data[valid_mask], cluster_labels[valid_mask])
+                try:
+                    db_score = davies_bouldin_score(scaled_data[valid_mask], cluster_labels[valid_mask])
+                except ValueError as e:
+                    print(f"   ⚠️  Cannot calculate Davies-Bouldin score: {e}")
+                    db_score = float('inf')
+                    
+                try:
+                    sil_score = silhouette_score(scaled_data[valid_mask], cluster_labels[valid_mask])
+                except ValueError as e:
+                    print(f"   ⚠️  Cannot calculate Silhouette score: {e}")
+                    sil_score = -1.0
             else:
                 db_score = float('inf')
                 sil_score = -1.0
