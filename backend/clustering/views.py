@@ -2,11 +2,20 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
+from django.http import HttpResponse
 from .models import ClusteringSession
 from .algorithms import get_clustering_results
 
 import pandas as pd
 import numpy as np
+import json
+import io
+import csv
+
+# Configure matplotlib for headless environments
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+import matplotlib.pyplot as plt
 
 
 class UploadAndProcessView(APIView):
@@ -182,3 +191,230 @@ class GetResultsView(APIView):
         except ClusteringSession.DoesNotExist:
             return Response({'error': 'Session tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
         return Response(session.results, status=status.HTTP_200_OK)
+
+
+class ExportResultsView(APIView):
+    def get(self, request, session_id: str):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response({'error': 'Session tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
+        
+        format_type = request.GET.get('format', 'csv').lower()
+        results = session.results
+        
+        if format_type == 'csv':
+            # Create CSV export
+            output = io.StringIO()
+            writer = csv.writer(output)
+            
+            # Handle both single year and per-year results
+            if results.get('clustering_type') == 'per_year':
+                # Per-year results
+                writer.writerow(['Year', 'Kabupaten/Kota', 'Cluster', 'IPM', 'Garis_Kemiskinan', 'Pengeluaran_Per_Kapita', 'Membership'])
+                
+                for year, year_results in results.get('results_per_year', {}).items():
+                    if 'clusters' in year_results:
+                        for cluster in year_results['clusters']:
+                            for member in cluster.get('members', []):
+                                writer.writerow([
+                                    year,
+                                    member.get('kabupaten_kota', ''),
+                                    cluster.get('id', ''),
+                                    member.get('ipm', ''),
+                                    member.get('garis_kemiskinan', ''),
+                                    member.get('pengeluaran_per_kapita', ''),
+                                    member.get('membership', '')
+                                ])
+            else:
+                # Single year results
+                writer.writerow(['Kabupaten/Kota', 'Cluster', 'IPM', 'Garis_Kemiskinan', 'Pengeluaran_Per_Kapita', 'Membership'])
+                
+                for cluster in results.get('clusters', []):
+                    for member in cluster.get('members', []):
+                        writer.writerow([
+                            member.get('kabupaten_kota', ''),
+                            cluster.get('id', ''),
+                            member.get('ipm', ''),
+                            member.get('garis_kemiskinan', ''),
+                            member.get('pengeluaran_per_kapita', ''),
+                            member.get('membership', '')
+                        ])
+            
+            response = HttpResponse(output.getvalue(), content_type='text/csv')
+            response['Content-Disposition'] = f'attachment; filename="clustering_results_{session_id}.csv"'
+            return response
+            
+        elif format_type == 'json':
+            response = HttpResponse(json.dumps(results, indent=2), content_type='application/json')
+            response['Content-Disposition'] = f'attachment; filename="clustering_results_{session_id}.json"'
+            return response
+            
+        else:
+            return Response({'error': 'Format tidak didukung. Gunakan csv atau json'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class GenerateReportView(APIView):
+    def post(self, request, session_id: str):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response({'error': 'Session tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # For now, return a simple report summary
+        # In the future, this could generate a PDF report
+        results = session.results
+        
+        report = {
+            'session_id': str(session_id),
+            'generated_at': pd.Timestamp.now().isoformat(),
+            'summary': results.get('summary', {}),
+            'evaluation': results.get('evaluation', {}),
+            'cluster_count': len(results.get('clusters', [])),
+            'total_regions': results.get('summary', {}).get('total_regions', 0)
+        }
+        
+        return Response(report, status=status.HTTP_200_OK)
+
+
+class GetGeographicalDataView(APIView):
+    def get(self, request, session_id: str):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response({'error': 'Session tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
+        
+        results = session.results
+        geographical_data = []
+        
+        # Handle both single year and per-year results
+        if results.get('clustering_type') == 'per_year':
+            # For per-year results, get the most recent year's data
+            results_per_year = results.get('results_per_year', {})
+            if results_per_year:
+                latest_year = max(results_per_year.keys())
+                clusters = results_per_year[latest_year].get('clusters', [])
+            else:
+                clusters = []
+        else:
+            clusters = results.get('clusters', [])
+        
+        for cluster in clusters:
+            for member in cluster.get('members', []):
+                geographical_data.append({
+                    'kabupaten_kota': member.get('kabupaten_kota', ''),
+                    'cluster_id': cluster.get('id', ''),
+                    'latitude': member.get('latitude', 0.0),
+                    'longitude': member.get('longitude', 0.0),
+                    'ipm': member.get('ipm', 0.0),
+                    'garis_kemiskinan': member.get('garis_kemiskinan', 0.0),
+                    'pengeluaran_per_kapita': member.get('pengeluaran_per_kapita', 0.0),
+                    'membership': member.get('membership', 1.0)
+                })
+        
+        return Response({
+            'geographical_data': geographical_data,
+            'total_points': len(geographical_data)
+        }, status=status.HTTP_200_OK)
+
+
+class GetClusterDetailsView(APIView):
+    def get(self, request, session_id: str, cluster_id: int):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response({'error': 'Session tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
+        
+        results = session.results
+        
+        # Handle both single year and per-year results
+        if results.get('clustering_type') == 'per_year':
+            # For per-year results, get the most recent year's data
+            results_per_year = results.get('results_per_year', {})
+            if results_per_year:
+                latest_year = max(results_per_year.keys())
+                clusters = results_per_year[latest_year].get('clusters', [])
+            else:
+                clusters = []
+        else:
+            clusters = results.get('clusters', [])
+        
+        # Find the specific cluster
+        target_cluster = None
+        for cluster in clusters:
+            if cluster.get('id') == cluster_id or str(cluster.get('id')) == str(cluster_id):
+                target_cluster = cluster
+                break
+        
+        if not target_cluster:
+            return Response({'error': 'Cluster tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
+        
+        # Calculate additional statistics
+        members = target_cluster.get('members', [])
+        if members:
+            ipm_values = [m.get('ipm', 0) for m in members]
+            gk_values = [m.get('garis_kemiskinan', 0) for m in members]
+            pp_values = [m.get('pengeluaran_per_kapita', 0) for m in members]
+            
+            statistics = {
+                'ipm': {
+                    'mean': np.mean(ipm_values),
+                    'std': np.std(ipm_values),
+                    'min': np.min(ipm_values),
+                    'max': np.max(ipm_values)
+                },
+                'garis_kemiskinan': {
+                    'mean': np.mean(gk_values),
+                    'std': np.std(gk_values),
+                    'min': np.min(gk_values),
+                    'max': np.max(gk_values)
+                },
+                'pengeluaran_per_kapita': {
+                    'mean': np.mean(pp_values),
+                    'std': np.std(pp_values),
+                    'min': np.min(pp_values),
+                    'max': np.max(pp_values)
+                }
+            }
+        else:
+            statistics = {}
+        
+        cluster_details = {
+            'cluster': target_cluster,
+            'statistics': statistics,
+            'member_count': len(members)
+        }
+        
+        return Response(cluster_details, status=status.HTTP_200_OK)
+
+
+class GetEvaluationMetricsView(APIView):
+    def get(self, request, session_id: str):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response({'error': 'Session tidak ditemukan'}, status=status.HTTP_404_NOT_FOUND)
+        
+        results = session.results
+        
+        # Handle both single year and per-year results
+        if results.get('clustering_type') == 'per_year':
+            overall_summary = results.get('overall_summary', {})
+            evaluation_data = {
+                'clustering_type': 'per_year',
+                'overall_evaluation': overall_summary.get('average_evaluation', {}),
+                'per_year_evaluation': {}
+            }
+            
+            # Add per-year evaluation metrics
+            for year, year_results in results.get('results_per_year', {}).items():
+                evaluation_data['per_year_evaluation'][year] = year_results.get('evaluation', {})
+                
+        else:
+            evaluation_data = {
+                'clustering_type': 'single_year',
+                'evaluation': results.get('evaluation', {}),
+                'summary': results.get('summary', {})
+            }
+        
+        return Response(evaluation_data, status=status.HTTP_200_OK)

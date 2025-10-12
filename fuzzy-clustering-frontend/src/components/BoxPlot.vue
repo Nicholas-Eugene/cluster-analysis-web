@@ -162,7 +162,9 @@ export default {
         // Destroy existing chart first
         if (chart.value) {
           try {
-            chart.value.destroy()
+            if (typeof chart.value.destroy === 'function') {
+              chart.value.destroy()
+            }
           } catch (e) {
             console.warn('Error destroying existing chart:', e)
           }
@@ -262,7 +264,13 @@ export default {
       } catch (error) {
         console.warn('Error creating box plot chart:', error)
         if (chart.value) {
-          chart.value.destroy()
+          try {
+            if (typeof chart.value.destroy === 'function') {
+              chart.value.destroy()
+            }
+          } catch (destroyError) {
+            console.warn('Error destroying chart after creation error:', destroyError)
+          }
           chart.value = null
         }
       }
@@ -298,7 +306,13 @@ export default {
       }
       
       if (chart.value) {
-        chart.value.destroy()
+        try {
+          if (typeof chart.value.destroy === 'function') {
+            chart.value.destroy()
+          }
+        } catch (e) {
+          console.warn('Error destroying chart on unmount:', e)
+        }
         chart.value = null
       }
     })
