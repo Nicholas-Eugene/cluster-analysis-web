@@ -164,21 +164,26 @@ export default {
           x: member[selectedXAxis.value],
           y: member[selectedYAxis.value],
           label: member.kabupaten_kota,
-          membership: member.membership || 1.0
+          membership: member.membership || 1.0,
+          clusterId: cluster.id
         }))
+
+        console.log(`ScatterPlot: Cluster ${cluster.id} has ${data.length} data points`)
 
         return {
           label: `Cluster ${cluster.id}`,
           data: data,
           backgroundColor: getClusterColor(index),
           borderColor: getClusterColor(index),
-          borderWidth: 2,
-          pointRadius: (ctx) => {
-            // Size based on membership for FCM
-            const membership = ctx.parsed?.membership || 1.0
-            return Math.max(4, membership * 8)
-          },
-          pointHoverRadius: 8
+          borderWidth: 1,
+          pointRadius: 6, // Fixed size for better visibility
+          pointHoverRadius: 10,
+          pointBackgroundColor: getClusterColor(index),
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointHoverBackgroundColor: getClusterColor(index),
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 3
         }
       })
 
@@ -214,6 +219,7 @@ export default {
                 label: (context) => {
                   const point = context.raw
                   const lines = [
+                    `Cluster: ${point.clusterId}`,
                     `${formatAxisLabel(selectedXAxis.value)}: ${formatValue(point.x, selectedXAxis.value)}`,
                     `${formatAxisLabel(selectedYAxis.value)}: ${formatValue(point.y, selectedYAxis.value)}`
                   ]

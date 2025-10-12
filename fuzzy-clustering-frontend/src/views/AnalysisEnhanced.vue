@@ -353,8 +353,23 @@ export default {
     })
 
     const activeCluster = computed(() => {
-      if (!selectedCluster.value || !filteredClusters.value) return null
-      return filteredClusters.value.find(cluster => cluster.id === selectedCluster.value)
+      if (selectedCluster.value === null || selectedCluster.value === undefined || !filteredClusters.value) return null
+      
+      // Handle both string and number cluster IDs
+      const clusterId = selectedCluster.value
+      const found = filteredClusters.value.find(cluster => 
+        cluster.id === clusterId || 
+        cluster.id === String(clusterId) || 
+        cluster.id === Number(clusterId)
+      )
+      
+      console.log('🔍 ActiveCluster Debug:', {
+        selectedClusterId: selectedCluster.value,
+        availableClusters: filteredClusters.value.map(c => ({ id: c.id, size: c.size })),
+        foundCluster: found ? { id: found.id, size: found.size } : null
+      })
+      
+      return found
     })
 
     const formatCurrency = (value) => {
@@ -421,9 +436,11 @@ export default {
         // Set default selected cluster
         if (results.value.clusters && results.value.clusters.length > 0) {
           selectedCluster.value = results.value.clusters[0].id
+          console.log('🎯 Default cluster selected:', selectedCluster.value)
         } else if (results.value.clustering_type === 'per_year') {
           // For per-year results, no need to set selected cluster here
           // YearlyResults component will handle it
+          console.log('📅 Per-year clustering detected, cluster selection handled by YearlyResults')
         }
         
       } catch (err) {
@@ -552,10 +569,25 @@ export default {
     })
 
     watch(() => filteredClusters.value, (newClusters) => {
-      if (newClusters.length > 0 && !activeCluster.value) {
-        selectedCluster.value = newClusters[0].id
+      console.log('🔄 Filtered clusters changed:', newClusters.map(c => ({ id: c.id, size: c.size })))
+      
+      if (newClusters.length > 0) {
+        // If no cluster is selected or the selected cluster is not in the new list, select the first one
+        const currentClusterExists = newClusters.some(cluster => 
+          cluster.id === selectedCluster.value || 
+          cluster.id === String(selectedCluster.value) || 
+          cluster.id === Number(selectedCluster.value)
+        )
+        
+        if (!currentClusterExists) {
+          selectedCluster.value = newClusters[0].id
+          console.log('🎯 New cluster selected due to filter change:', selectedCluster.value)
+        }
+      } else {
+        selectedCluster.value = null
+        console.log('❌ No clusters available, clearing selection')
       }
-    })
+    }, { deep: true })
 
     return {
       isLoading,

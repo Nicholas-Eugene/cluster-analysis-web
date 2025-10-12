@@ -300,8 +300,23 @@ export default {
     })
 
     const activeCluster = computed(() => {
-      if (!selectedCluster.value || !selectedYearResults.value?.clusters) return null
-      return selectedYearResults.value.clusters.find(cluster => cluster.id === selectedCluster.value)
+      if (selectedCluster.value === null || selectedCluster.value === undefined || !selectedYearResults.value?.clusters) return null
+      
+      // Handle both string and number cluster IDs
+      const clusterId = selectedCluster.value
+      const found = selectedYearResults.value.clusters.find(cluster => 
+        cluster.id === clusterId || 
+        cluster.id === String(clusterId) || 
+        cluster.id === Number(clusterId)
+      )
+      
+      console.log('🔍 YearlyResults ActiveCluster Debug:', {
+        selectedClusterId: selectedCluster.value,
+        availableClusters: selectedYearResults.value?.clusters?.map(c => ({ id: c.id, size: c.size })) || [],
+        foundCluster: found ? { id: found.id, size: found.size } : null
+      })
+      
+      return found
     })
 
     const hasError = (year) => {
@@ -372,6 +387,26 @@ export default {
     // Watch for data changes and reset selected year if needed
     watch(() => props.results, () => {
       setDefaultYear()
+    }, { deep: true })
+
+    // Watch for year changes and set default cluster
+    watch(() => selectedYearResults.value, (newYearResults) => {
+      if (newYearResults?.clusters && newYearResults.clusters.length > 0) {
+        // Auto-select first cluster if none is selected or current selection is invalid
+        const currentClusterExists = newYearResults.clusters.some(cluster => 
+          cluster.id === selectedCluster.value || 
+          cluster.id === String(selectedCluster.value) || 
+          cluster.id === Number(selectedCluster.value)
+        )
+        
+        if (!currentClusterExists) {
+          selectedCluster.value = newYearResults.clusters[0].id
+          console.log('🎯 YearlyResults: Auto-selected first cluster:', selectedCluster.value)
+        }
+      } else {
+        selectedCluster.value = null
+        console.log('❌ YearlyResults: No clusters available, clearing selection')
+      }
     }, { deep: true })
 
     return {

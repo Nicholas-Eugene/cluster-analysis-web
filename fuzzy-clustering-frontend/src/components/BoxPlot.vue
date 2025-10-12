@@ -229,29 +229,40 @@ export default {
       
       // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
       // using bar charts to simulate box plots
-      const datasets = props.clusters.map((cluster, index) => {
+      const labels = props.clusters.map(cluster => `Cluster ${cluster.id}`)
+      const data = props.clusters.map((cluster, index) => {
         const values = cluster.members
           .map(member => member[selectedMetric.value])
           .filter(val => val != null)
         
         const stats = calculateStatistics(values)
-        
-        return {
-          label: `Cluster ${cluster.id}`,
-          data: [stats.median], // Show median as the main value
-          backgroundColor: getClusterColor(index) + '80',
-          borderColor: getClusterColor(index),
-          borderWidth: 2,
-          // Store additional stats for tooltip
-          stats: stats
-        }
+        return stats.median // Show median as the main value
+      })
+      
+      const backgroundColors = props.clusters.map((cluster, index) => getClusterColor(index) + '80')
+      const borderColors = props.clusters.map((cluster, index) => getClusterColor(index))
+      
+      // Store stats for tooltip access
+      const allStats = props.clusters.map((cluster, index) => {
+        const values = cluster.members
+          .map(member => member[selectedMetric.value])
+          .filter(val => val != null)
+        return calculateStatistics(values)
       })
 
       const config = {
         type: 'bar',
         data: {
-          labels: props.clusters.map(cluster => `Cluster ${cluster.id}`),
-          datasets: datasets
+          labels: labels,
+          datasets: [{
+            label: `${getMetricLabel(selectedMetric.value)} per Cluster`,
+            data: data,
+            backgroundColor: backgroundColors,
+            borderColor: borderColors,
+            borderWidth: 2,
+            // Store additional stats for tooltip
+            allStats: allStats
+          }]
         },
         options: {
           responsive: true,
@@ -280,7 +291,7 @@ export default {
                   return context[0].label
                 },
                 label: (context) => {
-                  const stats = context.dataset.stats
+                  const stats = context.dataset.allStats[context.dataIndex]
                   return [
                     `Min: ${formatValue(stats.min)}`,
                     `Q1: ${formatValue(stats.q1)}`,
