@@ -3,7 +3,7 @@
     <div class="chart-header">
       <h3>{{ title }}</h3>
       <div class="chart-controls">
-        <select v-model="selectedMetric" @change="updateChart" class="metric-select">
+        <select v-model="selectedMetric" @change="handleMetricChange" class="metric-select">
           <option value="ipm">IPM</option>
           <option value="garis_kemiskinan">Garis Kemiskinan</option>
           <option value="pengeluaran_per_kapita">Pengeluaran Per Kapita</option>
@@ -204,26 +204,36 @@ export default {
         try {
           ctx = chartCanvas.value.getContext('2d')
         } catch (e) {
-          console.error('Failed to get 2d context:', e)
+          console.error('BoxPlot: Failed to get 2d context:', e)
           return
         }
         
         if (!ctx || !ctx.canvas) {
-          console.warn('Invalid canvas context')
+          console.warn('BoxPlot: Invalid canvas context')
           return
         }
         
         // Ensure canvas has proper dimensions
         const canvas = ctx.canvas
         if (canvas.width === 0 || canvas.height === 0) {
-          console.warn('Canvas has zero dimensions, retrying...')
+          console.warn('BoxPlot: Canvas has zero dimensions, retrying...')
           setTimeout(() => createChart(), 200)
           return
         }
         
         // Check if canvas is still attached to DOM
         if (!document.contains(canvas)) {
-          console.warn('Canvas is not attached to DOM')
+          console.warn('BoxPlot: Canvas is not attached to DOM')
+          return
+        }
+        
+        // Additional context validation
+        try {
+          // Test if context is still valid by calling a simple method
+          ctx.save()
+          ctx.restore()
+        } catch (contextError) {
+          console.error('BoxPlot: Canvas context is invalid:', contextError)
           return
         }
       
@@ -326,17 +336,49 @@ export default {
         }
       }
 
-      chart.value = new Chart(ctx, config)
-      
-      } catch (error) {
-        console.warn('Error creating box plot chart:', error)
+      // Final validation before creating chart
+      if (!ctx || !ctx.canvas) {
+        console.error('BoxPlot: Context became invalid before chart creation')
+        return
+      }
+
+      try {
+        chart.value = new Chart(ctx, config)
+        console.log('BoxPlot: Chart created successfully')
+      } catch (chartError) {
+        console.error('BoxPlot: Error creating Chart.js instance:', chartError)
+        
+        // Clean up any partial chart creation
         if (chart.value) {
           try {
             if (typeof chart.value.destroy === 'function') {
               chart.value.destroy()
             }
           } catch (destroyError) {
-            console.warn('Error destroying chart after creation error:', destroyError)
+            console.warn('BoxPlot: Error destroying chart after creation error:', destroyError)
+          }
+          chart.value = null
+        }
+        
+        // Try to clear the canvas
+        try {
+          ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height)
+        } catch (clearError) {
+          console.warn('BoxPlot: Error clearing canvas after chart creation error:', clearError)
+        }
+        
+        return
+      }
+      
+      } catch (error) {
+        console.warn('BoxPlot: General error in createChart:', error)
+        if (chart.value) {
+          try {
+            if (typeof chart.value.destroy === 'function') {
+              chart.value.destroy()
+            }
+          } catch (destroyError) {
+            console.warn('BoxPlot: Error destroying chart after general error:', destroyError)
           }
           chart.value = null
         }
@@ -358,7 +400,7 @@ export default {
     const updateChart = () => {
       // Prevent multiple simultaneous updates
       if (isUpdating) {
-        console.warn('Chart update already in progress, skipping')
+        console.warn('BoxPlot: Chart update already in progress, skipping')
         return
       }
       
@@ -369,20 +411,59 @@ export default {
       
       // Debounce chart updates with longer delay to prevent rapid recreation
       updateTimeout = setTimeout(async () => {
+        // Double-check canvas availability
         if (!chartCanvas.value) {
-          console.warn('Canvas not available for update')
+          console.warn('BoxPlot: Canvas not available for update')
+          return
+        }
+        
+        // Check if component is still mounted
+        if (!chartCanvas.value.offsetParent && chartCanvas.value.style.display !== 'none') {
+          console.warn('BoxPlot: Canvas not visible, skipping update')
           return
         }
         
         isUpdating = true
         try {
+          // Destroy existing chart first to prevent context issues
+          if (chart.value) {
+            try {
+              chart.value.destroy()
+              chart.value = null
+            } catch (destroyError) {
+              console.warn('BoxPlot: Error destroying chart before update:', destroyError)
+            }
+          }
+          
+          // Wait a bit to ensure cleanup is complete
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Recreate chart
           await createChart()
         } catch (error) {
-          console.error('Error during chart update:', error)
+          console.error('BoxPlot: Error during chart update:', error)
         } finally {
           isUpdating = false
         }
-      }, 300) // Increased debounce time
+      }, 500) // Increased debounce time for more stability
+    }
+
+    const handleMetricChange = () => {
+      console.log('BoxPlot: Metric changed to:', selectedMetric.value)
+      
+      // Only update if component is properly mounted and canvas is available
+      if (!chartCanvas.value) {
+        console.warn('BoxPlot: Canvas not available for metric change, skipping update')
+        return
+      }
+      
+      // Check if we have valid cluster data
+      if (!props.clusters || props.clusters.length === 0) {
+        console.warn('BoxPlot: No cluster data available for metric change')
+        return
+      }
+      
+      updateChart()
     }
 
     onMounted(async () => {
@@ -434,7 +515,8 @@ export default {
       getClusterColor,
       getStatistics,
       formatValue,
-      updateChart
+      updateChart,
+      handleMetricChange
     }
   }
 }
