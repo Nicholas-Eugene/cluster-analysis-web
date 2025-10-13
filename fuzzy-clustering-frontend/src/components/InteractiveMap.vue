@@ -184,6 +184,20 @@ const cityCoords = {
   'Probolinggo': [-7.7500, 113.2167],
   'Batu': [-7.8833, 112.5333],
 
+  // Add missing cities from sample data
+  'Banjarmasin': [-3.3167, 114.5833],
+  'Pontianak': [-0.0167, 109.3333],
+  'Samarinda': [-0.5000, 117.1500],
+  'Balikpapan': [-1.2500, 116.8333],
+  'Manado': [1.4833, 124.8500],
+  'Palu': [-0.8833, 119.8667],
+  'Kendari': [-3.9833, 122.5167],
+  'Jayapura': [-2.5333, 140.7167],
+  'Sorong': [-0.8833, 131.2500],
+  'Ambon': [-3.7000, 128.1667],
+  'Kupang': [-10.1667, 123.5833],
+  'Ternate': [0.7833, 127.3833],
+  
   // Add more from your comprehensive list
   'Palangka Raya': [-2.2167, 113.9167],
   'Tarakan': [3.3000, 117.6333],
@@ -194,7 +208,6 @@ const cityCoords = {
   'Mamuju': [-2.6667, 118.8833],
   'Nabire': [-3.3667, 135.5000],
   'Merauke': [-8.4833, 140.3333],
-  'Sorong': [-0.8833, 131.2500],
 }
 
 export default {
@@ -253,22 +266,97 @@ export default {
       
       // Direct lookup
       if (cityCoords[normalized]) {
+        console.log(`✅ Found exact match for: ${cityName} -> ${normalized}`)
         return cityCoords[normalized]
       }
       
       // Fuzzy matching - try to find partial matches
       const cityKeys = Object.keys(cityCoords)
-      const fuzzyMatch = cityKeys.find(key => 
+      
+      // Try different matching strategies
+      let fuzzyMatch = null
+      
+      // Strategy 1: Exact substring match
+      fuzzyMatch = cityKeys.find(key => 
         key.toLowerCase().includes(normalized.toLowerCase()) ||
         normalized.toLowerCase().includes(key.toLowerCase())
       )
       
       if (fuzzyMatch) {
+        console.log(`✅ Found fuzzy match for: ${cityName} -> ${fuzzyMatch}`)
         return cityCoords[fuzzyMatch]
       }
       
+      // Strategy 2: Remove common words and try again
+      const cleanNormalized = normalized
+        .replace(/\b(kota|kabupaten|kab|administrasi)\b/gi, '')
+        .trim()
+      
+      fuzzyMatch = cityKeys.find(key => {
+        const cleanKey = key
+          .replace(/\b(kota|kabupaten|kab|administrasi)\b/gi, '')
+          .trim()
+        return cleanKey.toLowerCase() === cleanNormalized.toLowerCase()
+      })
+      
+      if (fuzzyMatch) {
+        console.log(`✅ Found clean match for: ${cityName} -> ${fuzzyMatch}`)
+        return cityCoords[fuzzyMatch]
+      }
+      
+      // Strategy 3: Use fallback coordinates based on region
+      const fallbackCoords = getFallbackCoordinates(normalized)
+      if (fallbackCoords) {
+        console.log(`⚠️ Using fallback coordinates for: ${cityName}`)
+        return fallbackCoords
+      }
+      
       // Log missing coordinates for debugging
-      console.warn(`🗺️ Coordinates not found for: "${cityName}" (normalized: "${normalized}")`)
+      console.warn(`❌ Coordinates not found for: "${cityName}" (normalized: "${normalized}")`)
+      return null
+    }
+    
+    // Get fallback coordinates based on province or region
+    const getFallbackCoordinates = (cityName) => {
+      const fallbacks = {
+        // Jakarta area
+        'jakarta': [-6.2, 106.8],
+        // Java
+        'bandung': [-6.9, 107.6],
+        'surabaya': [-7.25, 112.75],
+        'semarang': [-7.0, 110.4],
+        'yogyakarta': [-7.8, 110.4],
+        // Sumatra
+        'medan': [3.58, 98.67],
+        'palembang': [-2.98, 104.77],
+        'padang': [-0.95, 100.35],
+        'pekanbaru': [0.53, 101.45],
+        'bandar lampung': [-5.43, 105.27],
+        // Kalimantan
+        'pontianak': [-0.02, 109.33],
+        'banjarmasin': [-3.32, 114.58],
+        'samarinda': [-0.5, 117.15],
+        'balikpapan': [-1.25, 116.83],
+        // Sulawesi
+        'makassar': [-5.13, 119.42],
+        'manado': [1.48, 124.85],
+        'palu': [-0.88, 119.87],
+        'kendari': [-3.98, 122.52],
+        // Eastern Indonesia
+        'denpasar': [-8.65, 115.22],
+        'mataram': [-8.58, 116.12],
+        'kupang': [-10.17, 123.58],
+        'ambon': [-3.7, 128.17],
+        'jayapura': [-2.53, 140.72],
+      }
+      
+      const cityLower = cityName.toLowerCase()
+      for (const [key, coords] of Object.entries(fallbacks)) {
+        if (cityLower.includes(key) || key.includes(cityLower)) {
+          return coords
+        }
+      }
+      
       return null
     }
 
@@ -335,19 +423,23 @@ export default {
       markersLayer.value.clearLayers()
 
       console.log(`🗺️ Updating map with ${filteredMarkers.value.length} markers`)
+      console.log('📊 Clusters data:', props.clusters)
+      console.log('🎯 Filtered markers:', filteredMarkers.value.slice(0, 3)) // Show first 3 for debugging
 
       // Add markers for filtered data
-      filteredMarkers.value.forEach(markerData => {
+      filteredMarkers.value.forEach((markerData, index) => {
         const { coordinates, cluster, clusterIndex } = markerData
         const color = getClusterColor(clusterIndex)
         
+        console.log(`📍 Creating marker ${index + 1}: ${markerData.kabupaten_kota} at [${coordinates[0]}, ${coordinates[1]}] - Cluster ${cluster.id}`)
+        
         const marker = L.circleMarker(coordinates, {
-          radius: 8,
+          radius: 10,
           fillColor: color,
           color: '#fff',
-          weight: 2,
+          weight: 3,
           opacity: 1,
-          fillOpacity: 0.8
+          fillOpacity: 0.9
         })
 
         // Create popup content with better formatting

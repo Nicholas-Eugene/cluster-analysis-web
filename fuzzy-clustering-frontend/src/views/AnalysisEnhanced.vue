@@ -157,6 +157,12 @@
             :title="`Analisis Distribusi per Cluster - ${results.algorithm}`"
           />
           
+          <!-- Correlation Heatmap -->
+          <CorrelationHeatmap 
+            :clusters="filteredClusters" 
+            :title="`Heatmap Korelasi Variabel - ${results.algorithm}`"
+          />
+          
           <!-- Interactive Map -->
           <InteractiveMap 
             :clusters="filteredClusters" 
@@ -280,6 +286,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ScatterPlot from '../components/ScatterPlot.vue'
 import BoxPlot from '../components/BoxPlot.vue'
+import CorrelationHeatmap from '../components/CorrelationHeatmap.vue'
 import InteractiveMap from '../components/InteractiveMap.vue'
 import YearlyResults from '../components/YearlyResults.vue'
 import apiService from '../services/apiService.js'
@@ -289,6 +296,7 @@ export default {
   components: {
     ScatterPlot,
     BoxPlot,
+    CorrelationHeatmap,
     InteractiveMap,
     YearlyResults
   },

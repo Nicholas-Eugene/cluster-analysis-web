@@ -161,6 +161,11 @@
             :title="`Analisis Distribusi - ${selectedYearResults.algorithm} (${selectedYear})`"
           />
           
+          <CorrelationHeatmap 
+            :clusters="selectedYearResults.clusters" 
+            :title="`Heatmap Korelasi - ${selectedYearResults.algorithm} (${selectedYear})`"
+          />
+          
           <InteractiveMap 
             :clusters="selectedYearResults.clusters" 
             :title="`Peta Sebaran Cluster - ${selectedYearResults.algorithm} (${selectedYear})`"
@@ -251,6 +256,7 @@
 import { ref, computed, onMounted, nextTick, watch } from 'vue'
 import ScatterPlot from './ScatterPlot.vue'
 import BoxPlot from './BoxPlot.vue'
+import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
 
 export default {
@@ -258,6 +264,7 @@ export default {
   components: {
     ScatterPlot,
     BoxPlot,
+    CorrelationHeatmap,
     InteractiveMap
   },
   props: {
