@@ -227,24 +227,31 @@ export default {
           return
         }
       
-      // Since Chart.js doesn't have native box plot support, we'll create a custom visualization
-      // using bar charts to simulate box plots
-      const datasets = props.clusters.map((cluster, index) => {
+      // Create box plot visualization
+      const datasets = []
+      
+      props.clusters.forEach((cluster, index) => {
         const values = cluster.members
           .map(member => member[selectedMetric.value])
           .filter(val => val != null)
         
         const stats = calculateStatistics(values)
+        const color = getClusterColor(index)
         
-        return {
+        // Single bar for the box plot
+        datasets.push({
           label: `Cluster ${cluster.id}`,
-          data: [stats.median], // Show median as the main value
-          backgroundColor: getClusterColor(index) + '80',
-          borderColor: getClusterColor(index),
+          data: [{
+            x: `Cluster ${cluster.id}`,
+            y: [stats.min, stats.q1, stats.median, stats.q3, stats.max]
+          }],
+          backgroundColor: color + 'B3', // 70% opacity
+          borderColor: color,
           borderWidth: 2,
-          // Store additional stats for tooltip
+          type: 'bar',
+          barPercentage: 0.4,
           stats: stats
-        }
+        })
       })
 
       const config = {
@@ -269,7 +276,7 @@ export default {
           plugins: {
             title: {
               display: true,
-              text: `Distribusi ${getMetricLabel(selectedMetric.value)} per Cluster`
+              text: `Box Plot ${getMetricLabel(selectedMetric.value)} per Cluster`
             },
             legend: {
               display: false
@@ -277,10 +284,12 @@ export default {
             tooltip: {
               callbacks: {
                 title: (context) => {
-                  return context[0].label
+                  const clusterLabel = context[0].label.split(' ')[1]  // Get "Cluster X" part
+                  return `Cluster ${clusterLabel}`
                 },
                 label: (context) => {
                   const stats = context.dataset.stats
+                  if (!stats) return []
                   return [
                     `Min: ${formatValue(stats.min)}`,
                     `Q1: ${formatValue(stats.q1)}`,

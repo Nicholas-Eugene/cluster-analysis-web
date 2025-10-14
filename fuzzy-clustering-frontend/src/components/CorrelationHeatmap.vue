@@ -156,13 +156,22 @@ export default {
       const canvas = heatmapCanvas.value
       const ctx = canvas.getContext('2d')
       
-      // Set canvas size
       const containerWidth = canvas.parentElement.clientWidth
+      const margin = {
+        top: 180,
+        right: 80,
+        bottom: 20,
+        left: 220
+      }
+      
       const size = Math.min(containerWidth - 40, 400)
-      canvas.width = size
-      canvas.height = size
-      canvas.style.width = size + 'px'
-      canvas.style.height = size + 'px'
+      const totalWidth = size + margin.left + margin.right
+      const totalHeight = size + margin.top + margin.bottom
+      
+      canvas.width = totalWidth
+      canvas.height = totalHeight
+      canvas.style.width = totalWidth + 'px'
+      canvas.style.height = totalHeight + 'px'
       
       // Clear canvas
       ctx.clearRect(0, 0, size, size)
@@ -186,8 +195,8 @@ export default {
       // Draw heatmap cells
       for (let i = 0; i < variables.length; i++) {
         for (let j = 0; j < variables.length; j++) {
-          const x = j * cellSize + padding
-          const y = i * cellSize + padding
+          const x = margin.left + j * cellSize + padding
+          const y = margin.top + i * cellSize + padding
           const width = cellSize - 2 * padding
           const height = cellSize - 2 * padding
           
@@ -218,28 +227,55 @@ export default {
       
       // Draw variable labels
       ctx.fillStyle = '#2d3748'
-      ctx.font = 'bold 12px Arial'
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
+      ctx.font = 'bold 16px Arial' // Increased font size
       
       // Top labels
       for (let j = 0; j < variables.length; j++) {
-        const x = j * cellSize + cellSize / 2
-        const y = -10
+        const x = margin.left + j * cellSize + cellSize / 2
+        const y = margin.top - 30 // Increased distance from heatmap
         ctx.save()
+        ctx.textAlign = 'left'
+        ctx.textBaseline = 'middle'
         ctx.translate(x, y)
         ctx.rotate(-Math.PI / 4)
+        // Add background for better readability
+        const textWidth = ctx.measureText(variables[j]).width
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+        ctx.fillRect(-2, -10, textWidth + 4, 20)
+        // Draw text
+        ctx.fillStyle = '#2d3748'
         ctx.fillText(variables[j], 0, 0)
         ctx.restore()
       }
       
       // Left labels
       ctx.textAlign = 'right'
+      ctx.textBaseline = 'middle'
       for (let i = 0; i < variables.length; i++) {
-        const x = -10
-        const y = i * cellSize + cellSize / 2
+        const x = margin.left - 25 // Increased distance from heatmap
+        const y = margin.top + i * cellSize + cellSize / 2
+        // Add background for better readability
+        const textWidth = ctx.measureText(variables[i]).width
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
+        ctx.fillRect(x - textWidth - 2, y - 10, textWidth + 4, 20)
+        // Draw text
+        ctx.fillStyle = '#2d3748'
         ctx.fillText(variables[i], x, y)
       }
+      
+      // Draw axis lines
+      ctx.strokeStyle = '#e2e8f0'
+      ctx.lineWidth = 2
+      // Vertical axis
+      ctx.beginPath()
+      ctx.moveTo(margin.left - 5, margin.top - 5)
+      ctx.lineTo(margin.left - 5, margin.top + size + 5)
+      ctx.stroke()
+      // Horizontal axis
+      ctx.beginPath()
+      ctx.moveTo(margin.left - 5, margin.top - 5)
+      ctx.lineTo(margin.left + size + 5, margin.top - 5)
+      ctx.stroke()
     }
     
     const updateHeatmap = () => {
