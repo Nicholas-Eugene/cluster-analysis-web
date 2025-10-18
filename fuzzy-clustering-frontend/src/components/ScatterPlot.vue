@@ -50,9 +50,18 @@ export default {
     const selectedXAxis = ref('ipm')
     const selectedYAxis = ref('garis_kemiskinan')
 
+    // Consistent cluster colors matching the design system
     const colors = [
-      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-      '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+      '#667eea', // Purple - Primary
+      '#48bb78', // Green - Success
+      '#ed8936', // Orange - Warning
+      '#4299e1', // Blue - Info
+      '#f56565', // Red - Danger
+      '#38b2ac', // Teal
+      '#9f7aea', // Purple Light
+      '#ecc94b', // Yellow
+      '#f687b3', // Pink
+      '#4fd1c5', // Cyan
     ]
 
     const getClusterColor = (index) => {
