@@ -449,6 +449,12 @@ export default {
   margin-bottom: 2rem;
 }
 
+.overall-summary h3 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
 .summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -460,24 +466,27 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  background: #f7fafc;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .summary-icon {
   font-size: 2rem;
+  opacity: 0.9;
 }
 
 .summary-content h4 {
-  color: #2d3748;
+  color: white;
   margin: 0;
   font-size: 1.5rem;
+  font-weight: 700;
 }
 
 .summary-content p {
-  color: #718096;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0.25rem 0 0 0;
   font-size: 0.875rem;
 }
@@ -499,27 +508,37 @@ export default {
 }
 
 .metric-card {
-  background: white;
-  padding: 1.5rem;
+  background: #f7fafc;
+  padding: 2rem;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   text-align: center;
 }
 
 .metric-card h5 {
-  color: #4a5568;
+  color: #2d3748;
   margin-bottom: 1rem;
+  font-size: 1.25rem;
 }
 
 .metric-value {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: #667eea;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .metric-quality {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
   font-size: 0.875rem;
+}
+
+.metric-quality .quality-label {
+  font-weight: 600;
+  color: #4a5568;
 }
 
 .quality-excellent { color: #38a169; font-weight: 600; }
@@ -658,12 +677,16 @@ export default {
 }
 
 .cluster-tab:hover {
+  border-color: #667eea;
+  color: #667eea;
   transform: translateY(-2px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .cluster-tab.active {
-  background: #f7fafc;
+  background: #667eea;
+  border-color: #667eea;
+  color: white;
   transform: translateY(-2px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -759,6 +782,26 @@ export default {
 .member-stat span:last-child {
   color: #2d3748;
   font-weight: 600;
+}
+
+/* Consistent card styling with AnalysisEnhanced */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  margin-bottom: 2rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.card h3 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
 }
 
 @media (max-width: 768px) {
