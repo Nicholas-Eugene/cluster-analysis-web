@@ -250,13 +250,30 @@ export default {
           return
         }
       
-      // Create box and whisker plot visualization
-      const datasets = createBoxPlotData()
+      // Create box and whisker plot visualization with proper structure
+      const labels = props.clusters.map(cluster => `Cluster ${cluster.id}`)
+      const datasets = [{
+        label: 'Clusters',
+        data: props.clusters.map((cluster, index) => {
+          const values = cluster.members
+            .map(member => member[selectedMetric.value])
+            .filter(val => val != null)
+          return values
+        }),
+        backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index) + 'B3'),
+        borderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+        borderWidth: 2,
+        outlierColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+        outlierBackgroundColor: props.clusters.map((cluster, index) => getClusterColor(index) + '80'),
+        outlierBorderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+        outlierRadius: 4,
+        itemRadius: 0
+      }]
 
       const config = {
         type: 'boxplot',
         data: {
-          labels: props.clusters.map(cluster => `Cluster ${cluster.id}`),
+          labels: labels,
           datasets: datasets
         },
         options: {
@@ -287,14 +304,21 @@ export default {
             tooltip: {
               callbacks: {
                 label: (context) => {
-                  const item = context.parsed
+                  const dataIndex = context.dataIndex
+                  const cluster = props.clusters[dataIndex]
+                  const values = cluster.members
+                    .map(member => member[selectedMetric.value])
+                    .filter(val => val != null)
+                  const stats = calculateStatistics(values)
+                  
                   return [
-                    `Min: ${formatValue(item.min)}`,
-                    `Q1: ${formatValue(item.q1)}`,
-                    `Median: ${formatValue(item.median)}`,
-                    `Q3: ${formatValue(item.q3)}`,
-                    `Max: ${formatValue(item.max)}`,
-                    `Outliers: ${item.outliers?.length || 0}`
+                    `Cluster ${cluster.id}`,
+                    `Min: ${formatValue(stats.min)}`,
+                    `Q1: ${formatValue(stats.q1)}`,
+                    `Median: ${formatValue(stats.median)}`,
+                    `Q3: ${formatValue(stats.q3)}`,
+                    `Max: ${formatValue(stats.max)}`,
+                    `Count: ${values.length}`
                   ]
                 }
               }

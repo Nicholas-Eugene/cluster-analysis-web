@@ -155,9 +155,10 @@ export default {
         const ctx = chartCanvas.value.getContext('2d')
         if (!ctx) return
 
-        // Prepare silhouette data
+        // Prepare silhouette data with better spacing
         const datasets = []
         let yPosition = 0
+        const gapBetweenClusters = Math.max(5, Math.floor(props.clusters[0]?.members.length * 0.15) || 5)
 
         props.clusters.forEach((cluster, clusterIndex) => {
           // Calculate silhouette scores for members
@@ -181,10 +182,12 @@ export default {
             backgroundColor: getClusterColor(clusterIndex),
             borderColor: getClusterColor(clusterIndex),
             borderWidth: 1,
-            barThickness: 2
+            barThickness: 'flex',
+            barPercentage: 0.9,
+            categoryPercentage: 0.9
           })
 
-          yPosition += scores.length + 2 // Add gap between clusters
+          yPosition += scores.length + gapBetweenClusters // Add gap between clusters
         })
 
         const config = {
@@ -355,8 +358,9 @@ export default {
 }
 
 .chart-wrapper {
-  height: 400px;
+  height: 500px;
   position: relative;
+  min-height: 400px;
 }
 
 .silhouette-legend {

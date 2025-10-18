@@ -99,7 +99,13 @@ export default {
   list-style: none;
   margin: 0;
   padding: 0;
-  gap: 2rem;
+  gap: 1rem;
+  align-items: center;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
 }
 
 .nav-link {
@@ -109,6 +115,8 @@ export default {
   padding: 0.5rem 1rem;
   border-radius: 6px;
   transition: all 0.3s ease;
+  white-space: nowrap;
+  font-size: 1rem;
 }
 
 .nav-link:hover,
@@ -128,11 +136,13 @@ export default {
 }
 
 .dropdown-arrow {
-  font-size: 0.7rem;
+  font-size: 0.6rem;
   transition: transform 0.3s ease;
+  display: inline-block;
+  margin-left: 0.25rem;
 }
 
-.dropdown.show .dropdown-arrow {
+.nav-item.dropdown:hover .dropdown-arrow {
   transform: rotate(180deg);
 }
 

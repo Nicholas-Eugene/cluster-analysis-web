@@ -123,7 +123,8 @@ export default {
     }
 
     const activeCluster = computed(() => {
-      if (!selectedClusterId.value || !props.clusters) return null
+      // Use == null to check for both null and undefined, but allow 0 as valid cluster ID
+      if (selectedClusterId.value == null || !props.clusters) return null
       return props.clusters.find(cluster => cluster.id === selectedClusterId.value)
     })
 

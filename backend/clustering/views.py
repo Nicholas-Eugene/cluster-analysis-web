@@ -49,7 +49,12 @@ class UploadAndProcessView(APIView):
                 import json
                 try:
                     selected_years = json.loads(selected_years_json)
-                except:
+                    # Convert to integers if they are strings
+                    if selected_years:
+                        selected_years = [int(y) for y in selected_years]
+                        print(f"🎯 Selected years from request: {selected_years}")
+                except Exception as e:
+                    print(f"⚠️ Error parsing selected_years: {e}")
                     selected_years = None
 
             # OPTICS specific parameters - make them more adaptive
