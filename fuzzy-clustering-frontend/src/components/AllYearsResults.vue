@@ -179,7 +179,7 @@
     <!-- Cluster Details -->
     <ClusterDetailCard 
       :clusters="resultData.clusters"
-      :showMembership="resultData.algorithm && (resultData.algorithm.toLowerCase() === 'fcm' || resultData.algorithm.toLowerCase().includes('fuzzy'))"
+      :showMembership="true"
     />
 
     <!-- Export Options -->

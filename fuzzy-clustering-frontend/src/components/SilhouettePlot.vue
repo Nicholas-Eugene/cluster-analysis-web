@@ -130,13 +130,20 @@ export default {
 
     const createChart = async () => {
       try {
+        console.log('📊 SilhouettePlot: Starting chart creation')
+        console.log('Clusters:', props.clusters)
+        
         if (!chartCanvas.value || !props.clusters || props.clusters.length === 0) {
+          console.warn('⚠️ SilhouettePlot: Missing canvas or clusters')
           return
         }
 
         await nextTick()
         
-        if (!chartCanvas.value) return
+        if (!chartCanvas.value) {
+          console.warn('⚠️ SilhouettePlot: Canvas lost after nextTick')
+          return
+        }
 
         // Destroy existing chart
         if (chart.value) {
@@ -150,17 +157,30 @@ export default {
 
         await new Promise(resolve => setTimeout(resolve, 50))
         
-        if (!chartCanvas.value) return
+        if (!chartCanvas.value) {
+          console.warn('⚠️ SilhouettePlot: Canvas lost after delay')
+          return
+        }
 
         const ctx = chartCanvas.value.getContext('2d')
-        if (!ctx) return
+        if (!ctx) {
+          console.warn('⚠️ SilhouettePlot: Failed to get context')
+          return
+        }
 
         // Prepare silhouette data with better spacing
         const datasets = []
         let yPosition = 0
         const gapBetweenClusters = Math.max(5, Math.floor(props.clusters[0]?.members.length * 0.15) || 5)
 
+        console.log(`Gap between clusters: ${gapBetweenClusters}`)
+
         props.clusters.forEach((cluster, clusterIndex) => {
+          if (!cluster.members || cluster.members.length === 0) {
+            console.warn(`⚠️ Cluster ${cluster.id} has no members`)
+            return
+          }
+
           // Calculate silhouette scores for members
           const scores = cluster.members.map(member => ({
             score: calculateApproximateSilhouette(member, cluster, props.clusters),
@@ -176,6 +196,8 @@ export default {
             name: item.name
           }))
 
+          console.log(`Cluster ${cluster.id}: ${data.length} points, yPosition: ${yPosition}`)
+
           datasets.push({
             label: `Cluster ${cluster.id}`,
             data: data,
@@ -189,6 +211,14 @@ export default {
 
           yPosition += scores.length + gapBetweenClusters // Add gap between clusters
         })
+
+        console.log(`Total datasets: ${datasets.length}`)
+        console.log(`Total y positions: ${yPosition}`)
+
+        if (datasets.length === 0) {
+          console.warn('⚠️ No datasets to display')
+          return
+        }
 
         const config = {
           type: 'bar',
@@ -246,14 +276,19 @@ export default {
           }
         }
 
+        console.log('Creating chart with config:', config)
         chart.value = new Chart(ctx, config)
+        console.log('✅ Chart created successfully')
 
       } catch (error) {
-        console.warn('Error creating silhouette plot:', error)
+        console.error('❌ Error creating silhouette plot:', error)
+        console.error('Error stack:', error.stack)
         if (chart.value) {
           try {
             chart.value.destroy()
-          } catch (e) {}
+          } catch (e) {
+            console.error('Error destroying chart:', e)
+          }
           chart.value = null
         }
       }

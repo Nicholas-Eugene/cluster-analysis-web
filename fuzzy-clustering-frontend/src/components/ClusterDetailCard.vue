@@ -5,8 +5,13 @@
       <button 
         v-for="(cluster, index) in clusters" 
         :key="cluster.id"
-        @click="selectedClusterId = cluster.id"
-        :class="['cluster-tab', { active: selectedClusterId === cluster.id }]"
+        @click="() => { 
+          console.log('Clicked cluster:', cluster.id, 'Type:', typeof cluster.id); 
+          // Ensure we're using the same type as cluster.id
+          selectedClusterId = Number.isInteger(cluster.id) ? cluster.id : parseInt(cluster.id);
+          console.log('Set selectedClusterId to:', selectedClusterId);
+        }"
+        :class="['cluster-tab', { active: selectedClusterId === cluster.id || selectedClusterId == cluster.id }]"
         :style="{ borderColor: getClusterColor(index) }"
       >
         <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
@@ -65,7 +70,7 @@
                 <span>Pengeluaran:</span>
                 <span>{{ formatCurrency(member.pengeluaran_per_kapita) }}</span>
               </div>
-              <div v-if="showMembership && member.membership !== undefined" class="member-stat membership-stat">
+              <div v-if="showMembership && member.membership != null" class="member-stat membership-stat">
                 <span>Membership:</span>
                 <div class="membership-bar-mini">
                   <div 
@@ -77,6 +82,10 @@
                   ></div>
                   <span class="membership-text-mini">{{ (member.membership * 100).toFixed(1) }}%</span>
                 </div>
+              </div>
+              <!-- Debug membership -->
+              <div v-if="showMembership && member.membership == null" style="font-size: 0.8rem; color: red;">
+                [Debug: membership is {{ member.membership }}]
               </div>
             </div>
           </div>
@@ -123,9 +132,26 @@ export default {
     }
 
     const activeCluster = computed(() => {
+      console.log('🔍 Computing activeCluster')
+      console.log('selectedClusterId.value:', selectedClusterId.value)
+      console.log('Type of selectedClusterId:', typeof selectedClusterId.value)
+      
       // Use == null to check for both null and undefined, but allow 0 as valid cluster ID
-      if (selectedClusterId.value == null || !props.clusters) return null
-      return props.clusters.find(cluster => cluster.id === selectedClusterId.value)
+      if (selectedClusterId.value == null || !props.clusters) {
+        console.log('⚠️ selectedClusterId is null/undefined or no clusters')
+        return null
+      }
+      
+      // Try both strict and loose equality to handle type mismatches
+      const found = props.clusters.find(cluster => {
+        const strictMatch = cluster.id === selectedClusterId.value
+        const looseMatch = cluster.id == selectedClusterId.value
+        console.log(`Comparing cluster.id (${cluster.id}, ${typeof cluster.id}) with selectedClusterId (${selectedClusterId.value}, ${typeof selectedClusterId.value}) - strict: ${strictMatch}, loose: ${looseMatch}`)
+        return strictMatch || looseMatch
+      })
+      
+      console.log('Found cluster:', found)
+      return found
     })
 
     const formatCurrency = (value) => {
@@ -139,9 +165,14 @@ export default {
 
     // Initialize with first cluster - always select first cluster when clusters change
     watch(() => props.clusters, (newClusters) => {
+      console.log('👀 Clusters changed:', newClusters)
       if (newClusters && newClusters.length > 0) {
+        console.log('Setting selectedClusterId to:', newClusters[0].id, 'Type:', typeof newClusters[0].id)
         // Always reset to first cluster when data changes
-        selectedClusterId.value = newClusters[0].id
+        // Ensure we use the same type as cluster.id
+        const firstClusterId = newClusters[0].id
+        selectedClusterId.value = Number.isInteger(firstClusterId) ? firstClusterId : parseInt(firstClusterId)
+        console.log('After setting, selectedClusterId.value:', selectedClusterId.value, 'Type:', typeof selectedClusterId.value)
       }
     }, { immediate: true, deep: true })
 
