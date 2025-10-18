@@ -263,83 +263,99 @@
         <!-- FCM Parameters -->
         <div v-if="selectedAlgorithm === 'fcm'" class="parameters-form">
           <h3>Parameter Fuzzy C-Means</h3>
-          <div class="grid grid-2">
-            <div class="form-group">
-              <label class="form-label">
-                Jumlah Cluster (c)
-                <span class="info-tooltip" title="Jumlah cluster yang diinginkan (2-10)">ℹ️</span>
-              </label>
-              <input 
-                type="number" 
-                v-model.number="parameters.numClusters"
-                class="form-input"
-                min="2"
-                max="10"
-                placeholder="Contoh: 3"
-              >
-              <small class="form-help">Rentang: 2-10 cluster</small>
+          
+          <div class="simple-params-note">
+            <div class="note-icon">💡</div>
+            <div class="note-text">
+              <strong>Sederhana!</strong> Anda hanya perlu menentukan berapa jumlah kelompok (cluster) yang diinginkan. 
+              Parameter teknis lainnya sudah diatur secara optimal oleh sistem.
             </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                Fuzzy Coefficient (m)
-                <span class="info-tooltip" title="Parameter fuzziness yang mengontrol tingkat kekaburan cluster">ℹ️</span>
-              </label>
-              <input 
-                type="number" 
-                v-model.number="parameters.fuzzyCoeff"
-                class="form-input"
-                min="1.1"
-                max="5"
-                step="0.1"
-                placeholder="Contoh: 2.0"
-              >
-              <small class="form-help">Rentang: 1.1-5.0 (default: 2.0)</small>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                Maksimal Iterasi
-                <span class="info-tooltip" title="Jumlah maksimal iterasi algoritma">ℹ️</span>
-              </label>
-              <input 
-                type="number" 
-                v-model.number="parameters.maxIter"
-                class="form-input"
-                min="50"
-                max="1000"
-                placeholder="Contoh: 300"
-              >
-              <small class="form-help">Rentang: 50-1000 iterasi</small>
-            </div>
-
-            <div class="form-group">
-              <label class="form-label">
-                Toleransi Error
-                <span class="info-tooltip" title="Kriteria berhenti berdasarkan perubahan centroid">ℹ️</span>
-              </label>
-              <input 
-                type="number" 
-                v-model.number="parameters.tolerance"
-                class="form-input"
-                min="0.0001"
-                max="0.1"
-                step="0.0001"
-                placeholder="Contoh: 0.0001"
-              >
-              <small class="form-help">Rentang: 0.0001-0.1</small>
-            </div>
+          </div>
+          
+          <div class="form-group form-group-featured">
+            <label class="form-label">
+              <span class="label-icon">🎯</span>
+              Jumlah Cluster
+              <span class="tooltip-container">
+                <span class="info-icon">ℹ️</span>
+                <div class="tooltip-content">
+                  <strong>Apa itu Jumlah Cluster?</strong>
+                  <p>Ini adalah jumlah kelompok yang ingin Anda buat dari data daerah. Misalnya:</p>
+                  <ul>
+                    <li><strong>3 cluster:</strong> Daerah akan dikelompokkan menjadi "Maju", "Sedang", dan "Berkembang"</li>
+                    <li><strong>4 cluster:</strong> Daerah dikelompokkan menjadi 4 kategori berbeda</li>
+                  </ul>
+                  <p><strong>Tip:</strong> Mulai dengan 3-4 cluster untuk hasil yang mudah diinterpretasi.</p>
+                </div>
+              </span>
+            </label>
+            <input 
+              type="number" 
+              v-model.number="parameters.numClusters"
+              class="form-input"
+              min="2"
+              max="10"
+              placeholder="Contoh: 3"
+            >
+            <small class="form-help">
+              <span class="help-icon">📌</span>
+              Pilih antara 2-10 cluster. <strong>Rekomendasi: 3 atau 4 cluster</strong> untuk hasil yang mudah dipahami.
+            </small>
+          </div>
+          
+          <div class="advanced-params-info">
+            <details>
+              <summary>🔧 Parameter Teknis (Otomatis)</summary>
+              <div class="auto-params-list">
+                <div class="auto-param-item">
+                  <span class="param-name">Fuzzy Coefficient:</span>
+                  <span class="param-value">2.0 (optimal)</span>
+                </div>
+                <div class="auto-param-item">
+                  <span class="param-name">Maksimal Iterasi:</span>
+                  <span class="param-value">300 iterasi</span>
+                </div>
+                <div class="auto-param-item">
+                  <span class="param-name">Toleransi Error:</span>
+                  <span class="param-value">0.0001 (presisi tinggi)</span>
+                </div>
+                <p class="auto-params-note">Parameter-parameter ini sudah diatur secara otomatis untuk hasil terbaik.</p>
+              </div>
+            </details>
           </div>
         </div>
 
         <!-- OPTICS Parameters -->
         <div v-if="selectedAlgorithm === 'optics'" class="parameters-form">
           <h3>Parameter OPTICS</h3>
+          
+          <div class="optics-intro-note">
+            <div class="note-icon">🔍</div>
+            <div class="note-text">
+              <strong>OPTICS secara otomatis menemukan jumlah cluster yang optimal</strong> berdasarkan kepadatan data. 
+              Anda perlu mengatur beberapa parameter untuk membantu algoritma memahami data Anda.
+            </div>
+          </div>
+          
           <div class="grid grid-2">
             <div class="form-group">
               <label class="form-label">
-                Minimum Samples
-                <span class="info-tooltip" title="Jumlah minimum sampel dalam neighborhood">ℹ️</span>
+                <span class="label-icon">👥</span>
+                Minimum Samples (Tetangga Minimum)
+                <span class="tooltip-container">
+                  <span class="info-icon">ℹ️</span>
+                  <div class="tooltip-content">
+                    <strong>Apa artinya?</strong>
+                    <p>Jumlah minimum daerah yang harus berdekatan untuk membentuk satu kelompok.</p>
+                    <strong>Penjelasan Sederhana:</strong>
+                    <ul>
+                      <li><strong>Nilai kecil (2-5):</strong> Lebih sensitif, bisa menemukan kelompok kecil</li>
+                      <li><strong>Nilai sedang (5-10):</strong> Balanced, cocok untuk kebanyakan kasus</li>
+                      <li><strong>Nilai besar (10-20):</strong> Hanya menemukan kelompok besar dan jelas</li>
+                    </ul>
+                    <p><strong>Tip:</strong> Gunakan 5 untuk data dengan puluhan daerah, 10-15 untuk data dengan ratusan daerah.</p>
+                  </div>
+                </span>
               </label>
               <input 
                 type="number" 
@@ -349,13 +365,30 @@
                 max="50"
                 placeholder="Contoh: 5"
               >
-              <small class="form-help">Rentang: 2-50 (default: 5)</small>
+              <small class="form-help">
+                <span class="help-icon">📌</span>
+                Rekomendasi: <strong>5-10</strong> untuk hasil yang seimbang
+              </small>
             </div>
 
             <div class="form-group">
               <label class="form-label">
-                Xi Parameter
-                <span class="info-tooltip" title="Minimum steepness pada reachability plot">ℹ️</span>
+                <span class="label-icon">📊</span>
+                Xi Parameter (Kepekaan Pemisahan)
+                <span class="tooltip-container">
+                  <span class="info-icon">ℹ️</span>
+                  <div class="tooltip-content">
+                    <strong>Apa artinya?</strong>
+                    <p>Parameter yang menentukan seberapa jelas perbedaan antar kelompok harus ada agar dianggap terpisah.</p>
+                    <strong>Penjelasan Sederhana:</strong>
+                    <ul>
+                      <li><strong>Nilai kecil (0.01-0.03):</strong> Sangat sensitif, banyak cluster kecil</li>
+                      <li><strong>Nilai sedang (0.05):</strong> Balanced, cocok untuk kebanyakan kasus ✓</li>
+                      <li><strong>Nilai besar (0.1-0.2):</strong> Hanya menemukan perbedaan yang sangat jelas</li>
+                    </ul>
+                    <p><strong>Tip:</strong> Mulai dengan 0.05 (default), turunkan jika cluster terlalu sedikit, naikkan jika terlalu banyak.</p>
+                  </div>
+                </span>
               </label>
               <input 
                 type="number" 
@@ -366,13 +399,31 @@
                 step="0.01"
                 placeholder="Contoh: 0.05"
               >
-              <small class="form-help">Rentang: 0.01-1.0 (default: 0.05)</small>
+              <small class="form-help">
+                <span class="help-icon">📌</span>
+                Rekomendasi: <strong>0.05</strong> (default, cocok untuk kebanyakan data)
+              </small>
             </div>
 
             <div class="form-group">
               <label class="form-label">
-                Minimum Cluster Size
-                <span class="info-tooltip" title="Ukuran minimum cluster sebagai fraksi dari data">ℹ️</span>
+                <span class="label-icon">📏</span>
+                Minimum Cluster Size (Ukuran Cluster Minimum)
+                <span class="tooltip-container">
+                  <span class="info-icon">ℹ️</span>
+                  <div class="tooltip-content">
+                    <strong>Apa artinya?</strong>
+                    <p>Persentase minimum dari total data yang harus ada dalam satu kelompok agar dianggap valid.</p>
+                    <strong>Penjelasan Sederhana:</strong>
+                    <ul>
+                      <li><strong>0.05 (5%):</strong> Kelompok minimal berisi 5% dari total daerah</li>
+                      <li><strong>0.10 (10%):</strong> Kelompok minimal berisi 10% dari total daerah</li>
+                    </ul>
+                    <strong>Contoh:</strong>
+                    <p>Jika ada 100 daerah dan nilai 0.05, maka kelompok harus minimal berisi 5 daerah.</p>
+                    <p><strong>Tip:</strong> Gunakan 0.05 untuk memperbolehkan kelompok kecil, atau 0.10 untuk hanya kelompok besar.</p>
+                  </div>
+                </span>
               </label>
               <input 
                 type="number" 
@@ -383,7 +434,28 @@
                 step="0.01"
                 placeholder="Contoh: 0.05"
               >
-              <small class="form-help">Rentang: 0.01-0.5 (default: 0.05)</small>
+              <small class="form-help">
+                <span class="help-icon">📌</span>
+                Rekomendasi: <strong>0.05 (5%)</strong> untuk fleksibilitas yang baik
+              </small>
+            </div>
+          </div>
+          
+          <div class="optics-summary">
+            <div class="summary-header">💡 Panduan Cepat:</div>
+            <div class="summary-grid">
+              <div class="summary-item">
+                <strong>Data Kecil (< 50 daerah):</strong>
+                <span>Min Samples: 3-5 | Xi: 0.05 | Min Size: 0.05</span>
+              </div>
+              <div class="summary-item">
+                <strong>Data Sedang (50-200 daerah):</strong>
+                <span>Min Samples: 5-10 | Xi: 0.05 | Min Size: 0.05</span>
+              </div>
+              <div class="summary-item">
+                <strong>Data Besar (> 200 daerah):</strong>
+                <span>Min Samples: 10-15 | Xi: 0.05-0.10 | Min Size: 0.05</span>
+              </div>
             </div>
           </div>
         </div>
@@ -1305,6 +1377,269 @@ Surabaya,2018,78.34,420000,6400000`
   cursor: help;
   color: #667eea;
   margin-left: 0.5rem;
+}
+
+/* FCM Simplified Parameters Styling */
+.simple-params-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: linear-gradient(135deg, #e6f7ff 0%, #f0f9ff 100%);
+  border-left: 4px solid #4299e1;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.simple-params-note .note-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.simple-params-note .note-text {
+  line-height: 1.6;
+  color: #2c5282;
+}
+
+.simple-params-note .note-text strong {
+  color: #1e40af;
+}
+
+.form-group-featured {
+  background: #f7fafc;
+  padding: 2rem;
+  border-radius: 12px;
+  border: 2px solid #667eea;
+  margin-bottom: 1.5rem;
+}
+
+.form-group-featured .form-input {
+  font-size: 1.25rem;
+  padding: 1rem;
+  font-weight: 600;
+  border: 2px solid #cbd5e0;
+}
+
+.form-group-featured .form-input:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.label-icon {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.help-icon {
+  margin-right: 0.5rem;
+}
+
+/* Tooltip Container */
+.tooltip-container {
+  position: relative;
+  display: inline-block;
+  margin-left: 0.5rem;
+}
+
+.tooltip-container .info-icon {
+  cursor: help;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #667eea;
+  color: white;
+  font-size: 0.875rem;
+  font-weight: 700;
+  transition: all 0.3s ease;
+}
+
+.tooltip-container .info-icon:hover {
+  background: #5a67d8;
+  transform: scale(1.1);
+}
+
+.tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 350px;
+  max-width: 450px;
+  background: white;
+  color: #2d3748;
+  padding: 1.5rem;
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  border: 2px solid #667eea;
+}
+
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -8px;
+  border-width: 8px;
+  border-style: solid;
+  border-color: #667eea transparent transparent transparent;
+}
+
+.tooltip-container:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-content strong {
+  display: block;
+  color: #667eea;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+}
+
+.tooltip-content p {
+  margin: 0.75rem 0;
+  line-height: 1.6;
+}
+
+.tooltip-content ul {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.tooltip-content li {
+  margin: 0.5rem 0;
+  line-height: 1.5;
+}
+
+/* Advanced Parameters Info */
+.advanced-params-info {
+  margin-top: 2rem;
+  background: #f7fafc;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.advanced-params-info details {
+  cursor: pointer;
+}
+
+.advanced-params-info summary {
+  padding: 1rem 1.5rem;
+  background: #e2e8f0;
+  font-weight: 600;
+  color: #4a5568;
+  user-select: none;
+  transition: background 0.3s ease;
+}
+
+.advanced-params-info summary:hover {
+  background: #cbd5e0;
+}
+
+.auto-params-list {
+  padding: 1.5rem;
+}
+
+.auto-param-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 0.75rem;
+  background: white;
+  border-radius: 6px;
+  margin-bottom: 0.5rem;
+}
+
+.auto-param-item .param-name {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.auto-param-item .param-value {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.auto-params-note {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #e6f7ff;
+  border-left: 4px solid #4299e1;
+  border-radius: 6px;
+  color: #2c5282;
+  font-style: italic;
+}
+
+/* OPTICS Styling */
+.optics-intro-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  background: linear-gradient(135deg, #fef3c7 0%, #fef7cd 100%);
+  border-left: 4px solid #f59e0b;
+  padding: 1.5rem;
+  border-radius: 8px;
+  margin-bottom: 2rem;
+}
+
+.optics-intro-note .note-icon {
+  font-size: 2rem;
+  flex-shrink: 0;
+}
+
+.optics-intro-note .note-text {
+  line-height: 1.6;
+  color: #78350f;
+}
+
+.optics-intro-note .note-text strong {
+  color: #92400e;
+}
+
+.optics-summary {
+  margin-top: 2rem;
+  background: #f0fdf4;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+
+.optics-summary .summary-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #065f46;
+  margin-bottom: 1rem;
+}
+
+.optics-summary .summary-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.optics-summary .summary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: white;
+  border-radius: 8px;
+  border-left: 4px solid #10b981;
+}
+
+.optics-summary .summary-item strong {
+  color: #065f46;
+  font-size: 1rem;
+}
+
+.optics-summary .summary-item span {
+  color: #4a5568;
+  font-size: 0.95rem;
 }
 
 .actions {
