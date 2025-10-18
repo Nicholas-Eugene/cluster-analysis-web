@@ -4,7 +4,7 @@ from rest_framework import status
 from django.db import transaction
 from django.http import HttpResponse
 from .models import ClusteringSession
-from .algorithms import get_clustering_results
+from .algorithms import run_clustering_all_years, run_clustering_per_year
 
 import pandas as pd
 import numpy as np
@@ -40,6 +40,7 @@ class UploadAndProcessView(APIView):
             max_iter = int(request.POST.get("max_iter", 300))
             tolerance = float(request.POST.get("tolerance", 0.0001))
             selected_year = request.POST.get("selected_year")
+            clustering_mode = request.POST.get("clustering_mode", "per_year")
 
             # OPTICS specific parameters - make them more adaptive
             min_samples = int(request.POST.get("min_samples", 5))
@@ -184,46 +185,72 @@ class UploadAndProcessView(APIView):
         }
 
         try:
-            # Determine clustering mode based on selected_year
-            if selected_year:
-                # Single year clustering
-                clustering_mode = "single_year"
-                print(f"🎯 Single year clustering for {selected_year}")
+            # Branch logic based on clustering_mode
+            if clustering_mode == "all_years":
+                print("📅 Clustering all years at once (wide format, all year columns)")
+                # Pass to all-years clustering
+                if algorithm == "fcm":
+                    results = run_clustering_all_years(
+                        df,
+                        algorithm="fcm",
+                        n_clusters=num_clusters,
+                        m=fuzzy_coeff,
+                        max_iter=max_iter,
+                        error=tolerance,
+                        selected_year=selected_year,
+                    )
+                elif algorithm == "optics":
+                    results = run_clustering_all_years(
+                        df,
+                        algorithm="optics",
+                        min_samples=min_samples,
+                        xi=xi,
+                        min_cluster_size=min_cluster_size,
+                        selected_year=selected_year,
+                    )
+                else:
+                    return Response(
+                        {
+                            "error": 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                results["clustering_mode"] = "all_years"
             else:
-                # Per year clustering (default new behavior)
-                clustering_mode = "per_year"
-                print(f"🗓️ Per year clustering for all available years")
-
-            # Use the clustering algorithms
-            if algorithm == "fcm":
-                results = get_clustering_results(
-                    df,
-                    algorithm="fcm",
-                    features=["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"],
-                    n_clusters=num_clusters,
-                    m=fuzzy_coeff,
-                    max_iter=max_iter,
-                    error=tolerance,
-                    selected_year=selected_year,
-                )
-            elif algorithm == "optics":
-                results = get_clustering_results(
-                    df,
-                    algorithm="optics",
-                    features=["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"],
-                    min_samples=min_samples,
-                    xi=xi,
-                    min_cluster_size=min_cluster_size,
-                    selected_year=selected_year,
-                )
-            else:
-                return Response(
-                    {"error": 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Add clustering mode to results
-            results["clustering_mode"] = clustering_mode
+                # Per year clustering (default)
+                if selected_year:
+                    print(f"🎯 Single year clustering for {selected_year}")
+                else:
+                    print(f"🗓️ Per year clustering for all available years")
+                if algorithm == "fcm":
+                    results = run_clustering_per_year(
+                        df,
+                        algorithm="fcm",
+                        features=["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"],
+                        n_clusters=num_clusters,
+                        m=fuzzy_coeff,
+                        max_iter=max_iter,
+                        error=tolerance,
+                        selected_year=selected_year,
+                    )
+                elif algorithm == "optics":
+                    results = run_clustering_per_year(
+                        df,
+                        algorithm="optics",
+                        features=["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"],
+                        min_samples=min_samples,
+                        xi=xi,
+                        min_cluster_size=min_cluster_size,
+                        selected_year=selected_year,
+                    )
+                else:
+                    return Response(
+                        {
+                            "error": 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'
+                        },
+                        status=status.HTTP_400_BAD_REQUEST,
+                    )
+                results["clustering_mode"] = clustering_mode
 
         except Exception as e:
             return Response(
