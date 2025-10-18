@@ -130,19 +130,22 @@ export default {
       return denominator === 0 ? 0 : numerator / denominator
     }
     
-    // Get color for correlation value
+    // Import color utility from design system
     const getCorrelationColor = (correlation) => {
-      // Normalize correlation from [-1, 1] to [0, 1]
-      const normalized = (correlation + 1) / 2
+      const absCorr = Math.abs(correlation)
       
       if (correlation > 0) {
-        // Positive correlation: white to red
-        const intensity = Math.abs(correlation)
-        return `rgba(220, 38, 127, ${intensity})`
+        // Positive correlation: white to purple (matching UI theme)
+        const r = 102 + (255 - 102) * (1 - absCorr * 0.9)
+        const g = 126 + (255 - 126) * (1 - absCorr * 0.9)
+        const b = 234 + (255 - 234) * (1 - absCorr * 0.9)
+        return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, 1)`
       } else if (correlation < 0) {
-        // Negative correlation: white to blue
-        const intensity = Math.abs(correlation)
-        return `rgba(59, 130, 246, ${intensity})`
+        // Negative correlation: white to green (matching success color)
+        const r = 72 + (255 - 72) * (1 - absCorr * 0.9)
+        const g = 187 + (255 - 187) * (1 - absCorr * 0.9)
+        const b = 120 + (255 - 120) * (1 - absCorr * 0.9)
+        return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, 1)`
       } else {
         // No correlation: white
         return 'rgba(255, 255, 255, 1)'
@@ -403,11 +406,11 @@ export default {
   width: 100%;
   height: 100%;
   background: linear-gradient(to right, 
-    rgba(59, 130, 246, 1) 0%,
-    rgba(59, 130, 246, 0.5) 25%,
+    rgba(72, 187, 120, 1) 0%,
+    rgba(72, 187, 120, 0.5) 25%,
     rgba(255, 255, 255, 1) 50%,
-    rgba(220, 38, 127, 0.5) 75%,
-    rgba(220, 38, 127, 1) 100%
+    rgba(102, 126, 234, 0.5) 75%,
+    rgba(102, 126, 234, 1) 100%
   );
 }
 

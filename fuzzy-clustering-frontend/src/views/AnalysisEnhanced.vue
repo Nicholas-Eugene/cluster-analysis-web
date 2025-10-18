@@ -12,7 +12,8 @@
               </span>
               <span v-else-if="results.clustering_type === 'all_years_wide' && singleResultData">
                 Analisis menggunakan algoritma <strong>{{ singleResultData.algorithm }}</strong>
-                untuk semua tahun (Model Wide-Format)
+                untuk semua tahun ({{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'Semua Tahun' }})
+                - Model Wide-Format
               </span>
               <span v-else-if="singleResultData">
                 Analisis menggunakan algoritma <strong>{{ singleResultData.algorithm }}</strong>
@@ -51,6 +52,29 @@
         </div>
         
         <div v-else-if="singleResultData" class="single-year-results">
+          <!-- Summary Info for all_years_wide mode -->
+          <div v-if="results.clustering_type === 'all_years_wide'" class="card all-years-info">
+            <h3>ℹ️ Informasi Clustering All Years</h3>
+            <p class="info-text">
+              Mode clustering ini menggunakan semua data tahun secara bersamaan dalam format wide.
+              Setiap daerah direpresentasikan dengan semua nilai metrik dari berbagai tahun sebagai fitur.
+            </p>
+            <div class="info-details">
+              <div class="info-item">
+                <span class="info-label">Tahun yang Diproses:</span>
+                <span class="info-value">{{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'N/A' }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Total Tahun:</span>
+                <span class="info-value">{{ results.overall_summary.total_years || 0 }}</span>
+              </div>
+              <div class="info-item">
+                <span class="info-label">Jumlah Fitur:</span>
+                <span class="info-value">{{ results.overall_summary.features_used ? results.overall_summary.features_used.length : 0 }}</span>
+              </div>
+            </div>
+          </div>
+
           <div class="summary-cards">
             <div class="summary-card">
               <div class="card-icon">📊</div>
@@ -122,7 +146,8 @@
             </div>
           </div>
 
-          <div v-if="results.clustering_type !== 'per_year' && !singleResultData.summary?.selectedYear && availableYears.length > 1" class="card">
+          <!-- Year filter - only show for regular single-year mode with multiple years -->
+          <div v-if="results.clustering_type !== 'per_year' && results.clustering_type !== 'all_years_wide' && !singleResultData.summary?.selectedYear && availableYears.length > 1" class="card">
             <h2>📅 Filter Tahun</h2>
             <div class="year-selector">
               <div class="year-controls">
@@ -148,20 +173,29 @@
           </div>
 
           <div class="visualizations">
+            <!-- Note: For all_years_wide mode, visualizations use averaged values -->
+            <div v-if="results.clustering_type === 'all_years_wide'" class="card all-years-viz-note">
+              <h3>ℹ️ Catatan Visualisasi</h3>
+              <p>
+                Visualisasi berikut menggunakan <strong>nilai rata-rata</strong> dari semua tahun yang diproses 
+                ({{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'N/A' }}).
+                Clustering tetap menggunakan semua fitur multi-tahun untuk akurasi maksimal.
+              </p>
+            </div>
             
             <ScatterPlot 
               :clusters="filteredClusters" 
-              :title="`Scatter Plot - ${singleResultData.algorithm} Clustering`"
+              :title="`Scatter Plot - ${singleResultData.algorithm} Clustering${results.clustering_type === 'all_years_wide' ? ' (Rata-rata)' : ''}`"
             />
             
             <BoxPlot 
               :clusters="filteredClusters" 
-              :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}`"
+              :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}${results.clustering_type === 'all_years_wide' ? ' (Rata-rata)' : ''}`"
             />
             
             <CorrelationHeatmap 
               :clusters="filteredClusters" 
-              :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}`"
+              :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}${results.clustering_type === 'all_years_wide' ? ' (Rata-rata)' : ''}`"
             />
             
             <InteractiveMap 
@@ -171,99 +205,11 @@
             
           </div>
 
-          <div class="card">
-            <h2>🔍 Detail Cluster</h2>
-            <div class="cluster-tabs">
-              <button 
-                v-for="(cluster, index) in filteredClusters" 
-                :key="cluster.id"
-                @click="selectedCluster = cluster.id"
-                :class="['cluster-tab', { active: selectedCluster === cluster.id }]"
-                :style="{ borderColor: getClusterColor(index) }"
-              >
-                <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-                Cluster {{ cluster.id }} ({{ cluster.size }})
-              </button>
-            </div>
-            
-            <div v-if="activeCluster" class="cluster-detail">
-              <div class="cluster-info">
-                <h3>Cluster {{ activeCluster.id }}</h3>
-                <div class="cluster-stats">
-                  <div class="stat-item">
-                    <span class="stat-label">Jumlah Daerah:</span>
-                    <span class="stat-value">{{ activeCluster.size }}</span>
-                  </div>
-                  <div v-if="activeCluster.centroid" class="centroid-info">
-                    <h4>Centroid (Rata-rata):</h4>
-                    <div class="centroid-values">
-                      <div class="centroid-item" v-if="activeCluster.centroid.ipm !== undefined">
-                        <span>IPM:</span>
-                        <span>{{ activeCluster.centroid.ipm?.toFixed(2) }}</span>
-                      </div>
-                      <div class="centroid-item" v-if="activeCluster.centroid.garis_kemiskinan !== undefined">
-                        <span>Garis Kemiskinan:</span>
-                        <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
-                      </div>
-                      <div class="centroid-item" v-if="activeCluster.centroid.pengeluaran_per_kapita !== undefined">
-                        <span>Pengeluaran Per Kapita:</span>
-                        <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
-                      </div>
-                      <div 
-                        class="centroid-item"
-                        v-for="key in Object.keys(activeCluster.centroid).filter(k => !['ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'].includes(k))"
-                        :key="key"
-                       >
-                         <span>{{ key }}:</span>
-                         <span>{{ activeCluster.centroid[key]?.toFixed(2) }}</span>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="cluster-members">
-                <h4>Daftar Daerah:</h4>
-                <div class="members-table-container">
-                  <table class="members-table">
-                    <thead>
-                      <tr>
-                        <th>Kabupaten/Kota</th>
-                        <th>Provinsi</th>
-                        <th v-if="activeCluster.members[0]?.tahun !== null && activeCluster.members[0]?.tahun !== undefined">Tahun</th>
-                        <th>IPM</th>
-                        <th>Garis Kemiskinan</th>
-                        <th>Pengeluaran Per Kapita</th>
-                        <th v-if="singleResultData.algorithm === 'Fuzzy C-Means'">Membership</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="member in activeCluster.members" :key="`${member.kabupaten_kota}-${member.tahun}`">
-                        <td>{{ member.kabupaten_kota }}</td>
-                        <td>{{ member.provinsi || 'N/A' }}</td>
-                        <td v-if="member.tahun !== null && member.tahun !== undefined">{{ member.tahun }}</td>
-                        <td>{{ member.ipm?.toFixed(2) }}</td>
-                        <td>{{ formatCurrency(member.garis_kemiskinan) }}</td>
-                        <td>{{ formatCurrency(member.pengeluaran_per_kapita) }}</td>
-                        <td v-if="singleResultData.algorithm === 'Fuzzy C-Means'">
-                          <div class="membership-bar">
-                            <div 
-                              class="membership-fill" 
-                              :style="{ 
-                                width: `${(member.membership * 100)}%`,
-                                backgroundColor: getClusterColor(filteredClusters.findIndex(c => c.id === activeCluster.id))
-                              }"
-                            ></div>
-                            <span class="membership-text">{{ (member.membership * 100).toFixed(1) }}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Use ClusterDetailCard component -->
+          <ClusterDetailCard 
+            :clusters="filteredClusters"
+            :showMembership="singleResultData.algorithm === 'Fuzzy C-Means'"
+          />
 
           <div class="card">
             <h2>📥 Export Hasil</h2>
@@ -293,6 +239,7 @@ import BoxPlot from '../components/BoxPlot.vue'
 import CorrelationHeatmap from '../components/CorrelationHeatmap.vue'
 import InteractiveMap from '../components/InteractiveMap.vue'
 import YearlyResults from '../components/YearlyResults.vue'
+import ClusterDetailCard from '../components/ClusterDetailCard.vue'
 import apiService from '../services/apiService.js'
 
 export default defineComponent({
@@ -302,7 +249,8 @@ export default defineComponent({
     BoxPlot,
     CorrelationHeatmap,
     InteractiveMap,
-    YearlyResults
+    YearlyResults,
+    ClusterDetailCard
   },
   setup() {
     const route = useRoute()
@@ -312,11 +260,19 @@ export default defineComponent({
     const error = ref('')
     const results = ref(null)
     const selectedYear = ref(null)
-    const selectedCluster = ref(null)
 
+    // Consistent cluster colors matching the design system
     const colors = [
-      '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
-      '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+      '#667eea', // Purple - Primary
+      '#48bb78', // Green - Success
+      '#ed8936', // Orange - Warning
+      '#4299e1', // Blue - Info
+      '#f56565', // Red - Danger
+      '#38b2ac', // Teal
+      '#9f7aea', // Purple Light
+      '#ecc94b', // Yellow
+      '#f687b3', // Pink
+      '#4fd1c5', // Cyan
     ]
 
     const getClusterColor = (index) => {
@@ -385,10 +341,6 @@ export default defineComponent({
       })).filter(cluster => cluster.size > 0)
     })
 
-    const activeCluster = computed(() => {
-      if (!selectedCluster.value || !filteredClusters.value) return null
-      return filteredClusters.value.find(cluster => cluster.id === selectedCluster.value)
-    })
 
     const formatCurrency = (value) => {
       if (!value) return 'N/A'
@@ -465,10 +417,22 @@ export default defineComponent({
       
       const data = singleResultData.value;
       const csvData = []
-      const headers = [
-        'Cluster', 'Kabupaten/Kota', 'Provinsi', 'Tahun', 
-        'IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita'
-      ]
+      const isAllYears = results.value.clustering_type === 'all_years_wide'
+      
+      // Build headers
+      let headers = ['Cluster', 'Kabupaten/Kota', 'Provinsi']
+      
+      if (!isAllYears) {
+        headers.push('Tahun')
+      }
+      
+      if (isAllYears) {
+        // Add averaged columns only
+        headers.push('IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita')
+      } else {
+        // Standard columns for regular mode
+        headers.push('IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita')
+      }
       
       if (data.algorithm === 'Fuzzy C-Means') {
         headers.push('Membership')
@@ -482,12 +446,28 @@ export default defineComponent({
           const row = [
             cluster.id,
             `"${member.kabupaten_kota}"`,
-            `"${member.provinsi || 'N/A'}"`,
-            member.tahun || 'N/A', // Handle null tahun for wide-format
-            member.ipm?.toFixed(2) || 'N/A',
-            member.garis_kemiskinan || 'N/A',
-            member.pengeluaran_per_kapita || 'N/A'
+            `"${member.provinsi || 'N/A'}"`
           ]
+          
+          if (!isAllYears) {
+            row.push(member.tahun || 'N/A')
+          }
+          
+          if (isAllYears) {
+            // Add averaged values only
+            row.push(
+              member.ipm?.toFixed(2) || 'N/A',
+              member.garis_kemiskinan || 'N/A',
+              member.pengeluaran_per_kapita || 'N/A'
+            )
+          } else {
+            // Standard columns for regular mode
+            row.push(
+              member.ipm?.toFixed(2) || 'N/A',
+              member.garis_kemiskinan || 'N/A',
+              member.pengeluaran_per_kapita || 'N/A'
+            )
+          }
           
           if (data.algorithm === 'Fuzzy C-Means') {
             row.push((member.membership * 100).toFixed(2))
@@ -501,7 +481,7 @@ export default defineComponent({
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `clustering_results_${data.algorithm.toLowerCase()}_${Date.now()}.csv`
+      a.download = `clustering_results_${data.algorithm.toLowerCase()}_${isAllYears ? 'all_years' : 'single'}_${Date.now()}.csv`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -541,6 +521,39 @@ export default defineComponent({
       window.URL.revokeObjectURL(url)
     }
 
+    const getAllYearsFeatures = () => {
+      if (!results.value || results.value.clustering_type !== 'all_years_wide') return []
+      const features = results.value.overall_summary?.features_used || []
+      return features
+    }
+
+    const formatFeatureName = (feature) => {
+      // Convert feature names like "ipm_2019" to "IPM 2019"
+      const parts = feature.split('_')
+      if (parts.length >= 2) {
+        const year = parts[parts.length - 1]
+        const name = parts.slice(0, -1).join('_').toUpperCase()
+        return `${name} ${year}`
+      }
+      return feature.toUpperCase()
+    }
+
+    const formatFeatureValue = (value, feature) => {
+      if (value === null || value === undefined) return 'N/A'
+      
+      // Check if it's a currency field
+      if (feature.includes('garis_kemiskinan') || feature.includes('pengeluaran')) {
+        return formatCurrency(value)
+      }
+      
+      // For numeric values, format to 2 decimal places
+      if (typeof value === 'number') {
+        return value.toFixed(2)
+      }
+      
+      return value
+    }
+
     const generateReport = () => {
       // UPDATED: Use singleResultData
       if (!singleResultData.value) {
@@ -551,23 +564,34 @@ export default defineComponent({
       }
       
       const data = singleResultData.value;
+      const isAllYears = results.value.clustering_type === 'all_years_wide'
       
       const reportLines = [
         `LAPORAN ANALISIS CLUSTERING`,
         `Algoritma: ${data.algorithm}`,
+        `Mode: ${isAllYears ? 'All Years (Wide Format)' : 'Single Year'}`,
         `Tanggal: ${new Date().toLocaleDateString('id-ID')}`,
-        ``,
-        `RINGKASAN:`,
-        `- Total Daerah: ${data.summary.total_regions}`,
-        `- Jumlah Cluster: ${data.summary.num_clusters}`,
-        `- Waktu Eksekusi: ${data.summary.execution_time?.toFixed(2)}s`,
-        ``,
-        `EVALUASI:`,
-        `- Davies-Bouldin Index: ${data.evaluation.davies_bouldin?.toFixed(4) || 'N/A'}`,
-        `- Silhouette Score: ${data.evaluation.silhouette_score?.toFixed(4) || 'N/A'}`,
-        ``,
-        `DETAIL CLUSTER:`
+        ``
       ]
+
+      if (isAllYears && results.value.overall_summary) {
+        reportLines.push(`INFORMASI CLUSTERING ALL YEARS:`)
+        reportLines.push(`- Tahun yang Diproses: ${results.value.overall_summary.years_processed?.join(', ') || 'N/A'}`)
+        reportLines.push(`- Total Tahun: ${results.value.overall_summary.total_years || 0}`)
+        reportLines.push(`- Jumlah Fitur: ${results.value.overall_summary.features_used?.length || 0}`)
+        reportLines.push(``)
+      }
+      
+      reportLines.push(`RINGKASAN:`)
+      reportLines.push(`- Total Daerah: ${data.summary.total_regions}`)
+      reportLines.push(`- Jumlah Cluster: ${data.summary.num_clusters}`)
+      reportLines.push(`- Waktu Eksekusi: ${data.summary.execution_time?.toFixed(2)}s`)
+      reportLines.push(``)
+      reportLines.push(`EVALUASI:`)
+      reportLines.push(`- Davies-Bouldin Index: ${data.evaluation.davies_bouldin?.toFixed(4) || 'N/A'}`)
+      reportLines.push(`- Silhouette Score: ${data.evaluation.silhouette_score?.toFixed(4) || 'N/A'}`)
+      reportLines.push(``)
+      reportLines.push(`DETAIL CLUSTER:`)
       
       filteredClusters.value.forEach(cluster => {
         reportLines.push(``)
@@ -600,11 +624,6 @@ export default defineComponent({
       loadResults()
     })
 
-    watch(() => filteredClusters.value, (newClusters) => {
-      if (newClusters.length > 0 && !activeCluster.value) {
-        selectedCluster.value = newClusters[0].id
-      }
-    })
 
     /**
      * Handles the PDF download request by constructing a payload for the API.
@@ -688,16 +707,17 @@ export default defineComponent({
       results,
       singleResultData, // Return the new computed prop
       selectedYear,
-      selectedCluster,
       availableYears,
       filteredClusters,
-      activeCluster,
       getClusterColor,
       formatCurrency,
       getDBIQuality,
       getDBIQualityText,
       getSilhouetteQuality,
       getSilhouetteQualityText,
+      getAllYearsFeatures,
+      formatFeatureName,
+      formatFeatureValue,
       exportToCSV,
       exportToJSON,
       generateReport,
@@ -1078,6 +1098,66 @@ export default defineComponent({
   color: #2d3748;
 }
 
+.all-years-info {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  margin-bottom: 2rem;
+}
+
+.all-years-info h3 {
+  color: white;
+  margin-bottom: 1rem;
+}
+
+.all-years-info .info-text {
+  color: rgba(255, 255, 255, 0.95);
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.all-years-viz-note {
+  background: #f7fafc;
+  border-left: 4px solid #667eea;
+  margin-bottom: 2rem;
+}
+
+.all-years-viz-note h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.all-years-viz-note p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.info-details {
+  display: grid;
+  gap: 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+}
+
+.info-label {
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.info-value {
+  color: white;
+  font-weight: 700;
+}
+
 .export-options {
   display: flex;
   gap: 1rem;
@@ -1113,5 +1193,108 @@ export default defineComponent({
   .export-options button {
     width: 100%;
   }
+}
+
+/* Styling for averaged columns in all_years_wide mode */
+.avg-column {
+  background-color: #f7fafc !important;
+  font-weight: 600;
+  color: #2d3748;
+  border-left: 3px solid #667eea !important;
+}
+
+.detail-column {
+  background-color: #fafafa;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+/* Centroid items styling */
+.centroid-item.avg-item {
+  background-color: #f7fafc;
+  border-left: 3px solid #667eea;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+}
+
+.centroid-item.detail-item {
+  background-color: #fafafa;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.detail-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  margin: 1rem 0;
+}
+
+/* Unified color theme - Purple gradient */
+.summary-card,
+.all-years-info,
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+}
+
+.cluster-tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.quality-good {
+  color: #48bb78;
+  font-weight: 600;
+}
+
+.quality-fair {
+  color: #ed8936;
+  font-weight: 600;
+}
+
+.quality-poor {
+  color: #f56565;
+  font-weight: 600;
+}
+
+/* Consistent card styling */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  margin-bottom: 2rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+/* Table header consistency */
+thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+}
+
+/* Membership bar color */
+.membership-fill {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 </style>
