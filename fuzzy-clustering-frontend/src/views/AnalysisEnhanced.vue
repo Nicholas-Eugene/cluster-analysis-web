@@ -205,108 +205,11 @@
             
           </div>
 
-          <div class="card">
-            <h2>🔍 Detail Cluster</h2>
-            <div class="cluster-tabs">
-              <button 
-                v-for="(cluster, index) in filteredClusters" 
-                :key="cluster.id"
-                @click="selectedCluster = cluster.id"
-                :class="['cluster-tab', { active: selectedCluster === cluster.id }]"
-                :style="{ borderColor: getClusterColor(index) }"
-              >
-                <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-                Cluster {{ cluster.id }} ({{ cluster.size }})
-              </button>
-            </div>
-            
-            <div v-if="activeCluster" class="cluster-detail">
-              <div class="cluster-info">
-                <h3>Cluster {{ activeCluster.id }}</h3>
-                <div class="cluster-stats">
-                  <div class="stat-item">
-                    <span class="stat-label">Jumlah Daerah:</span>
-                    <span class="stat-value">{{ activeCluster.size }}</span>
-                  </div>
-                  <div v-if="activeCluster.centroid" class="centroid-info">
-                    <h4>Centroid (Rata-rata Cluster):</h4>
-                    <div class="centroid-values">
-                      <!-- Show averages only -->
-                      <div class="centroid-item avg-item" v-if="activeCluster.centroid.ipm !== undefined">
-                        <span><strong>IPM:</strong></span>
-                        <span><strong>{{ activeCluster.centroid.ipm?.toFixed(2) }}</strong></span>
-                      </div>
-                      <div class="centroid-item avg-item" v-if="activeCluster.centroid.garis_kemiskinan !== undefined">
-                        <span><strong>Garis Kemiskinan:</strong></span>
-                        <span><strong>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</strong></span>
-                      </div>
-                      <div class="centroid-item avg-item" v-if="activeCluster.centroid.pengeluaran_per_kapita !== undefined">
-                        <span><strong>Pengeluaran Per Kapita:</strong></span>
-                        <span><strong>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</strong></span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-              
-              <div class="cluster-members">
-                <h4>Daftar Daerah:</h4>
-                <div class="members-table-container">
-                  <table class="members-table">
-                    <thead>
-                      <tr>
-                        <th>Kabupaten/Kota</th>
-                        <th>Provinsi</th>
-                        <th v-if="activeCluster.members[0]?.tahun !== null && activeCluster.members[0]?.tahun !== undefined">Tahun</th>
-                        <!-- For all_years_wide, show averages only -->
-                        <template v-if="results.clustering_type === 'all_years_wide'">
-                          <th class="avg-column">IPM (Rata-rata)</th>
-                          <th class="avg-column">Garis Kemiskinan (Rata-rata)</th>
-                          <th class="avg-column">Pengeluaran Per Kapita (Rata-rata)</th>
-                        </template>
-                        <template v-else>
-                          <th>IPM</th>
-                          <th>Garis Kemiskinan</th>
-                          <th>Pengeluaran Per Kapita</th>
-                        </template>
-                        <th v-if="singleResultData.algorithm === 'Fuzzy C-Means'">Membership</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr v-for="member in activeCluster.members" :key="`${member.kabupaten_kota}-${member.tahun}`">
-                        <td>{{ member.kabupaten_kota }}</td>
-                        <td>{{ member.provinsi || 'N/A' }}</td>
-                        <td v-if="member.tahun !== null && member.tahun !== undefined">{{ member.tahun }}</td>
-                        <!-- For all_years_wide, show averages only -->
-                        <template v-if="results.clustering_type === 'all_years_wide'">
-                          <td class="avg-column"><strong>{{ member.ipm?.toFixed(2) || 'N/A' }}</strong></td>
-                          <td class="avg-column"><strong>{{ formatCurrency(member.garis_kemiskinan) }}</strong></td>
-                          <td class="avg-column"><strong>{{ formatCurrency(member.pengeluaran_per_kapita) }}</strong></td>
-                        </template>
-                        <template v-else>
-                          <td>{{ member.ipm?.toFixed(2) }}</td>
-                          <td>{{ formatCurrency(member.garis_kemiskinan) }}</td>
-                          <td>{{ formatCurrency(member.pengeluaran_per_kapita) }}</td>
-                        </template>
-                        <td v-if="singleResultData.algorithm === 'Fuzzy C-Means'">
-                          <div class="membership-bar">
-                            <div 
-                              class="membership-fill" 
-                              :style="{ 
-                                width: `${(member.membership * 100)}%`,
-                                backgroundColor: getClusterColor(filteredClusters.findIndex(c => c.id === activeCluster.id))
-                              }"
-                            ></div>
-                            <span class="membership-text">{{ (member.membership * 100).toFixed(1) }}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Use ClusterDetailCard component -->
+          <ClusterDetailCard 
+            :clusters="filteredClusters"
+            :showMembership="singleResultData.algorithm === 'Fuzzy C-Means'"
+          />
 
           <div class="card">
             <h2>📥 Export Hasil</h2>
@@ -336,6 +239,7 @@ import BoxPlot from '../components/BoxPlot.vue'
 import CorrelationHeatmap from '../components/CorrelationHeatmap.vue'
 import InteractiveMap from '../components/InteractiveMap.vue'
 import YearlyResults from '../components/YearlyResults.vue'
+import ClusterDetailCard from '../components/ClusterDetailCard.vue'
 import apiService from '../services/apiService.js'
 
 export default defineComponent({
@@ -345,7 +249,8 @@ export default defineComponent({
     BoxPlot,
     CorrelationHeatmap,
     InteractiveMap,
-    YearlyResults
+    YearlyResults,
+    ClusterDetailCard
   },
   setup() {
     const route = useRoute()
@@ -355,7 +260,6 @@ export default defineComponent({
     const error = ref('')
     const results = ref(null)
     const selectedYear = ref(null)
-    const selectedCluster = ref(null)
 
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
@@ -428,10 +332,6 @@ export default defineComponent({
       })).filter(cluster => cluster.size > 0)
     })
 
-    const activeCluster = computed(() => {
-      if (!selectedCluster.value || !filteredClusters.value) return null
-      return filteredClusters.value.find(cluster => cluster.id === selectedCluster.value)
-    })
 
     const formatCurrency = (value) => {
       if (!value) return 'N/A'
@@ -715,11 +615,6 @@ export default defineComponent({
       loadResults()
     })
 
-    watch(() => filteredClusters.value, (newClusters) => {
-      if (newClusters.length > 0 && !activeCluster.value) {
-        selectedCluster.value = newClusters[0].id
-      }
-    })
 
     /**
      * Handles the PDF download request by constructing a payload for the API.
@@ -803,10 +698,8 @@ export default defineComponent({
       results,
       singleResultData, // Return the new computed prop
       selectedYear,
-      selectedCluster,
       availableYears,
       filteredClusters,
-      activeCluster,
       getClusterColor,
       formatCurrency,
       getDBIQuality,
