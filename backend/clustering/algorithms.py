@@ -209,6 +209,11 @@ class ClusteringAlgorithms:
                 centroid = {
                     feat: float(cluster_members_df[feat].mean()) for feat in features
                 }
+                
+                # Add averaged values for wide-format data (for visualization)
+                if any('_' in f and f.split('_')[-1].isdigit() for f in features):
+                    averages = calculate_yearly_averages(centroid, features)
+                    centroid.update(averages)
 
                 # Prepare member information
                 members = []
@@ -229,6 +234,12 @@ class ClusteringAlgorithms:
                     # Add feature values
                     for feature in features:
                         member_info[feature] = float(row.get(feature, 0.0))
+                    
+                    # Add averaged values for wide-format data (for visualization)
+                    if any('_' in f and f.split('_')[-1].isdigit() for f in features):
+                        averages = calculate_yearly_averages(member_info, features)
+                        member_info.update(averages)
+                    
                     members.append(member_info)
 
                 results["clusters"].append(
@@ -333,6 +344,11 @@ class ClusteringAlgorithms:
                         feat: float(cluster_members_df[feat].mean())
                         for feat in features
                     }
+                    
+                    # Add averaged values for wide-format data (for visualization)
+                    if any('_' in f and f.split('_')[-1].isdigit() for f in features):
+                        averages = calculate_yearly_averages(centroid, features)
+                        centroid.update(averages)
 
                 # Prepare member information
                 members = []
@@ -348,6 +364,12 @@ class ClusteringAlgorithms:
                     # Add feature values
                     for feature in features:
                         member_info[feature] = float(row.get(feature, 0.0))
+                    
+                    # Add averaged values for wide-format data (for visualization)
+                    if any('_' in f and f.split('_')[-1].isdigit() for f in features):
+                        averages = calculate_yearly_averages(member_info, features)
+                        member_info.update(averages)
+                    
                     members.append(member_info)
 
                 results["clusters"].append(
@@ -455,6 +477,46 @@ def run_clustering_per_year(
 
 
 # --- API Function 2: Cluster All Years (Wide Format) ---
+
+
+def calculate_yearly_averages(data_dict: dict, features: List[str]) -> dict:
+    """
+    Calculate averages for year-based features.
+    
+    For example, if features contain ipm_2015, ipm_2016, ..., ipm_2021,
+    this will calculate the average and return it as 'ipm'.
+    
+    Args:
+        data_dict: Dictionary containing year-based features
+        features: List of feature names
+        
+    Returns:
+        Dictionary with averaged values for ipm, garis_kemiskinan, pengeluaran_per_kapita
+    """
+    averages = {}
+    
+    # Group features by base metric
+    metric_groups = {
+        'ipm': [],
+        'garis_kemiskinan': [],
+        'pengeluaran_per_kapita': []
+    }
+    
+    for feature in features:
+        for metric_name in metric_groups.keys():
+            if feature.startswith(metric_name + '_'):
+                value = data_dict.get(feature)
+                if value is not None and not np.isnan(value):
+                    metric_groups[metric_name].append(float(value))
+    
+    # Calculate averages
+    for metric_name, values in metric_groups.items():
+        if values:
+            averages[metric_name] = float(np.mean(values))
+        else:
+            averages[metric_name] = 0.0
+    
+    return averages
 
 
 def run_clustering_all_years(

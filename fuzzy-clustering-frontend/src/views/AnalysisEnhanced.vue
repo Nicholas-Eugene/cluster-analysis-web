@@ -173,32 +173,30 @@
           </div>
 
           <div class="visualizations">
-            <!-- Note: Standard visualizations are only available for per-year mode -->
+            <!-- Note: For all_years_wide mode, visualizations use averaged values -->
             <div v-if="results.clustering_type === 'all_years_wide'" class="card all-years-viz-note">
               <h3>ℹ️ Catatan Visualisasi</h3>
               <p>
-                Visualisasi standar (Scatter Plot, Box Plot, Heatmap) tidak tersedia untuk mode "All Years" 
-                karena data menggunakan format wide dengan banyak fitur multi-tahun. 
-                Silakan gunakan tabel detail cluster dan centroid untuk analisis lebih lanjut.
+                Visualisasi berikut menggunakan <strong>nilai rata-rata</strong> dari semua tahun yang diproses 
+                ({{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'N/A' }}).
+                Clustering tetap menggunakan semua fitur multi-tahun untuk akurasi maksimal.
               </p>
             </div>
             
-            <template v-else>
-              <ScatterPlot 
-                :clusters="filteredClusters" 
-                :title="`Scatter Plot - ${singleResultData.algorithm} Clustering`"
-              />
-              
-              <BoxPlot 
-                :clusters="filteredClusters" 
-                :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}`"
-              />
-              
-              <CorrelationHeatmap 
-                :clusters="filteredClusters" 
-                :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}`"
-              />
-            </template>
+            <ScatterPlot 
+              :clusters="filteredClusters" 
+              :title="`Scatter Plot - ${singleResultData.algorithm} Clustering${results.clustering_type === 'all_years_wide' ? ' (Rata-rata)' : ''}`"
+            />
+            
+            <BoxPlot 
+              :clusters="filteredClusters" 
+              :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}${results.clustering_type === 'all_years_wide' ? ' (Rata-rata)' : ''}`"
+            />
+            
+            <CorrelationHeatmap 
+              :clusters="filteredClusters" 
+              :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}${results.clustering_type === 'all_years_wide' ? ' (Rata-rata)' : ''}`"
+            />
             
             <InteractiveMap 
               :clusters="filteredClusters" 
@@ -231,32 +229,32 @@
                     <span class="stat-value">{{ activeCluster.size }}</span>
                   </div>
                   <div v-if="activeCluster.centroid" class="centroid-info">
-                    <h4>Centroid (Rata-rata):</h4>
+                    <h4>Centroid (Rata-rata Cluster):</h4>
                     <div class="centroid-values">
-                      <!-- For all_years_wide mode, show all features with formatted names -->
+                      <!-- Always show standard averages first -->
+                      <div class="centroid-item avg-item" v-if="activeCluster.centroid.ipm !== undefined">
+                        <span><strong>IPM (Rata-rata):</strong></span>
+                        <span><strong>{{ activeCluster.centroid.ipm?.toFixed(2) }}</strong></span>
+                      </div>
+                      <div class="centroid-item avg-item" v-if="activeCluster.centroid.garis_kemiskinan !== undefined">
+                        <span><strong>Garis Kemiskinan (Rata-rata):</strong></span>
+                        <span><strong>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</strong></span>
+                      </div>
+                      <div class="centroid-item avg-item" v-if="activeCluster.centroid.pengeluaran_per_kapita !== undefined">
+                        <span><strong>Pengeluaran Per Kapita (Rata-rata):</strong></span>
+                        <span><strong>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</strong></span>
+                      </div>
+                      
+                      <!-- For all_years_wide mode, also show detail per year -->
                       <template v-if="results.clustering_type === 'all_years_wide'">
+                        <div class="detail-separator"></div>
                         <div 
-                          class="centroid-item"
-                          v-for="[key, value] in Object.entries(activeCluster.centroid)"
+                          class="centroid-item detail-item"
+                          v-for="[key, value] in Object.entries(activeCluster.centroid).filter(([k]) => k.includes('_') && k.split('_')[k.split('_').length - 1].match(/^\d+$/))"
                           :key="key"
                         >
                           <span>{{ formatFeatureName(key) }}:</span>
                           <span>{{ formatFeatureValue(value, key) }}</span>
-                        </div>
-                      </template>
-                      <!-- For regular mode, show standard features -->
-                      <template v-else>
-                        <div class="centroid-item" v-if="activeCluster.centroid.ipm !== undefined">
-                          <span>IPM:</span>
-                          <span>{{ activeCluster.centroid.ipm?.toFixed(2) }}</span>
-                        </div>
-                        <div class="centroid-item" v-if="activeCluster.centroid.garis_kemiskinan !== undefined">
-                          <span>Garis Kemiskinan:</span>
-                          <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
-                        </div>
-                        <div class="centroid-item" v-if="activeCluster.centroid.pengeluaran_per_kapita !== undefined">
-                          <span>Pengeluaran Per Kapita:</span>
-                          <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
                         </div>
                       </template>
                     </div>
@@ -273,9 +271,12 @@
                         <th>Kabupaten/Kota</th>
                         <th>Provinsi</th>
                         <th v-if="activeCluster.members[0]?.tahun !== null && activeCluster.members[0]?.tahun !== undefined">Tahun</th>
-                        <!-- Show all feature columns for all_years_wide -->
+                        <!-- For all_years_wide, show averages first, then all year columns -->
                         <template v-if="results.clustering_type === 'all_years_wide'">
-                          <th v-for="feature in getAllYearsFeatures()" :key="feature">{{ formatFeatureName(feature) }}</th>
+                          <th class="avg-column">IPM (Rata-rata)</th>
+                          <th class="avg-column">Garis Kemiskinan (Rata-rata)</th>
+                          <th class="avg-column">Pengeluaran Per Kapita (Rata-rata)</th>
+                          <th v-for="feature in getAllYearsFeatures()" :key="feature" class="detail-column">{{ formatFeatureName(feature) }}</th>
                         </template>
                         <template v-else>
                           <th>IPM</th>
@@ -290,9 +291,12 @@
                         <td>{{ member.kabupaten_kota }}</td>
                         <td>{{ member.provinsi || 'N/A' }}</td>
                         <td v-if="member.tahun !== null && member.tahun !== undefined">{{ member.tahun }}</td>
-                        <!-- Show all feature values for all_years_wide -->
+                        <!-- For all_years_wide, show averages first, then all year values -->
                         <template v-if="results.clustering_type === 'all_years_wide'">
-                          <td v-for="feature in getAllYearsFeatures()" :key="feature">
+                          <td class="avg-column"><strong>{{ member.ipm?.toFixed(2) || 'N/A' }}</strong></td>
+                          <td class="avg-column"><strong>{{ formatCurrency(member.garis_kemiskinan) }}</strong></td>
+                          <td class="avg-column"><strong>{{ formatCurrency(member.pengeluaran_per_kapita) }}</strong></td>
+                          <td v-for="feature in getAllYearsFeatures()" :key="feature" class="detail-column">
                             {{ formatFeatureValue(member[feature], feature) }}
                           </td>
                         </template>
@@ -531,7 +535,8 @@ export default defineComponent({
       }
       
       if (isAllYears) {
-        // Add all feature columns for all_years_wide mode
+        // Add averaged columns first, then all year-based features
+        headers.push('IPM (Rata-rata)', 'Garis Kemiskinan (Rata-rata)', 'Pengeluaran Per Kapita (Rata-rata)')
         const features = getAllYearsFeatures()
         headers.push(...features.map(f => formatFeatureName(f)))
       } else {
@@ -559,7 +564,13 @@ export default defineComponent({
           }
           
           if (isAllYears) {
-            // Add all feature values for all_years_wide mode
+            // Add averaged values first
+            row.push(
+              member.ipm?.toFixed(2) || 'N/A',
+              member.garis_kemiskinan || 'N/A',
+              member.pengeluaran_per_kapita || 'N/A'
+            )
+            // Then add all year-based feature values
             const features = getAllYearsFeatures()
             features.forEach(feature => {
               const value = member[feature]
@@ -1313,5 +1324,108 @@ export default defineComponent({
   .export-options button {
     width: 100%;
   }
+}
+
+/* Styling for averaged columns in all_years_wide mode */
+.avg-column {
+  background-color: #f7fafc !important;
+  font-weight: 600;
+  color: #2d3748;
+  border-left: 3px solid #667eea !important;
+}
+
+.detail-column {
+  background-color: #fafafa;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+/* Centroid items styling */
+.centroid-item.avg-item {
+  background-color: #f7fafc;
+  border-left: 3px solid #667eea;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 4px;
+}
+
+.centroid-item.detail-item {
+  background-color: #fafafa;
+  padding: 0.5rem 1rem;
+  font-size: 0.9rem;
+  color: #718096;
+}
+
+.detail-separator {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #e2e8f0, transparent);
+  margin: 1rem 0;
+}
+
+/* Unified color theme - Purple gradient */
+.summary-card,
+.all-years-info,
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+}
+
+.cluster-tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.quality-good {
+  color: #48bb78;
+  font-weight: 600;
+}
+
+.quality-fair {
+  color: #ed8936;
+  font-weight: 600;
+}
+
+.quality-poor {
+  color: #f56565;
+  font-weight: 600;
+}
+
+/* Consistent card styling */
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  margin-bottom: 2rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+/* Table header consistency */
+thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+}
+
+/* Membership bar color */
+.membership-fill {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
 }
 </style>
