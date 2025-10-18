@@ -23,7 +23,14 @@
         <div class="summary-item">
           <div class="summary-icon">📅</div>
           <div class="summary-content">
-            <h4>{{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'N/A' }}</h4>
+            <h4>{{ 
+            (results.overall_summary.years_processed && Array.isArray(results.overall_summary.years_processed) && results.overall_summary.years_processed.length > 0)
+              ? (results.overall_summary.years_processed.length > 3
+                ? results.overall_summary.years_processed[0] + '-' + results.overall_summary.years_processed[results.overall_summary.years_processed.length - 1]
+                : results.overall_summary.years_processed.join(', ')
+              )
+              : 'N/A' }}
+            </h4>
             <p>Tahun yang Diproses</p>
           </div>
         </div>
@@ -41,32 +48,34 @@
             <p>Jumlah Fitur</p>
           </div>
         </div>
-      </div>
-
-      <!-- Summary Metrics -->
-      <div class="average-metrics">
-        <h4>📈 Ringkasan Hasil Clustering</h4>
-        <div class="year-stats">
-          <div class="stat-item">
-            <span class="stat-label">Total Daerah:</span>
-            <span class="stat-value">{{ resultData.summary.total_regions }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Jumlah Cluster:</span>
-            <span class="stat-value">{{ resultData.summary.num_clusters }}</span>
-          </div>
-          <div class="stat-item">
-            <span class="stat-label">Waktu Eksekusi:</span>
-            <span class="stat-value">{{ resultData.summary.execution_time?.toFixed(2) }}s</span>
-          </div>
-          <div v-if="resultData.summary.iterations" class="stat-item">
-            <span class="stat-label">Iterasi:</span>
-            <span class="stat-value">{{ resultData.summary.iterations }}</span>
+        <div class="summary-item">
+          <div class="summary-content">
+            <h4>{{ resultData.summary.total_regions }}</h4>
+            <p>Total Daerah</p>
           </div>
         </div>
+        <div class="summary-item">
+          <div class="summary-content">
+            <h4>{{ resultData.summary.num_clusters }}</h4>
+            <p>Jumlah Cluster</p>
+          </div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-content">
+            <h4>{{ resultData.summary.execution_time?.toFixed(2) }}</h4>
+            <p>Waktu Eksekusi</p>
+          </div>
+        </div>
+        <div v-if="resultData.summary.iterations">
+          <div class="summary-item">
+          <div class="summary-icon">📈</div>
+          <div class="summary-content">
+            <h4>{{ resultData.summary.iterations }}</h4>
+            <p>Iterasi</p>
+          </div>
+        </div>
+        </div>
       </div>
-    </div>
-
       <h3>📈 Metrik Evaluasi</h3>
       <div class="year-evaluation">
         <div class="metrics-grid">
@@ -102,6 +111,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
 
     <!-- Visualizations -->
