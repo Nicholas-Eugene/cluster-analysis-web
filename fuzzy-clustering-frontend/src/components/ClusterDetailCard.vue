@@ -136,12 +136,13 @@ export default {
       }).format(value)
     }
 
-    // Initialize with first cluster
+    // Initialize with first cluster - always select first cluster when clusters change
     watch(() => props.clusters, (newClusters) => {
-      if (newClusters && newClusters.length > 0 && !selectedClusterId.value) {
+      if (newClusters && newClusters.length > 0) {
+        // Always reset to first cluster when data changes
         selectedClusterId.value = newClusters[0].id
       }
-    }, { immediate: true })
+    }, { immediate: true, deep: true })
 
     return {
       selectedClusterId,

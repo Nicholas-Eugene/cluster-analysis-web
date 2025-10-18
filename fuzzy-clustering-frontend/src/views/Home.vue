@@ -76,7 +76,7 @@
       </section>
 
       <!-- Data Information Section -->
-      <section class="data-section">
+      <section id="data" class="data-section">
         <div class="card">
           <h2 class="section-title">Data yang Dianalisis</h2>
           <div class="grid grid-3">
@@ -167,7 +167,7 @@
       </section>
 
       <!-- Features Section -->
-      <section class="features-section">
+      <section id="features" class="features-section">
         <div class="card">
           <h2 class="section-title">Fitur Aplikasi</h2>
           <div class="grid grid-3">

@@ -180,14 +180,16 @@ export default {
           label: `Cluster ${cluster.id}`,
           data: data,
           backgroundColor: getClusterColor(index),
-          borderColor: getClusterColor(index),
+          borderColor: '#ffffff',
           borderWidth: 2,
           pointRadius: (ctx) => {
             // Size based on membership for FCM
             const membership = ctx.parsed?.membership || 1.0
             return Math.max(4, membership * 8)
           },
-          pointHoverRadius: 8
+          pointHoverRadius: 8,
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 3
         }
       })
 

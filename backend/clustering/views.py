@@ -41,6 +41,16 @@ class UploadAndProcessView(APIView):
             tolerance = float(request.POST.get("tolerance", 0.0001))
             selected_year = request.POST.get("selected_year")
             clustering_mode = request.POST.get("clustering_mode", "per_year")
+            
+            # Get selected years for per_year mode (optional)
+            selected_years_json = request.POST.get("selected_years")
+            selected_years = None
+            if selected_years_json:
+                import json
+                try:
+                    selected_years = json.loads(selected_years_json)
+                except:
+                    selected_years = None
 
             # OPTICS specific parameters - make them more adaptive
             min_samples = int(request.POST.get("min_samples", 5))
@@ -232,6 +242,7 @@ class UploadAndProcessView(APIView):
                         max_iter=max_iter,
                         error=tolerance,
                         selected_year=selected_year,
+                        selected_years=selected_years,
                     )
                 elif algorithm == "optics":
                     results = run_clustering_per_year(
@@ -242,6 +253,7 @@ class UploadAndProcessView(APIView):
                         xi=xi,
                         min_cluster_size=min_cluster_size,
                         selected_year=selected_year,
+                        selected_years=selected_years,
                     )
                 else:
                     return Response(

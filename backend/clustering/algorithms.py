@@ -385,7 +385,7 @@ class ClusteringAlgorithms:
 
 
 def run_clustering_per_year(
-    df: pd.DataFrame, algorithm: str = "fcm", features: List[str] = None, **kwargs
+    df: pd.DataFrame, algorithm: str = "fcm", features: List[str] = None, selected_years: List[int] = None, **kwargs
 ) -> Dict[str, Any]:
     """
     API FEATURE 1: Cluster data for each year individually.
@@ -394,6 +394,7 @@ def run_clustering_per_year(
         df: Input dataframe (MUST be in LONG format with a 'tahun' column)
         algorithm: 'fcm' or 'optics'
         features: List of feature columns to use (e.g., ["ipm", "garis_kemiskinan"])
+        selected_years: Optional list of specific years to process. If None, process all years.
         **kwargs: Additional parameters for the clustering algorithm
                   (e.g., n_clusters=3 for fcm)
 
@@ -405,6 +406,12 @@ def run_clustering_per_year(
 
     clustering = ClusteringAlgorithms()
     available_years = sorted(df["tahun"].unique())
+    
+    # Filter to selected years if provided
+    if selected_years:
+        available_years = [y for y in available_years if y in selected_years]
+        print(f"🎯 Selected years: {selected_years}")
+        print(f"🗓️ Filtering to {len(available_years)} years: {available_years}")
 
     print(
         f"🗓️ Starting 'per_year' clustering for {len(available_years)} years: {available_years}"
@@ -462,6 +469,7 @@ def run_clustering_per_year(
         "years_processed": [int(y) for y in available_years],
         "total_years": int(len(available_years)),
         "successful_years": len(successful_years),
+        "success_rate": len(successful_years) / len(available_years) if len(available_years) > 0 else 0.0,
         "features_used": features,
         "average_evaluation": {
             "davies_bouldin": float(np.mean(avg_db)) if avg_db else None,

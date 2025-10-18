@@ -264,6 +264,36 @@
           </div>
         </div>
 
+        <!-- Year Selection (only for per_year mode) -->
+        <div v-if="clusteringMode === 'per_year' && dataPreview && dataPreview.years && dataPreview.years.length > 0" class="form-group year-selection-group">
+          <label class="form-label">
+            <span class="label-icon">📅</span>
+            Pilih Tahun untuk Di-cluster
+          </label>
+          <div class="year-selection-info">
+            <p class="form-help">Pilih tahun mana saja yang ingin dianalisis. Kosongkan semua untuk memproses semua tahun.</p>
+          </div>
+          <div class="year-checkboxes">
+            <label v-for="year in dataPreview.years" :key="year" class="year-checkbox-label">
+              <input 
+                type="checkbox" 
+                :value="year" 
+                v-model="selectedYears"
+                class="year-checkbox"
+              />
+              <span class="checkbox-custom"></span>
+              <span class="year-label">{{ year }}</span>
+            </label>
+            <div class="year-actions">
+              <button type="button" @click="selectAllYears" class="btn-link">Pilih Semua</button>
+              <button type="button" @click="deselectAllYears" class="btn-link">Hapus Semua</button>
+            </div>
+          </div>
+          <div v-if="selectedYears.length > 0" class="selected-years-summary">
+            <strong>Tahun yang dipilih ({{ selectedYears.length }}):</strong> {{ selectedYears.sort().join(', ') }}
+          </div>
+        </div>
+
         <!-- FCM Parameters -->
         <div v-if="selectedAlgorithm === 'fcm'" class="parameters-form">
           <h3>Parameter Fuzzy C-Means</h3>
@@ -503,6 +533,8 @@ export default {
     const selectedAlgorithm = ref('fcm')
     // Clustering mode: 'per_year' or 'all_years'
     const clusteringMode = ref('per_year')
+    // Selected years for per_year mode
+    const selectedYears = ref([])
 
     const parameters = reactive({
       // FCM parameters
@@ -685,7 +717,18 @@ Pastikan file menggunakan 5 kolom wajib:
       dataPreview.value = null
       uploadError.value = ''
       uploadSuccess.value = ''
+      selectedYears.value = []
       fileInput.value.value = ''
+    }
+
+    const selectAllYears = () => {
+      if (dataPreview.value && dataPreview.value.years) {
+        selectedYears.value = [...dataPreview.value.years]
+      }
+    }
+
+    const deselectAllYears = () => {
+      selectedYears.value = []
     }
 
     const formatFileSize = (bytes) => {
@@ -843,9 +886,12 @@ Surabaya,2018,78.34,420000,6400000`
         const formData = new FormData()
         formData.append('file', selectedFile.value)
         formData.append('algorithm', selectedAlgorithm.value)
-      formData.append('clustering_mode', clusteringMode.value)
+        formData.append('clustering_mode', clusteringMode.value)
         
-        // Always use per-year clustering (no selected_year parameter)
+        // Add selected years if any (for per_year mode)
+        if (clusteringMode.value === 'per_year' && selectedYears.value.length > 0) {
+          formData.append('selected_years', JSON.stringify(selectedYears.value))
+        }
 
         // Add algorithm-specific parameters
         if (selectedAlgorithm.value === 'fcm') {
@@ -901,8 +947,11 @@ Surabaya,2018,78.34,420000,6400000`
       fileInput,
       selectedAlgorithm,
       clusteringMode,
+      selectedYears,
       parameters,
       canProcess,
+      selectAllYears,
+      deselectAllYears,
       triggerFileInput,
       handleFileSelect,
       handleFileDrop,
@@ -1147,6 +1196,124 @@ Surabaya,2018,78.34,420000,6400000`
   border-radius: 4px;
   font-style: normal;
   color: #1a365d;
+}
+
+.year-selection-group {
+  background: #f7fafc;
+  border: 2px solid #667eea;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin: 1.5rem 0;
+}
+
+.year-selection-info {
+  margin-bottom: 1rem;
+}
+
+.year-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  align-items: center;
+}
+
+.year-checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  user-select: none;
+  font-weight: 500;
+}
+
+.year-checkbox-label:hover {
+  border-color: #667eea;
+  transform: translateY(-2px);
+  box-shadow: 0 2px 4px rgba(102, 126, 234, 0.2);
+}
+
+.year-checkbox {
+  display: none;
+}
+
+.checkbox-custom {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #cbd5e0;
+  border-radius: 4px;
+  display: inline-block;
+  position: relative;
+  transition: all 0.3s ease;
+}
+
+.year-checkbox:checked + .checkbox-custom {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-color: #667eea;
+}
+
+.year-checkbox:checked + .checkbox-custom::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.year-checkbox:checked ~ .year-label {
+  color: #667eea;
+  font-weight: 600;
+}
+
+.year-label {
+  color: #4a5568;
+  font-size: 1rem;
+  transition: color 0.3s ease;
+}
+
+.year-actions {
+  display: flex;
+  gap: 1rem;
+  margin-left: auto;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  color: #667eea;
+  font-weight: 600;
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  transition: all 0.3s ease;
+}
+
+.btn-link:hover {
+  background: #f7fafc;
+  color: #764ba2;
+}
+
+.selected-years-summary {
+  background: white;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #667eea;
+  margin-top: 1rem;
+  color: #2d3748;
+  font-size: 0.95rem;
+}
+
+.selected-years-summary strong {
+  color: #667eea;
 }
 
 .sample-download {

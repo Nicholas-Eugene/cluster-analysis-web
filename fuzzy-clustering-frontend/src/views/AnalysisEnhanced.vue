@@ -177,6 +177,11 @@
               :title="`Peta Sebaran Cluster - ${singleResultData.algorithm}`"
             />
             
+            <SilhouettePlot 
+              :clusters="filteredClusters" 
+              :title="`Silhouette Plot - ${singleResultData.algorithm}`"
+              :silhouetteScore="singleResultData.evaluation.silhouette_score"
+            />
           </div>
 
           <!-- Use ClusterDetailCard component -->
@@ -215,6 +220,7 @@ import InteractiveMap from '../components/InteractiveMap.vue'
 import YearlyResults from '../components/YearlyResults.vue'
 import AllYearsResults from '../components/AllYearsResults.vue'
 import ClusterDetailCard from '../components/ClusterDetailCard.vue'
+import SilhouettePlot from '../components/SilhouettePlot.vue'
 import apiService from '../services/apiService.js'
 
 export default defineComponent({
@@ -226,7 +232,8 @@ export default defineComponent({
     InteractiveMap,
     YearlyResults,
     AllYearsResults,
-    ClusterDetailCard
+    ClusterDetailCard,
+    SilhouettePlot
   },
   setup() {
     const route = useRoute()

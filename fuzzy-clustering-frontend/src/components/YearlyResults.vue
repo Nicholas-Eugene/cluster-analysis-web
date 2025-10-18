@@ -47,7 +47,22 @@
         <h4>📊 Rata-rata Metrik Evaluasi</h4>
         <div class="metrics-grid">
           <div class="metric-card">
-            <h5>Davies-Bouldin Index</h5>
+            <div class="metric-header">
+              <h5>Davies-Bouldin Index</h5>
+              <div class="metric-tooltip">
+                <span class="tooltip-icon">ℹ️</span>
+                <div class="tooltip-content">
+                  <p><strong>Rentang Nilai:</strong></p>
+                  <ul>
+                    <li>< 1.0 = Sangat Baik ✅</li>
+                    <li>1.0 - 1.5 = Baik 👍</li>
+                    <li>1.5 - 2.0 = Cukup ⚠️</li>
+                    <li>> 2.0 = Perlu Perbaikan ❌</li>
+                  </ul>
+                  <p class="tooltip-desc">Semakin rendah semakin baik. Mengukur rasio jarak dalam cluster vs antar cluster.</p>
+                </div>
+              </div>
+            </div>
             <div class="metric-value">
               {{ results.overall_summary.average_evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
             </div>
@@ -58,7 +73,22 @@
             </div>
           </div>
           <div class="metric-card">
-            <h5>Silhouette Score</h5>
+            <div class="metric-header">
+              <h5>Silhouette Score</h5>
+              <div class="metric-tooltip">
+                <span class="tooltip-icon">ℹ️</span>
+                <div class="tooltip-content">
+                  <p><strong>Rentang Nilai:</strong></p>
+                  <ul>
+                    <li>> 0.7 = Sangat Baik ✅</li>
+                    <li>0.5 - 0.7 = Baik 👍</li>
+                    <li>0.25 - 0.5 = Cukup ⚠️</li>
+                    <li>< 0.25 = Perlu Perbaikan ❌</li>
+                  </ul>
+                  <p class="tooltip-desc">Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.</p>
+                </div>
+              </div>
+            </div>
             <div class="metric-value">
               {{ results.overall_summary.average_evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
             </div>
@@ -127,7 +157,22 @@
             <h4>📈 Metrik Evaluasi</h4>
             <div class="metrics-grid">
               <div class="metric-card">
-                <h5>Davies-Bouldin Index</h5>
+                <div class="metric-header">
+                  <h5>Davies-Bouldin Index</h5>
+                  <div class="metric-tooltip">
+                    <span class="tooltip-icon">ℹ️</span>
+                    <div class="tooltip-content">
+                      <p><strong>Rentang Nilai:</strong></p>
+                      <ul>
+                        <li>< 1.0 = Sangat Baik ✅</li>
+                        <li>1.0 - 1.5 = Baik 👍</li>
+                        <li>1.5 - 2.0 = Cukup ⚠️</li>
+                        <li>> 2.0 = Perlu Perbaikan ❌</li>
+                      </ul>
+                      <p class="tooltip-desc">Semakin rendah semakin baik. Mengukur rasio jarak dalam cluster vs antar cluster.</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="metric-value">
                   {{ selectedYearResults.evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
                 </div>
@@ -138,7 +183,22 @@
                 </div>
               </div>
               <div class="metric-card">
-                <h5>Silhouette Score</h5>
+                <div class="metric-header">
+                  <h5>Silhouette Score</h5>
+                  <div class="metric-tooltip">
+                    <span class="tooltip-icon">ℹ️</span>
+                    <div class="tooltip-content">
+                      <p><strong>Rentang Nilai:</strong></p>
+                      <ul>
+                        <li>> 0.7 = Sangat Baik ✅</li>
+                        <li>0.5 - 0.7 = Baik 👍</li>
+                        <li>0.25 - 0.5 = Cukup ⚠️</li>
+                        <li>< 0.25 = Perlu Perbaikan ❌</li>
+                      </ul>
+                      <p class="tooltip-desc">Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="metric-value">
                   {{ selectedYearResults.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
                 </div>
@@ -172,6 +232,12 @@
           <InteractiveMap 
             :clusters="selectedYearResults.clusters" 
             :title="`Peta Sebaran Cluster - ${selectedYearResults.algorithm} (${selectedYear})`"
+          />
+          
+          <SilhouettePlot 
+            :clusters="selectedYearResults.clusters" 
+            :title="`Silhouette Plot - ${selectedYearResults.algorithm} (${selectedYear})`"
+            :silhouetteScore="selectedYearResults.evaluation.silhouette_score"
           />
         </div>
 
@@ -261,6 +327,7 @@ import ScatterPlot from './ScatterPlot.vue'
 import BoxPlot from './BoxPlot.vue'
 import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
+import SilhouettePlot from './SilhouettePlot.vue'
 
 export default {
   name: 'YearlyResults',
@@ -268,7 +335,8 @@ export default {
     ScatterPlot,
     BoxPlot,
     CorrelationHeatmap,
-    InteractiveMap
+    InteractiveMap,
+    SilhouettePlot
   },
   props: {
     results: {
@@ -521,10 +589,95 @@ export default {
   text-align: center;
 }
 
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 .metric-card h5 {
   color: #2d3748;
-  margin-bottom: 1rem;
+  margin: 0;
   font-size: 1.25rem;
+}
+
+.metric-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-icon {
+  cursor: help;
+  font-size: 1rem;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.tooltip-icon:hover {
+  opacity: 1;
+}
+
+.tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #2d3748;
+  color: white;
+  text-align: left;
+  padding: 1rem;
+  border-radius: 8px;
+  min-width: 280px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #2d3748 transparent transparent transparent;
+}
+
+.metric-tooltip:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-content p {
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.tooltip-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.tooltip-content li {
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.tooltip-desc {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.8rem;
+  opacity: 0.9;
+  line-height: 1.4;
 }
 
 .metric-value {
