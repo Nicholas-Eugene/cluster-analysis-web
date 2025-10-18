@@ -1,74 +1,77 @@
 <template>
-  <div class="all-years-results">
-    <!-- Info Header -->
-    <div class="card all-years-info">
-      <h3>ℹ️ Informasi Clustering All Years (Wide Format)</h3>
-      <p class="info-text">
-        <strong>Mode clustering ini menggunakan semua data tahun secara bersamaan.</strong> Setiap daerah direpresentasikan 
-        dengan semua nilai metrik dari berbagai tahun sebagai fitur (contoh: ipm_2015, ipm_2016, ..., ipm_2021).
-      </p>
-      <p class="info-text">
-        ⚠️ <strong>Perbedaan dengan Mode Per Tahun:</strong> Mode "All Years" mengelompokkan daerah berdasarkan 
-        <em>pola/tren mereka sepanjang waktu</em>, sedangkan mode "Per Tahun" mengelompokkan daerah secara terpisah 
-        untuk setiap tahun. Hasil clustering berbeda karena kedua mode menjawab pertanyaan analisis yang berbeda.
-      </p>
-      <div class="info-details">
-        <div class="info-item">
-          <span class="info-label">Tahun yang Diproses:</span>
-          <span class="info-value">{{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'N/A' }}</span>
+  <div class="yearly-results">
+    <!-- Results Header -->
+    <div class="results-header">
+      <h2>📅 Hasil Clustering All Years (Wide Format)</h2>
+      <p>Analisis clustering menggunakan semua data tahun secara bersamaan. Setiap daerah direpresentasikan dengan semua nilai metrik dari berbagai tahun sebagai fitur (contoh: ipm_2015, ipm_2016, ..., ipm_2021).</p>
+      <div class="mode-note">
+        <p><strong>💡 Catatan:</strong> Mode "All Years" mengelompokkan daerah berdasarkan pola/tren mereka sepanjang waktu, sedangkan mode "Per Tahun" mengelompokkan daerah secara terpisah untuk setiap tahun. Hasil clustering berbeda karena pendekatan analisisnya berbeda.</p>
+      </div>
+    </div>
+
+    <!-- Overall Summary -->
+    <div class="overall-summary card">
+      <h3>📊 Ringkasan Keseluruhan</h3>
+      <div class="summary-grid">
+        <div class="summary-item">
+          <div class="summary-icon">🔬</div>
+          <div class="summary-content">
+            <h4>{{ results.overall_summary.algorithm }}</h4>
+            <p>Algoritma yang digunakan</p>
+          </div>
         </div>
-        <div class="info-item">
-          <span class="info-label">Total Tahun:</span>
-          <span class="info-value">{{ results.overall_summary.total_years || 0 }}</span>
+        <div class="summary-item">
+          <div class="summary-icon">📅</div>
+          <div class="summary-content">
+            <h4>{{ results.overall_summary.years_processed ? results.overall_summary.years_processed.join(', ') : 'N/A' }}</h4>
+            <p>Tahun yang Diproses</p>
+          </div>
         </div>
-        <div class="info-item">
-          <span class="info-label">Jumlah Fitur:</span>
-          <span class="info-value">{{ results.overall_summary.features_used ? results.overall_summary.features_used.length : 0 }}</span>
+        <div class="summary-item">
+          <div class="summary-icon">📊</div>
+          <div class="summary-content">
+            <h4>{{ results.overall_summary.total_years || 0 }}</h4>
+            <p>Total Tahun</p>
+          </div>
+        </div>
+        <div class="summary-item">
+          <div class="summary-icon">🎯</div>
+          <div class="summary-content">
+            <h4>{{ results.overall_summary.features_used ? results.overall_summary.features_used.length : 0 }}</h4>
+            <p>Jumlah Fitur</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Summary Metrics -->
+      <div class="average-metrics">
+        <h4>📈 Ringkasan Hasil Clustering</h4>
+        <div class="year-stats">
+          <div class="stat-item">
+            <span class="stat-label">Total Daerah:</span>
+            <span class="stat-value">{{ resultData.summary.total_regions }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Jumlah Cluster:</span>
+            <span class="stat-value">{{ resultData.summary.num_clusters }}</span>
+          </div>
+          <div class="stat-item">
+            <span class="stat-label">Waktu Eksekusi:</span>
+            <span class="stat-value">{{ resultData.summary.execution_time?.toFixed(2) }}s</span>
+          </div>
+          <div v-if="resultData.summary.iterations" class="stat-item">
+            <span class="stat-label">Iterasi:</span>
+            <span class="stat-value">{{ resultData.summary.iterations }}</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="summary-cards">
-      <div class="summary-card">
-        <div class="card-icon">📊</div>
-        <div class="card-content">
-          <h3>{{ resultData.summary.total_regions }}</h3>
-          <p>Total Daerah</p>
-        </div>
-      </div>
-      
-      <div class="summary-card">
-        <div class="card-icon">🎯</div>
-        <div class="card-content">
-          <h3>{{ resultData.summary.num_clusters }}</h3>
-          <p>Jumlah Cluster</p>
-        </div>
-      </div>
-      
-      <div class="summary-card">
-        <div class="card-icon">⏱️</div>
-        <div class="card-content">
-          <h3>{{ resultData.summary.execution_time?.toFixed(2) }}s</h3>
-          <p>Waktu Eksekusi</p>
-        </div>
-      </div>
-      
-      <div v-if="resultData.summary.iterations" class="summary-card">
-        <div class="card-icon">🔄</div>
-        <div class="card-content">
-          <h3>{{ resultData.summary.iterations }}</h3>
-          <p>Iterasi</p>
-        </div>
-      </div>
-    </div>
-    
-    <!-- Evaluation Metrics -->
-    <div class="card">
-      <h2>📈 Metrik Evaluasi</h2>
-      <div class="evaluation-metrics">
-        <div class="metric-card">
-          <h3>Davies-Bouldin Index</h3>
+      <h3>📈 Metrik Evaluasi</h3>
+      <div class="year-evaluation">
+        <div class="metrics-grid">
+          <div class="metric-card">
+            <h5>Davies-Bouldin Index</h5>
           <div class="metric-value">
             {{ (resultData.evaluation?.davies_bouldin !== undefined ? resultData.evaluation.davies_bouldin?.toFixed(4) : (resultData.summary?.davies_bouldin?.toFixed(4) || 'N/A')) || 'N/A' }}
           </div>
@@ -84,7 +87,7 @@
         </div>
         
         <div class="metric-card">
-          <h3>Silhouette Score</h3>
+          <h5>Silhouette Score</h5>
           <div class="metric-value">
             {{ resultData.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
           </div>
@@ -102,8 +105,8 @@
     </div>
 
     <!-- Visualizations -->
-    <div class="visualizations">
-      <div class="card all-years-viz-note">
+    <div class="year-visualizations">
+      <div class="card viz-note">
         <h3>ℹ️ Catatan Visualisasi</h3>
         <p>
           Visualisasi berikut menggunakan <strong>nilai rata-rata</strong> dari semua tahun yang diproses 
@@ -140,8 +143,8 @@
     />
 
     <!-- Export Options -->
-    <div class="card">
-      <h2>📥 Export Hasil</h2>
+    <div class="card year-cluster-details">
+      <h3>📥 Export Hasil</h3>
       <div class="export-options">
         <button @click="exportToCSV" class="btn btn-secondary">
           📊 Export ke CSV
@@ -361,47 +364,139 @@ export default {
 </script>
 
 <style scoped>
-/* Based on AnalysisEnhanced.vue styling for consistency */
-.all-years-results {
+/* Based on YearlyResults.vue styling for consistency */
+.yearly-results {
   padding: 2rem 0;
 }
 
-.summary-cards {
+.results-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.results-header h2 {
+  font-size: 2.5rem;
+  color: #2d3748;
+  margin-bottom: 1rem;
+}
+
+.results-header p {
+  font-size: 1.2rem;
+  color: #718096;
+  line-height: 1.6;
+}
+
+.mode-note {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-left: 4px solid #667eea;
+  border-radius: 4px;
+}
+
+.mode-note p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.overall-summary {
+  margin-bottom: 2rem;
+}
+
+.overall-summary h3 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.summary-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
-.summary-card {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 2rem;
-  border-radius: 12px;
+.summary-item {
   display: flex;
   align-items: center;
   gap: 1rem;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
-.card-icon {
+.summary-icon {
   font-size: 2rem;
   opacity: 0.9;
 }
 
-.card-content h3 {
-  font-size: 2rem;
+.summary-content h4 {
+  color: white;
   margin: 0;
+  font-size: 2rem;
   font-weight: 700;
 }
 
-.card-content p {
+.summary-content p {
+  color: rgba(255, 255, 255, 0.9);
   margin: 0.25rem 0 0 0;
   opacity: 0.9;
   font-size: 0.875rem;
 }
 
-.evaluation-metrics {
+.average-metrics {
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.average-metrics h4 {
+  color: #4a5568;
+  margin-bottom: 1rem;
+}
+
+.year-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.stat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem 0;
+}
+
+.stat-label {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.stat-value {
+  color: #2d3748;
+  font-weight: 600;
+}
+
+.year-summary {
+  margin-bottom: 2rem;
+}
+
+.year-evaluation {
+  padding-top: 1rem;
+  border-top: 1px solid #e2e8f0;
+}
+
+.year-evaluation h4 {
+  color: #4a5568;
+  margin-bottom: 1rem;
+}
+
+.metrics-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
@@ -416,7 +511,7 @@ export default {
   text-align: center;
 }
 
-.metric-card h3 {
+.metric-card h5 {
   color: #2d3748;
   margin-bottom: 1rem;
   font-size: 1.25rem;
@@ -454,68 +549,26 @@ export default {
 .quality-poor { color: #e53e3e; font-weight: 600; }
 .quality-unknown { color: #718096; font-weight: 600; }
 
-.visualizations {
+.year-visualizations {
   margin: 2rem 0;
 }
 
-.all-years-info {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  margin-bottom: 2rem;
-}
-
-.all-years-info h3 {
-  color: white;
-  margin-bottom: 1rem;
-}
-
-.all-years-info .info-text {
-  color: rgba(255, 255, 255, 0.95);
-  line-height: 1.6;
-  margin-bottom: 1.5rem;
-}
-
-.all-years-viz-note {
+.viz-note {
   background: #f7fafc;
   border-left: 4px solid #667eea;
   margin-bottom: 2rem;
 }
 
-.all-years-viz-note h3 {
+.viz-note h3 {
   color: #2d3748;
   margin-bottom: 1rem;
   font-size: 1.1rem;
 }
 
-.all-years-viz-note p {
+.viz-note p {
   color: #4a5568;
   line-height: 1.6;
   margin: 0;
-}
-
-.info-details {
-  display: grid;
-  gap: 1rem;
-  background: rgba(255, 255, 255, 0.1);
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.info-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-}
-
-.info-label {
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-.info-value {
-  color: white;
-  font-weight: 700;
 }
 
 .export-options {
@@ -525,7 +578,7 @@ export default {
   margin-top: 1.5rem;
 }
 
-/* Consistent card styling */
+/* Consistent card styling - Same as YearlyResults */
 .card {
   background: white;
   border-radius: 12px;
@@ -545,16 +598,48 @@ export default {
   font-size: 1.5rem;
 }
 
+.card h3 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+/* Unified color theme - Purple gradient */
+.summary-item,
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+}
+
 @media (max-width: 768px) {
-  .all-years-results {
+  .yearly-results {
     padding: 1rem 0;
   }
   
-  .summary-cards {
+  .results-header h2 {
+    font-size: 2rem;
+  }
+  
+  .summary-grid {
     grid-template-columns: 1fr;
   }
   
-  .evaluation-metrics {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .year-stats {
     grid-template-columns: 1fr;
   }
   
