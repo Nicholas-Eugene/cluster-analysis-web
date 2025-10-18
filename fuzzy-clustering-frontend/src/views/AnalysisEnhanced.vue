@@ -231,32 +231,19 @@
                   <div v-if="activeCluster.centroid" class="centroid-info">
                     <h4>Centroid (Rata-rata Cluster):</h4>
                     <div class="centroid-values">
-                      <!-- Always show standard averages first -->
+                      <!-- Show averages only -->
                       <div class="centroid-item avg-item" v-if="activeCluster.centroid.ipm !== undefined">
-                        <span><strong>IPM (Rata-rata):</strong></span>
+                        <span><strong>IPM:</strong></span>
                         <span><strong>{{ activeCluster.centroid.ipm?.toFixed(2) }}</strong></span>
                       </div>
                       <div class="centroid-item avg-item" v-if="activeCluster.centroid.garis_kemiskinan !== undefined">
-                        <span><strong>Garis Kemiskinan (Rata-rata):</strong></span>
+                        <span><strong>Garis Kemiskinan:</strong></span>
                         <span><strong>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</strong></span>
                       </div>
                       <div class="centroid-item avg-item" v-if="activeCluster.centroid.pengeluaran_per_kapita !== undefined">
-                        <span><strong>Pengeluaran Per Kapita (Rata-rata):</strong></span>
+                        <span><strong>Pengeluaran Per Kapita:</strong></span>
                         <span><strong>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</strong></span>
                       </div>
-                      
-                      <!-- For all_years_wide mode, also show detail per year -->
-                      <template v-if="results.clustering_type === 'all_years_wide'">
-                        <div class="detail-separator"></div>
-                        <div 
-                          class="centroid-item detail-item"
-                          v-for="[key, value] in Object.entries(activeCluster.centroid).filter(([k]) => k.includes('_') && k.split('_')[k.split('_').length - 1].match(/^\d+$/))"
-                          :key="key"
-                        >
-                          <span>{{ formatFeatureName(key) }}:</span>
-                          <span>{{ formatFeatureValue(value, key) }}</span>
-                        </div>
-                      </template>
                     </div>
                   </div>
                 </div>
@@ -271,12 +258,11 @@
                         <th>Kabupaten/Kota</th>
                         <th>Provinsi</th>
                         <th v-if="activeCluster.members[0]?.tahun !== null && activeCluster.members[0]?.tahun !== undefined">Tahun</th>
-                        <!-- For all_years_wide, show averages first, then all year columns -->
+                        <!-- For all_years_wide, show averages only -->
                         <template v-if="results.clustering_type === 'all_years_wide'">
                           <th class="avg-column">IPM (Rata-rata)</th>
                           <th class="avg-column">Garis Kemiskinan (Rata-rata)</th>
                           <th class="avg-column">Pengeluaran Per Kapita (Rata-rata)</th>
-                          <th v-for="feature in getAllYearsFeatures()" :key="feature" class="detail-column">{{ formatFeatureName(feature) }}</th>
                         </template>
                         <template v-else>
                           <th>IPM</th>
@@ -291,14 +277,11 @@
                         <td>{{ member.kabupaten_kota }}</td>
                         <td>{{ member.provinsi || 'N/A' }}</td>
                         <td v-if="member.tahun !== null && member.tahun !== undefined">{{ member.tahun }}</td>
-                        <!-- For all_years_wide, show averages first, then all year values -->
+                        <!-- For all_years_wide, show averages only -->
                         <template v-if="results.clustering_type === 'all_years_wide'">
                           <td class="avg-column"><strong>{{ member.ipm?.toFixed(2) || 'N/A' }}</strong></td>
                           <td class="avg-column"><strong>{{ formatCurrency(member.garis_kemiskinan) }}</strong></td>
                           <td class="avg-column"><strong>{{ formatCurrency(member.pengeluaran_per_kapita) }}</strong></td>
-                          <td v-for="feature in getAllYearsFeatures()" :key="feature" class="detail-column">
-                            {{ formatFeatureValue(member[feature], feature) }}
-                          </td>
                         </template>
                         <template v-else>
                           <td>{{ member.ipm?.toFixed(2) }}</td>
@@ -535,10 +518,8 @@ export default defineComponent({
       }
       
       if (isAllYears) {
-        // Add averaged columns first, then all year-based features
-        headers.push('IPM (Rata-rata)', 'Garis Kemiskinan (Rata-rata)', 'Pengeluaran Per Kapita (Rata-rata)')
-        const features = getAllYearsFeatures()
-        headers.push(...features.map(f => formatFeatureName(f)))
+        // Add averaged columns only
+        headers.push('IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita')
       } else {
         // Standard columns for regular mode
         headers.push('IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita')
@@ -564,26 +545,12 @@ export default defineComponent({
           }
           
           if (isAllYears) {
-            // Add averaged values first
+            // Add averaged values only
             row.push(
               member.ipm?.toFixed(2) || 'N/A',
               member.garis_kemiskinan || 'N/A',
               member.pengeluaran_per_kapita || 'N/A'
             )
-            // Then add all year-based feature values
-            const features = getAllYearsFeatures()
-            features.forEach(feature => {
-              const value = member[feature]
-              if (value !== null && value !== undefined) {
-                if (feature.includes('garis_kemiskinan') || feature.includes('pengeluaran')) {
-                  row.push(value) // Keep raw number for CSV
-                } else {
-                  row.push(value.toFixed(2))
-                }
-              } else {
-                row.push('N/A')
-              }
-            })
           } else {
             // Standard columns for regular mode
             row.push(
