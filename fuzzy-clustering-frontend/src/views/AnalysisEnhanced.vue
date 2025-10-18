@@ -172,21 +172,32 @@
           </div>
 
           <div class="visualizations">
+            <!-- Note: Standard visualizations are only available for per-year mode -->
+            <div v-if="results.clustering_type === 'all_years_wide'" class="card all-years-viz-note">
+              <h3>ℹ️ Catatan Visualisasi</h3>
+              <p>
+                Visualisasi standar (Scatter Plot, Box Plot, Heatmap) tidak tersedia untuk mode "All Years" 
+                karena data menggunakan format wide dengan banyak fitur multi-tahun. 
+                Silakan gunakan tabel detail cluster dan centroid untuk analisis lebih lanjut.
+              </p>
+            </div>
             
-            <ScatterPlot 
-              :clusters="filteredClusters" 
-              :title="`Scatter Plot - ${singleResultData.algorithm} Clustering`"
-            />
-            
-            <BoxPlot 
-              :clusters="filteredClusters" 
-              :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}`"
-            />
-            
-            <CorrelationHeatmap 
-              :clusters="filteredClusters" 
-              :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}`"
-            />
+            <template v-else>
+              <ScatterPlot 
+                :clusters="filteredClusters" 
+                :title="`Scatter Plot - ${singleResultData.algorithm} Clustering`"
+              />
+              
+              <BoxPlot 
+                :clusters="filteredClusters" 
+                :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}`"
+              />
+              
+              <CorrelationHeatmap 
+                :clusters="filteredClusters" 
+                :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}`"
+              />
+            </template>
             
             <InteractiveMap 
               :clusters="filteredClusters" 
@@ -1221,6 +1232,24 @@ export default defineComponent({
   color: rgba(255, 255, 255, 0.95);
   line-height: 1.6;
   margin-bottom: 1.5rem;
+}
+
+.all-years-viz-note {
+  background: #f7fafc;
+  border-left: 4px solid #667eea;
+  margin-bottom: 2rem;
+}
+
+.all-years-viz-note h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.1rem;
+}
+
+.all-years-viz-note p {
+  color: #4a5568;
+  line-height: 1.6;
+  margin: 0;
 }
 
 .info-details {
