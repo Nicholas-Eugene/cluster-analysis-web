@@ -130,20 +130,13 @@ export default {
 
     const createChart = async () => {
       try {
-        console.log('📊 SilhouettePlot: Starting chart creation')
-        console.log('Clusters:', props.clusters)
-        
         if (!chartCanvas.value || !props.clusters || props.clusters.length === 0) {
-          console.warn('⚠️ SilhouettePlot: Missing canvas or clusters')
           return
         }
 
         await nextTick()
         
-        if (!chartCanvas.value) {
-          console.warn('⚠️ SilhouettePlot: Canvas lost after nextTick')
-          return
-        }
+        if (!chartCanvas.value) return
 
         // Destroy existing chart
         if (chart.value) {
@@ -157,27 +150,18 @@ export default {
 
         await new Promise(resolve => setTimeout(resolve, 50))
         
-        if (!chartCanvas.value) {
-          console.warn('⚠️ SilhouettePlot: Canvas lost after delay')
-          return
-        }
+        if (!chartCanvas.value) return
 
         const ctx = chartCanvas.value.getContext('2d')
-        if (!ctx) {
-          console.warn('⚠️ SilhouettePlot: Failed to get context')
-          return
-        }
+        if (!ctx) return
 
         // Prepare silhouette data with better spacing
         const datasets = []
         let yPosition = 0
         const gapBetweenClusters = Math.max(5, Math.floor(props.clusters[0]?.members.length * 0.15) || 5)
 
-        console.log(`Gap between clusters: ${gapBetweenClusters}`)
-
         props.clusters.forEach((cluster, clusterIndex) => {
           if (!cluster.members || cluster.members.length === 0) {
-            console.warn(`⚠️ Cluster ${cluster.id} has no members`)
             return
           }
 
@@ -196,8 +180,6 @@ export default {
             name: item.name
           }))
 
-          console.log(`Cluster ${cluster.id}: ${data.length} points, yPosition: ${yPosition}`)
-
           datasets.push({
             label: `Cluster ${cluster.id}`,
             data: data,
@@ -212,11 +194,7 @@ export default {
           yPosition += scores.length + gapBetweenClusters // Add gap between clusters
         })
 
-        console.log(`Total datasets: ${datasets.length}`)
-        console.log(`Total y positions: ${yPosition}`)
-
         if (datasets.length === 0) {
-          console.warn('⚠️ No datasets to display')
           return
         }
 
@@ -276,19 +254,14 @@ export default {
           }
         }
 
-        console.log('Creating chart with config:', config)
         chart.value = new Chart(ctx, config)
-        console.log('✅ Chart created successfully')
 
       } catch (error) {
-        console.error('❌ Error creating silhouette plot:', error)
-        console.error('Error stack:', error.stack)
+        console.error('Error creating silhouette plot:', error)
         if (chart.value) {
           try {
             chart.value.destroy()
-          } catch (e) {
-            console.error('Error destroying chart:', e)
-          }
+          } catch (e) {}
           chart.value = null
         }
       }

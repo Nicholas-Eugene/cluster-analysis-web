@@ -4,14 +4,9 @@
     <div class="cluster-tabs">
       <button 
         v-for="(cluster, index) in clusters" 
-        :key="cluster.id"
-        @click="() => { 
-          console.log('Clicked cluster:', cluster.id, 'Type:', typeof cluster.id); 
-          // Ensure we're using the same type as cluster.id
-          selectedClusterId = Number.isInteger(cluster.id) ? cluster.id : parseInt(cluster.id);
-          console.log('Set selectedClusterId to:', selectedClusterId);
-        }"
-        :class="['cluster-tab', { active: selectedClusterId === cluster.id || selectedClusterId == cluster.id }]"
+        :key="`cluster-${index}`"
+        @click="selectCluster(cluster.id)"
+        :class="['cluster-tab', { active: isClusterActive(cluster.id) }]"
         :style="{ borderColor: getClusterColor(index) }"
       >
         <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
@@ -77,15 +72,11 @@
                     class="membership-fill-mini" 
                     :style="{ 
                       width: `${member.membership * 100}%`,
-                      backgroundColor: getClusterColor(clusters.findIndex(c => c.id === activeCluster.id))
+                      backgroundColor: getClusterColor(clusters.findIndex(c => normalizeId(c.id) === normalizeId(activeCluster.id)))
                     }"
                   ></div>
                   <span class="membership-text-mini">{{ (member.membership * 100).toFixed(1) }}%</span>
                 </div>
-              </div>
-              <!-- Debug membership -->
-              <div v-if="showMembership && member.membership == null" style="font-size: 0.8rem; color: red;">
-                [Debug: membership is {{ member.membership }}]
               </div>
             </div>
           </div>
@@ -131,27 +122,47 @@ export default {
       return colors[index % colors.length]
     }
 
-    const activeCluster = computed(() => {
-      console.log('🔍 Computing activeCluster')
-      console.log('selectedClusterId.value:', selectedClusterId.value)
-      console.log('Type of selectedClusterId:', typeof selectedClusterId.value)
+    // Helper to normalize cluster ID (convert to number if possible, handle 0 properly)
+    const normalizeId = (id) => {
+      // Explicitly handle null/undefined
+      if (id === null || id === undefined) return null
       
-      // Use == null to check for both null and undefined, but allow 0 as valid cluster ID
-      if (selectedClusterId.value == null || !props.clusters) {
-        console.log('⚠️ selectedClusterId is null/undefined or no clusters')
+      // Try to convert to number
+      const num = Number(id)
+      
+      // Return number if it's valid (including 0!), otherwise return original
+      return isNaN(num) ? id : num
+    }
+
+    // Check if cluster is active (handles type coercion properly)
+    const isClusterActive = (clusterId) => {
+      const normalizedCluster = normalizeId(clusterId)
+      const normalizedSelected = normalizeId(selectedClusterId.value)
+      return normalizedCluster === normalizedSelected
+    }
+
+    // Select cluster method
+    const selectCluster = (clusterId) => {
+      selectedClusterId.value = normalizeId(clusterId)
+    }
+
+    const activeCluster = computed(() => {
+      // Explicitly check for null/undefined, but allow 0
+      if (selectedClusterId.value === null || selectedClusterId.value === undefined) {
         return null
       }
       
-      // Try both strict and loose equality to handle type mismatches
+      if (!props.clusters || props.clusters.length === 0) {
+        return null
+      }
+      
+      // Find cluster with normalized comparison
+      const normalizedSelected = normalizeId(selectedClusterId.value)
       const found = props.clusters.find(cluster => {
-        const strictMatch = cluster.id === selectedClusterId.value
-        const looseMatch = cluster.id == selectedClusterId.value
-        console.log(`Comparing cluster.id (${cluster.id}, ${typeof cluster.id}) with selectedClusterId (${selectedClusterId.value}, ${typeof selectedClusterId.value}) - strict: ${strictMatch}, loose: ${looseMatch}`)
-        return strictMatch || looseMatch
+        return normalizeId(cluster.id) === normalizedSelected
       })
       
-      console.log('Found cluster:', found)
-      return found
+      return found || null
     })
 
     const formatCurrency = (value) => {
@@ -165,22 +176,20 @@ export default {
 
     // Initialize with first cluster - always select first cluster when clusters change
     watch(() => props.clusters, (newClusters) => {
-      console.log('👀 Clusters changed:', newClusters)
       if (newClusters && newClusters.length > 0) {
-        console.log('Setting selectedClusterId to:', newClusters[0].id, 'Type:', typeof newClusters[0].id)
         // Always reset to first cluster when data changes
-        // Ensure we use the same type as cluster.id
-        const firstClusterId = newClusters[0].id
-        selectedClusterId.value = Number.isInteger(firstClusterId) ? firstClusterId : parseInt(firstClusterId)
-        console.log('After setting, selectedClusterId.value:', selectedClusterId.value, 'Type:', typeof selectedClusterId.value)
+        selectedClusterId.value = normalizeId(newClusters[0].id)
       }
-    }, { immediate: true, deep: true })
+    }, { immediate: true })
 
     return {
       selectedClusterId,
       activeCluster,
       getClusterColor,
-      formatCurrency
+      formatCurrency,
+      selectCluster,
+      isClusterActive,
+      normalizeId
     }
   }
 }
