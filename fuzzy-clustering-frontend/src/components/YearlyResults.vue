@@ -412,22 +412,26 @@ export default {
 </script>
 
 <style scoped>
+/* Based on AnalysisEnhanced.vue styling for consistency */
 .yearly-results {
   padding: 2rem 0;
 }
 
 .results-header {
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 3rem;
 }
 
 .results-header h2 {
+  font-size: 2.5rem;
   color: #2d3748;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .results-header p {
+  font-size: 1.2rem;
   color: #718096;
+  line-height: 1.6;
 }
 
 .mode-note {
@@ -481,13 +485,14 @@ export default {
 .summary-content h4 {
   color: white;
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: 700;
 }
 
 .summary-content p {
   color: rgba(255, 255, 255, 0.9);
   margin: 0.25rem 0 0 0;
+  opacity: 0.9;
   font-size: 0.875rem;
 }
 
@@ -503,8 +508,9 @@ export default {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
 }
 
 .metric-card {
@@ -528,15 +534,21 @@ export default {
   margin-bottom: 1rem;
 }
 
+.metric-description {
+  color: #718096;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
+}
+
 .metric-quality {
   display: flex;
   justify-content: center;
   align-items: center;
   gap: 0.5rem;
-  font-size: 0.875rem;
 }
 
-.metric-quality .quality-label {
+.quality-label {
   font-weight: 600;
   color: #4a5568;
 }
@@ -549,6 +561,10 @@ export default {
 
 .year-selection {
   margin-bottom: 2rem;
+}
+
+.year-selector {
+  margin-top: 1.5rem;
 }
 
 .year-tabs {
@@ -616,7 +632,7 @@ export default {
 .year-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
@@ -624,9 +640,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: #f7fafc;
-  border-radius: 6px;
+  padding: 0.5rem 0;
 }
 
 .stat-label {
@@ -650,6 +664,10 @@ export default {
 }
 
 .year-visualizations {
+  margin: 2rem 0;
+}
+
+.visualizations {
   margin: 2rem 0;
 }
 
@@ -677,16 +695,12 @@ export default {
 }
 
 .cluster-tab:hover {
-  border-color: #667eea;
-  color: #667eea;
   transform: translateY(-2px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .cluster-tab.active {
-  background: #667eea;
-  border-color: #667eea;
-  color: white;
+  background: #f7fafc;
   transform: translateY(-2px);
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
@@ -708,6 +722,12 @@ export default {
   border-radius: 8px;
 }
 
+.cluster-info h3 {
+  color: #2d3748;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+}
+
 .cluster-info h4 {
   color: #2d3748;
   margin-bottom: 1rem;
@@ -717,6 +737,11 @@ export default {
 .cluster-stats {
   display: grid;
   gap: 1rem;
+}
+
+.centroid-info h4 {
+  color: #4a5568;
+  margin-bottom: 0.5rem;
 }
 
 .centroid-info h5 {
@@ -736,6 +761,11 @@ export default {
   align-items: center;
   padding: 0.25rem 0;
   font-size: 0.875rem;
+}
+
+.cluster-members h4 {
+  color: #2d3748;
+  margin-bottom: 1rem;
 }
 
 .cluster-members h5 {
@@ -784,7 +814,7 @@ export default {
   font-weight: 600;
 }
 
-/* Consistent card styling with AnalysisEnhanced */
+/* Consistent card styling - Exact match with AnalysisEnhanced */
 .card {
   background: white;
   border-radius: 12px;
@@ -798,15 +828,69 @@ export default {
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
 }
 
+.card h2 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
 .card h3 {
   color: #2d3748;
   margin-bottom: 1.5rem;
   font-size: 1.5rem;
 }
 
+/* Unified color theme - Purple gradient (from AnalysisEnhanced) */
+.summary-item,
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+}
+
+.cluster-tab.active {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+/* Table header consistency */
+thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+}
+
+/* Membership bar color */
+.membership-fill {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.export-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
 @media (max-width: 768px) {
   .yearly-results {
     padding: 1rem 0;
+  }
+  
+  .results-header h2 {
+    font-size: 2rem;
   }
   
   .summary-grid {
@@ -831,6 +915,14 @@ export default {
   
   .members-grid {
     grid-template-columns: 1fr;
+  }
+
+  .export-options {
+    flex-direction: column;
+  }
+  
+  .export-options button {
+    width: 100%;
   }
 }
 </style>
