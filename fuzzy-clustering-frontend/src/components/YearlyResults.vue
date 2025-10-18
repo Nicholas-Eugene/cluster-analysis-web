@@ -1,10 +1,22 @@
 <template>
   <div class="yearly-results">
     <div class="results-header">
-      <h2>📅 Hasil Clustering Per Tahun</h2>
-      <p>Analisis clustering dilakukan secara terpisah untuk setiap tahun. Setiap tahun dianalisis secara independen menggunakan fitur: IPM, Garis Kemiskinan, dan Pengeluaran Per Kapita.</p>
-      <div class="mode-note">
-        <p><strong>💡 Catatan:</strong> Mode ini berbeda dengan "All Years" yang mengelompokkan berdasarkan pola multi-tahun. Hasil akan berbeda karena pendekatan analisisnya berbeda.</p>
+      <div class="header-content">
+        <h2>📅 Hasil Clustering Per Tahun</h2>
+        <p>Analisis clustering dilakukan secara terpisah untuk setiap tahun. Setiap tahun dianalisis secara independen menggunakan fitur: IPM, Garis Kemiskinan, dan Pengeluaran Per Kapita.</p>
+        <div class="mode-note">
+          <p><strong>💡 Catatan:</strong> Mode ini berbeda dengan "All Years" yang mengelompokkan berdasarkan pola multi-tahun. Hasil akan berbeda karena pendekatan analisisnya berbeda.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button 
+          @click="downloadPDF" 
+          :disabled="isDownloadingPDF"
+          class="btn btn-download"
+        >
+          <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
+          <span v-else>⏳ Generating PDF...</span>
+        </button>
       </div>
     </div>
 
@@ -259,6 +271,7 @@ import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
 import SilhouettePlot from './SilhouettePlot.vue'
 import ClusterDetailCard from './ClusterDetailCard.vue'
+import { exportYearlyResultsToPDF } from '../utils/pdfExporter.js'
 
 export default {
   name: 'YearlyResults',
@@ -372,6 +385,105 @@ export default {
       return 'Perlu Perbaikan'
     }
 
+    const isDownloadingPDF = ref(false)
+
+    const downloadPDF = async () => {
+      isDownloadingPDF.value = true
+      try {
+        const filename = await exportYearlyResultsToPDF(props.results)
+        console.log('✅ PDF downloaded:', filename)
+      } catch (error) {
+        console.error('❌ Error downloading PDF:', error)
+        alert('Error generating PDF. Please try again.')
+      } finally {
+        isDownloadingPDF.value = false
+      }
+    }
+
+    const exportToCSV = () => {
+      const csvRows = []
+      csvRows.push(['Year', 'Cluster', 'Kabupaten/Kota', 'IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita', 'Membership'])
+
+      Object.keys(props.results.results_per_year).forEach(year => {
+        const yearData = props.results.results_per_year[year]
+        if (yearData.clusters) {
+          yearData.clusters.forEach(cluster => {
+            cluster.members.forEach(member => {
+              csvRows.push([
+                year,
+                cluster.id,
+                member.kabupaten_kota,
+                member.ipm?.toFixed(2),
+                member.garis_kemiskinan,
+                member.pengeluaran_per_kapita,
+                member.membership?.toFixed(4) || '1.0'
+              ])
+            })
+          })
+        }
+      })
+
+      const csvContent = csvRows.map(row => row.join(',')).join('\n')
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `clustering-yearly-results-${new Date().getTime()}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+
+    const exportToJSON = () => {
+      const jsonContent = JSON.stringify(props.results, null, 2)
+      const blob = new Blob([jsonContent], { type: 'application/json' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `clustering-yearly-results-${new Date().getTime()}.json`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+
+    const generateTextReport = () => {
+      const reportLines = [
+        `LAPORAN ANALISIS CLUSTERING PER TAHUN`,
+        `Algoritma: ${props.results.overall_summary.algorithm}`,
+        `Tanggal: ${new Date().toLocaleDateString('id-ID')}`,
+        ``,
+        `RINGKASAN KESELURUHAN:`,
+        `- Total Tahun: ${props.results.overall_summary.total_years}`,
+        `- Tahun Berhasil: ${props.results.overall_summary.successful_years}`,
+        `- Success Rate: ${(props.results.overall_summary.success_rate * 100).toFixed(1)}%`,
+        ``,
+        `HASIL PER TAHUN:`,
+        ``
+      ]
+
+      Object.keys(props.results.results_per_year).sort().forEach(year => {
+        const yearData = props.results.results_per_year[year]
+        reportLines.push(`\n=== TAHUN ${year} ===`)
+        reportLines.push(`Jumlah Cluster: ${yearData.summary.num_clusters}`)
+        reportLines.push(`Total Daerah: ${yearData.summary.total_regions}`)
+        reportLines.push(`Davies-Bouldin: ${yearData.evaluation.davies_bouldin?.toFixed(4)}`)
+        reportLines.push(`Silhouette Score: ${yearData.evaluation.silhouette_score?.toFixed(4)}`)
+      })
+
+      const reportContent = reportLines.join('\n')
+      const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' })
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `laporan-clustering-yearly-${new Date().getTime()}.txt`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      window.URL.revokeObjectURL(url)
+    }
+
     // Set default selected year when component mounts or data changes
     const setDefaultYear = async () => {
       await nextTick()
@@ -403,7 +515,12 @@ export default {
       getDBIQuality,
       getDBIQualityText,
       getSilhouetteQuality,
-      getSilhouetteQualityText
+      getSilhouetteQualityText,
+      isDownloadingPDF,
+      downloadPDF,
+      exportToCSV,
+      exportToJSON,
+      generateTextReport
     }
   }
 }
@@ -416,8 +533,22 @@ export default {
 }
 
 .results-header {
-  text-align: center;
   margin-bottom: 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.header-content {
+  flex: 1;
+  text-align: center;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .results-header h2 {
@@ -796,6 +927,47 @@ export default {
 
 .btn-warning {
   background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+}
+
+.btn-download {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  white-space: nowrap;
+}
+
+.btn-download:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.btn-download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-download-main {
+  font-size: 1.1rem;
+  padding: 1rem 2rem;
+}
+
+.export-description {
+  color: #718096;
+  margin-bottom: 1rem;
+  font-size: 0.95rem;
+}
+
+.export-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
 }
 
 /* Table header consistency */

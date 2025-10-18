@@ -186,14 +186,22 @@
     <div class="card year-cluster-details">
       <h3>📥 Export Hasil</h3>
       <div class="export-options">
+        <button 
+          @click="downloadPDF" 
+          :disabled="isDownloadingPDF"
+          class="btn btn-primary btn-download-main"
+        >
+          <span v-if="!isDownloadingPDF">📄 Download Complete PDF Report</span>
+          <span v-else>⏳ Generating PDF...</span>
+        </button>
         <button @click="exportToCSV" class="btn btn-secondary">
           📊 Export ke CSV
         </button>
         <button @click="exportToJSON" class="btn btn-secondary">
           📄 Export ke JSON
         </button>
-        <button @click="generateReport" class="btn btn-primary">
-          📋 Generate Report
+        <button @click="generateReport" class="btn btn-secondary">
+          📋 Generate Text Report
         </button>
       </div>
     </div>
@@ -201,13 +209,14 @@
 </template>
 
 <script>
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import ScatterPlot from './ScatterPlot.vue'
 import BoxPlot from './BoxPlot.vue'
 import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
 import ClusterDetailCard from './ClusterDetailCard.vue'
 import SilhouettePlot from './SilhouettePlot.vue'
+import { exportAllYearsResultsToPDF } from '../utils/pdfExporter.js'
 
 export default {
   name: 'AllYearsResults',
@@ -399,7 +408,9 @@ export default {
       getSilhouetteQualityText,
       exportToCSV,
       exportToJSON,
-      generateReport
+      generateReport,
+      isDownloadingPDF,
+      downloadPDF
     }
   }
 }
@@ -412,8 +423,22 @@ export default {
 }
 
 .results-header {
-  text-align: center;
   margin-bottom: 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.header-content {
+  flex: 1;
+  text-align: center;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .results-header h2 {
@@ -749,7 +774,46 @@ export default {
   background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
 }
 
+.btn-download {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  white-space: nowrap;
+}
+
+.btn-download:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
+}
+
+.btn-download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-download-main {
+  font-size: 1.1rem;
+  padding: 1rem 2rem;
+}
+
 @media (max-width: 768px) {
+  .results-header {
+    flex-direction: column;
+  }
+  
+  .header-actions {
+    width: 100%;
+  }
+  
+  .btn-download {
+    width: 100%;
+  }
   .yearly-results {
     padding: 1rem 0;
   }
