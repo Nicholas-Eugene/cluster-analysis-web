@@ -146,7 +146,8 @@
             </div>
           </div>
 
-          <div v-if="results.clustering_type !== 'per_year' && !singleResultData.summary?.selectedYear && availableYears.length > 1" class="card">
+          <!-- Year filter - only show for regular single-year mode with multiple years -->
+          <div v-if="results.clustering_type !== 'per_year' && results.clustering_type !== 'all_years_wide' && !singleResultData.summary?.selectedYear && availableYears.length > 1" class="card">
             <h2>📅 Filter Tahun</h2>
             <div class="year-selector">
               <div class="year-controls">
