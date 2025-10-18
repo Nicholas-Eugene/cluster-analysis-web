@@ -242,81 +242,11 @@
         </div>
 
         <!-- Cluster Details for Selected Year -->
-        <div v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0" class="year-cluster-details card">
-          <h3>🔍 Detail Cluster Tahun {{ selectedYear }}</h3>
-          <div class="cluster-tabs">
-            <button 
-              v-for="(cluster, index) in selectedYearResults.clusters" 
-              :key="cluster.id"
-              @click="selectedCluster = cluster.id"
-              :class="['cluster-tab', { active: selectedCluster === cluster.id }]"
-              :style="{ borderColor: getClusterColor(index) }"
-            >
-              <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-              Cluster {{ cluster.id }} ({{ cluster.size }})
-            </button>
-          </div>
-          
-          <div v-if="activeCluster" class="cluster-detail">
-            <div class="cluster-info">
-              <h4>Cluster {{ activeCluster.id }} - Tahun {{ selectedYear }}</h4>
-              <div class="cluster-stats">
-                <div class="stat-item">
-                  <span class="stat-label">Jumlah Daerah:</span>
-                  <span class="stat-value">{{ activeCluster.size }}</span>
-                </div>
-                <div v-if="activeCluster.centroid" class="centroid-info">
-                  <h5>Centroid (Rata-rata):</h5>
-                  <div class="centroid-values">
-                    <div class="centroid-item">
-                      <span>IPM:</span>
-                      <span>{{ activeCluster.centroid.ipm?.toFixed(2) }}</span>
-                    </div>
-                    <div class="centroid-item">
-                      <span>Garis Kemiskinan:</span>
-                      <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
-                    </div>
-                    <div class="centroid-item">
-                      <span>Pengeluaran Per Kapita:</span>
-                      <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="cluster-members">
-              <h5>Daftar Daerah:</h5>
-              <div class="members-grid">
-                <div 
-                  v-for="member in activeCluster.members" 
-                  :key="member.kabupaten_kota"
-                  class="member-card"
-                >
-                  <h6>{{ member.kabupaten_kota }}</h6>
-                  <div class="member-stats">
-                    <div class="member-stat">
-                      <span>IPM:</span>
-                      <span>{{ member.ipm?.toFixed(2) }}</span>
-                    </div>
-                    <div class="member-stat">
-                      <span>Garis Kemiskinan:</span>
-                      <span>{{ formatCurrency(member.garis_kemiskinan) }}</span>
-                    </div>
-                    <div class="member-stat">
-                      <span>Pengeluaran:</span>
-                      <span>{{ formatCurrency(member.pengeluaran_per_kapita) }}</span>
-                    </div>
-                    <div v-if="member.membership && member.membership < 1.0" class="member-stat">
-                      <span>Membership:</span>
-                      <span>{{ (member.membership * 100).toFixed(1) }}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
+        <ClusterDetailCard 
+          v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0"
+          :clusters="selectedYearResults.clusters"
+          :showMembership="true"
+        />
       </div>
     </div>
 </template>
@@ -328,6 +258,7 @@ import BoxPlot from './BoxPlot.vue'
 import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
 import SilhouettePlot from './SilhouettePlot.vue'
+import ClusterDetailCard from './ClusterDetailCard.vue'
 
 export default {
   name: 'YearlyResults',
@@ -336,7 +267,8 @@ export default {
     BoxPlot,
     CorrelationHeatmap,
     InteractiveMap,
-    SilhouettePlot
+    SilhouettePlot,
+    ClusterDetailCard
   },
   props: {
     results: {
@@ -463,10 +395,8 @@ export default {
 
     return {
       selectedYear,
-      selectedCluster,
       availableYears,
       selectedYearResults,
-      activeCluster,
       hasError,
       getClusterColor,
       formatCurrency,
@@ -824,149 +754,6 @@ export default {
   margin: 2rem 0;
 }
 
-.cluster-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 1rem;
-}
-
-.cluster-tab {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: 2px solid #e2e8f0;
-  background: white;
-  color: #4a5568;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-weight: 500;
-}
-
-.cluster-tab:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.cluster-tab.active {
-  background: #f7fafc;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.tab-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-}
-
-.cluster-detail {
-  display: grid;
-  gap: 2rem;
-}
-
-.cluster-info {
-  background: #f7fafc;
-  padding: 2rem;
-  border-radius: 8px;
-}
-
-.cluster-info h3 {
-  color: #2d3748;
-  margin-bottom: 1rem;
-  font-size: 1.5rem;
-}
-
-.cluster-info h4 {
-  color: #2d3748;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-}
-
-.cluster-stats {
-  display: grid;
-  gap: 1rem;
-}
-
-.centroid-info h4 {
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.centroid-info h5 {
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.centroid-values {
-  display: grid;
-  gap: 0.5rem;
-  padding-left: 1rem;
-}
-
-.centroid-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.25rem 0;
-  font-size: 0.875rem;
-}
-
-.cluster-members h4 {
-  color: #2d3748;
-  margin-bottom: 1rem;
-}
-
-.cluster-members h5 {
-  color: #2d3748;
-  margin-bottom: 1rem;
-}
-
-.members-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.member-card {
-  background: white;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-.member-card h6 {
-  color: #2d3748;
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
-}
-
-.member-stats {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.member-stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
-}
-
-.member-stat span:first-child {
-  color: #718096;
-  font-weight: 500;
-}
-
-.member-stat span:last-child {
-  color: #2d3748;
-  font-weight: 600;
-}
-
 /* Consistent card styling - Exact match with AnalysisEnhanced */
 .card {
   background: white;
@@ -1009,11 +796,6 @@ export default {
 
 .btn-warning {
   background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
-}
-
-.cluster-tab.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
 }
 
 /* Table header consistency */
