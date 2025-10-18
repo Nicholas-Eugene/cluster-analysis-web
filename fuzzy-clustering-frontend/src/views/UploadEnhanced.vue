@@ -248,14 +248,18 @@
               <strong>Mode Clustering Per Tahun:</strong> Sistem akan melakukan clustering secara terpisah untuk setiap tahun yang tersedia dalam data.
               <br>
               <small>Contoh: Data 2016 akan di-cluster menjadi grup A,B,C - Data 2017 akan di-cluster menjadi grup A,B,C - dan seterusnya.</small>
+              <br>
+              <small class="mode-note-text"><strong>⚠️ Catatan:</strong> Hasil akan berbeda dengan mode "Semua Tahun" karena setiap tahun dianalisis secara independen.</small>
             </div>
           </div>
           <div v-else class="mode-info all-years">
             <span class="mode-icon">📅</span>
             <div class="mode-text">
-              <strong>Mode Clustering Semua Tahun (Gabung Kolom):</strong> Sistem akan menggabungkan semua data tahun menjadi satu baris per kabupaten/kota, dengan kolom berbeda untuk setiap tahun (misal: ipm_2016, ipm_2017, ...), lalu melakukan clustering satu kali pada data gabungan ini.
+              <strong>Mode Clustering Semua Tahun (Wide Format):</strong> Sistem akan menggabungkan semua data tahun menjadi satu baris per kabupaten/kota, dengan kolom berbeda untuk setiap tahun (misal: ipm_2016, ipm_2017, ...), lalu melakukan clustering satu kali pada data gabungan ini.
               <br>
-              <small>Contoh: Data 2016-2021 akan digabung menjadi satu baris per kabupaten/kota dengan kolom ipm_2016, ipm_2017, ..., pengeluaran_per_kapita_2021, lalu di-cluster menjadi grup A,B,C tanpa pemisahan tahun.</small>
+              <small>Contoh: Data 2016-2021 akan digabung menjadi satu baris per kabupaten/kota dengan kolom ipm_2016, ipm_2017, ..., pengeluaran_per_kapita_2021, lalu di-cluster menjadi grup A,B,C berdasarkan pola/tren sepanjang waktu.</small>
+              <br>
+              <small class="mode-note-text"><strong>⚠️ Catatan:</strong> Hasil akan berbeda dengan mode "Per Tahun" karena clustering dilakukan berdasarkan pola multi-tahun, bukan per tahun terpisah.</small>
             </div>
           </div>
         </div>
@@ -1133,6 +1137,16 @@ Surabaya,2018,78.34,420000,6400000`
 .clustering-mode-info .mode-text small {
   color: #2d5a5e;
   font-style: italic;
+}
+
+.clustering-mode-info .mode-text small.mode-note-text {
+  display: block;
+  margin-top: 0.5rem;
+  padding: 0.5rem;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  font-style: normal;
+  color: #1a365d;
 }
 
 .sample-download {

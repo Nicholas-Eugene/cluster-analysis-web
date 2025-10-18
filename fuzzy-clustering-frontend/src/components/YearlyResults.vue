@@ -2,7 +2,10 @@
   <div class="yearly-results">
     <div class="results-header">
       <h2>📅 Hasil Clustering Per Tahun</h2>
-      <p>Analisis clustering dilakukan secara terpisah untuk setiap tahun</p>
+      <p>Analisis clustering dilakukan secara terpisah untuk setiap tahun. Setiap tahun dianalisis secara independen menggunakan fitur: IPM, Garis Kemiskinan, dan Pengeluaran Per Kapita.</p>
+      <div class="mode-note">
+        <p><strong>💡 Catatan:</strong> Mode ini berbeda dengan "All Years" yang mengelompokkan berdasarkan pola multi-tahun. Hasil akan berbeda karena pendekatan analisisnya berbeda.</p>
+      </div>
     </div>
 
     <!-- Overall Summary -->
@@ -425,6 +428,21 @@ export default {
 
 .results-header p {
   color: #718096;
+}
+
+.mode-note {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-left: 4px solid #667eea;
+  border-radius: 4px;
+}
+
+.mode-note p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 .overall-summary {

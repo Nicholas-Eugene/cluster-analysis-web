@@ -54,10 +54,15 @@
         <div v-else-if="singleResultData" class="single-year-results">
           <!-- Summary Info for all_years_wide mode -->
           <div v-if="results.clustering_type === 'all_years_wide'" class="card all-years-info">
-            <h3>ℹ️ Informasi Clustering All Years</h3>
+            <h3>ℹ️ Informasi Clustering All Years (Wide Format)</h3>
             <p class="info-text">
-              Mode clustering ini menggunakan semua data tahun secara bersamaan dalam format wide.
-              Setiap daerah direpresentasikan dengan semua nilai metrik dari berbagai tahun sebagai fitur.
+              <strong>Mode clustering ini menggunakan semua data tahun secara bersamaan.</strong> Setiap daerah direpresentasikan 
+              dengan semua nilai metrik dari berbagai tahun sebagai fitur (contoh: ipm_2015, ipm_2016, ..., ipm_2021).
+            </p>
+            <p class="info-text">
+              ⚠️ <strong>Perbedaan dengan Mode Per Tahun:</strong> Mode "All Years" mengelompokkan daerah berdasarkan 
+              <em>pola/tren mereka sepanjang waktu</em>, sedangkan mode "Per Tahun" mengelompokkan daerah secara terpisah 
+              untuk setiap tahun. Hasil clustering berbeda karena kedua mode menjawab pertanyaan analisis yang berbeda.
             </p>
             <div class="info-details">
               <div class="info-item">
