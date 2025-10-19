@@ -80,33 +80,6 @@
       </div>
     </div>
 
-    <!-- Cluster Interpretation Overview -->
-    <div v-if="resultData.clusters && resultData.clusters.some(c => c.interpretation)" 
-         class="cluster-interpretation-overview card">
-      <h3>🏷️ Interpretasi Cluster</h3>
-      <p class="interpretation-intro">Berdasarkan analisis IPM dan pengeluaran per kapita dari semua tahun, berikut adalah karakteristik masing-masing cluster:</p>
-      <div class="interpretation-grid">
-        <div v-for="(cluster, index) in resultData.clusters" 
-             :key="cluster.id"
-             class="interpretation-card"
-             :style="{ borderLeftColor: cluster.interpretation?.color_code || '#667eea' }">
-          <div class="interpretation-card-header">
-            <div class="cluster-badge" :style="{ backgroundColor: cluster.interpretation?.color_code || '#667eea' }">
-              <span class="cluster-icon">{{ getInterpretationIcon(cluster.interpretation?.category) }}</span>
-              <span class="cluster-id">Cluster {{ cluster.id }}</span>
-            </div>
-            <div class="cluster-size">{{ cluster.size }} daerah</div>
-          </div>
-          <h4 class="interpretation-title">{{ cluster.interpretation?.label || `Cluster ${cluster.id}` }}</h4>
-          <p class="interpretation-desc">{{ cluster.interpretation?.description || 'Tidak ada interpretasi tersedia.' }}</p>
-          <div v-if="cluster.interpretation?.metrics" class="interpretation-quick-stats">
-            <span class="quick-stat">IPM: {{ cluster.interpretation.metrics.ipm_level }}</span>
-            <span class="quick-stat">{{ cluster.interpretation.metrics.poverty_status }}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
     <!-- Evaluation Metrics -->
     <div class="card">
       <h3>📈 Metrik Evaluasi</h3>
@@ -323,18 +296,6 @@ export default {
       }
     }
 
-    const getInterpretationIcon = (category) => {
-      if (!category) return '📊'
-      const icons = {
-        'poor': '⚠️',
-        'prosperous': '✨',
-        'vulnerable': '⚡',
-        'developing': '📈',
-        'middle': '🔄'
-      }
-      return icons[category] || '📊'
-    }
-
     return {
       resultData,
       formatCurrency,
@@ -343,8 +304,7 @@ export default {
       getSilhouetteQuality,
       getSilhouetteQualityText,
       isDownloadingPDF,
-      downloadPDF,
-      getInterpretationIcon
+      downloadPDF
     }
   }
 }
@@ -761,100 +721,4 @@ export default {
   .year-stats {
     grid-template-columns: 1fr;
   }
-}
-
-/* Cluster Interpretation Overview */
-.cluster-interpretation-overview {
-  margin-bottom: 2rem;
-}
-
-.interpretation-intro {
-  color: #4a5568;
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-  line-height: 1.6;
-}
-
-.interpretation-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-  gap: 1.5rem;
-}
-
-.interpretation-card {
-  background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
-  border-left: 4px solid #667eea;
-  border-radius: 12px;
-  padding: 1.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  transition: all 0.3s ease;
-}
-
-.interpretation-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
-}
-
-.interpretation-card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.cluster-badge {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #667eea;
-  border-radius: 20px;
-  color: white;
-  font-weight: 600;
-  font-size: 0.9rem;
-}
-
-.cluster-icon {
-  font-size: 1.1rem;
-}
-
-.cluster-id {
-  font-size: 0.85rem;
-}
-
-.cluster-size {
-  font-size: 0.85rem;
-  color: #718096;
-  font-weight: 600;
-}
-
-.interpretation-title {
-  margin: 0 0 0.75rem 0;
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #2d3748;
-}
-
-.interpretation-desc {
-  margin: 0 0 1rem 0;
-  color: #4a5568;
-  font-size: 0.9rem;
-  line-height: 1.5;
-}
-
-.interpretation-quick-stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.quick-stat {
-  padding: 0.25rem 0.75rem;
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 12px;
-  font-size: 0.8rem;
-  color: #2d3748;
-  font-weight: 600;
-}
-</style>
+}</style>
