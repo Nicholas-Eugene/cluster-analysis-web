@@ -179,6 +179,8 @@ class ClusteringAlgorithms:
             sil_score = silhouette_score(scaled_data, cluster_labels)
             # Calculate per-sample silhouette scores for silhouette plot
             sil_samples = silhouette_samples(scaled_data, cluster_labels)
+            print(f"✅ Silhouette samples calculated: {len(sil_samples)} scores")
+            print(f"   Score range: [{sil_samples.min():.3f}, {sil_samples.max():.3f}]")
         except ValueError as e:
             print(f"   ⚠️ Cannot calculate Silhouette score: {e}")
             sil_score = -1.0
@@ -240,9 +242,11 @@ class ClusteringAlgorithms:
                         "membership": float(cluster_memberships[idx]),
                     }
                     
-                    # Add silhouette score for this member
+                    # Add silhouette score for this member (with boundary check)
                     if sil_samples is not None and idx < len(cluster_indices):
-                        member_info["silhouette_score"] = float(sil_samples[cluster_indices[idx]])
+                        global_idx = cluster_indices[idx]
+                        if global_idx < len(sil_samples):
+                            member_info["silhouette_score"] = float(sil_samples[global_idx])
                     
                     # Add feature values
                     for feature in features:
@@ -656,4 +660,6 @@ def run_clustering_all_years(
         "clustering_type": "all_years_wide",
         "overall_summary": overall_summary,
         "results_per_year": results_per_year,
+    }
+,
     }
