@@ -88,6 +88,37 @@
         </div>
         </div>
       </div>
+    </div>
+
+    <!-- Cluster Interpretation Overview -->
+    <div v-if="resultData.clusters && resultData.clusters.some(c => c.interpretation)" 
+         class="cluster-interpretation-overview card">
+      <h3>🏷️ Interpretasi Cluster</h3>
+      <p class="interpretation-intro">Berdasarkan analisis IPM dan pengeluaran per kapita dari semua tahun, berikut adalah karakteristik masing-masing cluster:</p>
+      <div class="interpretation-grid">
+        <div v-for="(cluster, index) in resultData.clusters" 
+             :key="cluster.id"
+             class="interpretation-card"
+             :style="{ borderLeftColor: cluster.interpretation?.color_code || '#667eea' }">
+          <div class="interpretation-card-header">
+            <div class="cluster-badge" :style="{ backgroundColor: cluster.interpretation?.color_code || '#667eea' }">
+              <span class="cluster-icon">{{ getInterpretationIcon(cluster.interpretation?.category) }}</span>
+              <span class="cluster-id">Cluster {{ cluster.id }}</span>
+            </div>
+            <div class="cluster-size">{{ cluster.size }} daerah</div>
+          </div>
+          <h4 class="interpretation-title">{{ cluster.interpretation?.label || `Cluster ${cluster.id}` }}</h4>
+          <p class="interpretation-desc">{{ cluster.interpretation?.description || 'Tidak ada interpretasi tersedia.' }}</p>
+          <div v-if="cluster.interpretation?.metrics" class="interpretation-quick-stats">
+            <span class="quick-stat">IPM: {{ cluster.interpretation.metrics.ipm_level }}</span>
+            <span class="quick-stat">{{ cluster.interpretation.metrics.poverty_status }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Evaluation Metrics -->
+    <div class="card">
       <h3>📈 Metrik Evaluasi</h3>
       <div class="year-evaluation">
         <div class="metrics-grid">
