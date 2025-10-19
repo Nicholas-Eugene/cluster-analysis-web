@@ -407,6 +407,16 @@ export default {
       }
     }
 
+    const getInterpretationIcon = (category) => {
+      const icons = {
+        'poor': '⚠️',
+        'prosperous': '✨',
+        'vulnerable': '⚡',
+        'developing': '📈',
+        'middle': '🔄'
+      }
+      return icons[category] || '📊'
+    }
 
     // Set default selected year when component mounts or data changes
     const setDefaultYear = async () => {

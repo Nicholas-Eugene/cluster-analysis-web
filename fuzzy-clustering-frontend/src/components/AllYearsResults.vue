@@ -291,6 +291,18 @@ export default {
       }
     }
 
+    const getInterpretationIcon = (category) => {
+      if (!category) return '📊'
+      const icons = {
+        'poor': '⚠️',
+        'prosperous': '✨',
+        'vulnerable': '⚡',
+        'developing': '📈',
+        'middle': '🔄'
+      }
+      return icons[category] || '📊'
+    }
+
     return {
       resultData,
       formatCurrency,
