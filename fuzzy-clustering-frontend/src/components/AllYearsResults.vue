@@ -2,10 +2,22 @@
   <div class="yearly-results">
     <!-- Results Header -->
     <div class="results-header">
-      <h2>📅 Hasil Clustering All Years (Wide Format)</h2>
-      <p>Analisis clustering menggunakan semua data tahun secara bersamaan. Setiap daerah direpresentasikan dengan semua nilai metrik dari berbagai tahun sebagai fitur (contoh: ipm_2015, ipm_2016, ..., ipm_2021).</p>
-      <div class="mode-note">
-        <p><strong>💡 Catatan:</strong> Mode "All Years" mengelompokkan daerah berdasarkan pola/tren mereka sepanjang waktu, sedangkan mode "Per Tahun" mengelompokkan daerah secara terpisah untuk setiap tahun. Hasil clustering berbeda karena pendekatan analisisnya berbeda.</p>
+      <div class="header-content">
+        <h2>📊 Hasil Clustering All Years (Wide Format)</h2>
+        <p>Analisis clustering menggunakan semua data tahun secara bersamaan. Setiap daerah direpresentasikan dengan semua nilai metrik dari berbagai tahun sebagai fitur (contoh: ipm_2015, ipm_2016, ..., ipm_2021).</p>
+        <div class="mode-note">
+          <p><strong>💡 Catatan:</strong> Mode "All Years" mengelompokkan daerah berdasarkan pola/tren mereka sepanjang waktu, sedangkan mode "Per Tahun" mengelompokkan daerah secara terpisah untuk setiap tahun. Hasil clustering berbeda karena pendekatan analisisnya berbeda.</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button 
+          @click="downloadPDF" 
+          :disabled="isDownloadingPDF"
+          class="btn btn-download"
+        >
+          <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
+          <span v-else>⏳ Generating PDF...</span>
+        </button>
       </div>
     </div>
 
@@ -261,123 +273,22 @@ export default {
       return 'Perlu Perbaikan'
     }
 
-    const exportToCSV = () => {
-      const data = resultData.value
-      const csvData = []
-      
-      // Build headers
-      let headers = ['Cluster', 'Kabupaten/Kota', 'Provinsi', 'IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita']
-      
-      if (data.algorithm === 'Fuzzy C-Means') {
-        headers.push('Membership')
-      }
-      
-      csvData.push(headers.join(','))
-      
-      // Add data rows
-      data.clusters.forEach(cluster => {
-        cluster.members.forEach(member => {
-          const row = [
-            cluster.id,
-            `"${member.kabupaten_kota}"`,
-            `"${member.provinsi || 'N/A'}"`,
-            member.ipm?.toFixed(2) || 'N/A',
-            member.garis_kemiskinan || 'N/A',
-            member.pengeluaran_per_kapita || 'N/A'
-          ]
-          
-          if (data.algorithm === 'Fuzzy C-Means') {
-            row.push((member.membership * 100).toFixed(2))
-          }
-          
-          csvData.push(row.join(','))
-        })
-      })
-      
-      const blob = new Blob([csvData.join('\n')], { type: 'text/csv' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `clustering_results_${data.algorithm.toLowerCase()}_all_years_${Date.now()}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    }
+    const isDownloadingPDF = ref(false)
 
-    const exportToJSON = () => {
-      const exportData = {
-        ...props.results,
-        export_timestamp: new Date().toISOString()
+    const downloadPDF = async () => {
+      if (!props.sessionId) {
+        alert('Session ID tidak tersedia. Tidak dapat mendownload PDF.')
+        return
       }
-      
-      const algorithmName = resultData.value?.algorithm || 'unknown'
-      
-      const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `clustering_results_${algorithmName.toLowerCase()}_all_years_${Date.now()}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    }
 
-    const generateReport = () => {
-      const data = resultData.value
-      
-      const reportLines = [
-        `LAPORAN ANALISIS CLUSTERING ALL YEARS`,
-        `Algoritma: ${data.algorithm}`,
-        `Mode: All Years (Wide Format)`,
-        `Tanggal: ${new Date().toLocaleDateString('id-ID')}`,
-        ``
-      ]
-
-      if (props.results.overall_summary) {
-        reportLines.push(`INFORMASI CLUSTERING ALL YEARS:`)
-        reportLines.push(`- Tahun yang Diproses: ${props.results.overall_summary.years_processed?.join(', ') || 'N/A'}`)
-        reportLines.push(`- Total Tahun: ${props.results.overall_summary.total_years || 0}`)
-        reportLines.push(`- Jumlah Fitur: ${props.results.overall_summary.features_used?.length || 0}`)
-        reportLines.push(``)
+      isDownloadingPDF.value = true
+      try {
+        await pdfService.downloadAndSave(props.sessionId, 'all_years')
+      } catch (error) {
+        alert(error.message || 'Error generating PDF. Please try again.')
+      } finally {
+        isDownloadingPDF.value = false
       }
-      
-      reportLines.push(`RINGKASAN:`)
-      reportLines.push(`- Total Daerah: ${data.summary.total_regions}`)
-      reportLines.push(`- Jumlah Cluster: ${data.summary.num_clusters}`)
-      reportLines.push(`- Waktu Eksekusi: ${data.summary.execution_time?.toFixed(2)}s`)
-      reportLines.push(``)
-      reportLines.push(`EVALUASI:`)
-      reportLines.push(`- Davies-Bouldin Index: ${data.evaluation.davies_bouldin?.toFixed(4) || 'N/A'}`)
-      reportLines.push(`- Silhouette Score: ${data.evaluation.silhouette_score?.toFixed(4) || 'N/A'}`)
-      reportLines.push(``)
-      reportLines.push(`DETAIL CLUSTER:`)
-      
-      data.clusters.forEach(cluster => {
-        reportLines.push(``)
-        reportLines.push(`Cluster ${cluster.id} (${cluster.size} daerah):`)
-        if (cluster.centroid) {
-          reportLines.push(`  Centroid:`)
-          for (const [key, value] of Object.entries(cluster.centroid)) {
-             reportLines.push(`    ${key}: ${value?.toFixed(2)}`)
-          }
-        }
-        reportLines.push(`  Anggota:`)
-        cluster.members.forEach(member => {
-          reportLines.push(`    - ${member.kabupaten_kota}`)
-        })
-      })
-      
-      const blob = new Blob([reportLines.join('\n')], { type: 'text/plain' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `clustering_report_${data.algorithm.toLowerCase()}_all_years_${Date.now()}.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
     }
 
     return {
