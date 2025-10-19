@@ -441,7 +441,8 @@ export default {
       getSilhouetteQuality,
       getSilhouetteQualityText,
       isDownloadingPDF,
-      downloadPDF
+      downloadPDF,
+      getInterpretationIcon
     }
   }
 }
@@ -876,6 +877,101 @@ export default {
 .btn-download-main {
   font-size: 1.1rem;
   padding: 1rem 2rem;
+}
+
+/* Cluster Interpretation Overview */
+.cluster-interpretation-overview {
+  margin-bottom: 2rem;
+}
+
+.interpretation-intro {
+  color: #4a5568;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.interpretation-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.interpretation-card {
+  background: linear-gradient(135deg, #ffffff 0%, #f7fafc 100%);
+  border-left: 4px solid #667eea;
+  border-radius: 12px;
+  padding: 1.25rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.interpretation-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+}
+
+.interpretation-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.cluster-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #667eea;
+  border-radius: 20px;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.cluster-icon {
+  font-size: 1.1rem;
+}
+
+.cluster-id {
+  font-size: 0.85rem;
+}
+
+.cluster-size {
+  font-size: 0.85rem;
+  color: #718096;
+  font-weight: 600;
+}
+
+.interpretation-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.interpretation-desc {
+  margin: 0 0 1rem 0;
+  color: #4a5568;
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.interpretation-quick-stats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.quick-stat {
+  padding: 0.25rem 0.75rem;
+  background: white;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  color: #2d3748;
+  font-weight: 600;
 }
 
 
