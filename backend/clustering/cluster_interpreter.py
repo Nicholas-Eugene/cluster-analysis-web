@@ -1,6 +1,7 @@
 """
 Cluster Interpretation Module
 Automatically interprets and labels clusters based on their characteristics
+Uses NORMALIZED data for comparison across all 3 variables: IPM, Pengeluaran, Garis Kemiskinan
 """
 
 import numpy as np
@@ -10,6 +11,7 @@ from typing import Dict, List, Any
 def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict[str, float]]) -> Dict[str, Any]:
     """
     Interpret cluster based on its centroid values relative to other clusters
+    USING NORMALIZED VALUES for IPM, Pengeluaran, AND Garis Kemiskinan
     
     Args:
         centroid: The centroid of the cluster to interpret
@@ -25,13 +27,12 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
     pengeluaran = centroid.get('pengeluaran_per_kapita', 0)  # ribu rupiah/orang/tahun
     
     # Convert pengeluaran to rupiah/kapita/bulan for comparison
-    # From: ribu rupiah/orang/tahun
-    # To: rupiah/kapita/bulan
     pengeluaran_per_bulan = (pengeluaran * 1000) / 12  # rupiah/kapita/bulan
     
-    # Calculate relative values across all clusters
+    # Calculate relative values across all clusters (NORMALIZED DATA)
     ipm_values = [c.get('ipm', 0) for c in all_centroids]
     pengeluaran_values = [c.get('pengeluaran_per_kapita', 0) for c in all_centroids]
+    garis_kemiskinan_values = [c.get('garis_kemiskinan', 0) for c in all_centroids]
     
     ipm_min = min(ipm_values)
     ipm_max = max(ipm_values)
@@ -41,7 +42,11 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
     pengeluaran_max = max(pengeluaran_values)
     pengeluaran_range = pengeluaran_max - pengeluaran_min
     
-    # Normalize values (0-1 scale)
+    gk_min = min(garis_kemiskinan_values)
+    gk_max = max(garis_kemiskinan_values)
+    gk_range = gk_max - gk_min
+    
+    # Normalize values (0-1 scale) - USING NORMALIZED DATA FOR COMPARISON
     if ipm_range > 0:
         ipm_normalized = (ipm - ipm_min) / ipm_range
     else:
@@ -52,7 +57,12 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
     else:
         pengeluaran_normalized = 0.5
     
-    # Compare pengeluaran with garis kemiskinan
+    if gk_range > 0:
+        gk_normalized = (garis_kemiskinan - gk_min) / gk_range
+    else:
+        gk_normalized = 0.5
+    
+    # Compare pengeluaran with garis kemiskinan (ratio for fallback)
     ratio_to_poverty = pengeluaran_per_bulan / garis_kemiskinan if garis_kemiskinan > 0 else 1.0
     
     # Determine cluster label based on characteristics
@@ -61,19 +71,117 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
     category = ""
     color_code = ""
     
-    # IPM thresholds (normalized)
-    IPM_LOW = 0.33
-    IPM_HIGH = 0.67
+    # Thresholds (normalized 0-1 scale)
+    LOW = 0.33
+    HIGH = 0.67
     
-    # Poverty line ratio thresholds
+    # Poverty line ratio thresholds (untuk fallback case)
     BELOW_POVERTY = 1.0
     SLIGHTLY_ABOVE = 1.3
     WELL_ABOVE = 2.0
     
-    # Interpret cluster
-    if ipm_normalized < IPM_LOW and ratio_to_poverty < BELOW_POVERTY:
-        # Cluster Miskin
-        label = "Cluster Miskin"
+    # NEW LOGIC: Use normalized values for all variables
+    # Case 1: Daerah Maju dengan Biaya Hidup Mahal
+    # IPM tinggi + Pengeluaran tinggi + Garis Kemiskinan tinggi
+    if ipm_normalized > HIGH and pengeluaran_normalized > HIGH and gk_normalized > HIGH:
+        label = "Daerah Maju Biaya Tinggi"
+        category = "prosperous_high_cost"
+        color_code = "#9333ea"  # Purple
+        description = (
+            f"Daerah maju dengan IPM tinggi ({ipm:.2f}), "
+            f"pengeluaran per kapita tinggi ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan), dan "
+            f"garis kemiskinan tinggi (Rp {garis_kemiskinan:,.0f}/bulan). "
+            f"Daerah ini memiliki standar hidup tinggi dengan biaya hidup yang mahal, "
+            f"karakteristik daerah urban maju seperti kota besar."
+        )
+    
+    # Case 2: Daerah Sejahtera Biaya Rendah
+    # IPM tinggi + Pengeluaran tinggi + Garis Kemiskinan rendah
+    elif ipm_normalized > HIGH and pengeluaran_normalized > HIGH and gk_normalized < LOW:
+        label = "Daerah Sejahtera Efisien"
+        category = "prosperous"
+        color_code = "#48bb78"  # Green
+        description = (
+            f"Daerah sejahtera dengan IPM tinggi ({ipm:.2f}), "
+            f"pengeluaran per kapita tinggi ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan), namun "
+            f"garis kemiskinan rendah (Rp {garis_kemiskinan:,.0f}/bulan). "
+            f"Daerah ini memiliki kesejahteraan baik dengan biaya hidup terjangkau."
+        )
+    
+    # Case 3: Cluster Miskin dengan Biaya Rendah
+    # IPM rendah + Pengeluaran rendah + Garis Kemiskinan rendah
+    elif ipm_normalized < LOW and pengeluaran_normalized < LOW and gk_normalized < LOW:
+        label = "Daerah Tertinggal"
+        category = "poor"
+        color_code = "#f56565"  # Red
+        description = (
+            f"Daerah tertinggal dengan IPM rendah ({ipm:.2f}), "
+            f"pengeluaran per kapita rendah ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan), dan "
+            f"garis kemiskinan rendah (Rp {garis_kemiskinan:,.0f}/bulan). "
+            f"Daerah ini memerlukan perhatian khusus untuk program pengentasan kemiskinan "
+            f"dan peningkatan infrastruktur."
+        )
+    
+    # Case 4: IPM rendah tapi biaya tinggi (problematic)
+    # IPM rendah + Garis Kemiskinan tinggi
+    elif ipm_normalized < LOW and gk_normalized > HIGH:
+        label = "Daerah Rentan Biaya Tinggi"
+        category = "vulnerable"
+        color_code = "#ed8936"  # Orange
+        description = (
+            f"Daerah dengan IPM rendah ({ipm:.2f}) namun "
+            f"garis kemiskinan tinggi (Rp {garis_kemiskinan:,.0f}/bulan), "
+            f"sementara pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan). "
+            f"Daerah ini menghadapi tantangan biaya hidup tinggi dengan kualitas SDM rendah, "
+            f"memerlukan intervensi komprehensif."
+        )
+    
+    # Case 5: IPM tinggi, pengeluaran sedang, gk tinggi
+    elif ipm_normalized > HIGH and pengeluaran_normalized >= LOW and gk_normalized > HIGH:
+        label = "Daerah Berkembang Biaya Tinggi"
+        category = "developing"
+        color_code = "#4299e1"  # Blue
+        description = (
+            f"Daerah dengan IPM tinggi ({ipm:.2f}), "
+            f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan), dan "
+            f"garis kemiskinan tinggi (Rp {garis_kemiskinan:,.0f}/bulan). "
+            f"Daerah berkembang dengan biaya hidup tinggi."
+        )
+    
+    # Case 6: Pengeluaran & GK tinggi (regardless of IPM)
+    elif pengeluaran_normalized > HIGH and gk_normalized > HIGH:
+        label = "Daerah Biaya Tinggi"
+        category = "high_cost"
+        color_code = "#a855f7"  # Light Purple
+        description = (
+            f"Pengeluaran per kapita tinggi ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan) dengan "
+            f"garis kemiskinan tinggi (Rp {garis_kemiskinan:,.0f}/bulan), "
+            f"IPM {ipm:.2f}. "
+            f"Daerah dengan biaya hidup tinggi."
+        )
+    
+    # Case 7: IPM tinggi (other cases)
+    elif ipm_normalized > HIGH:
+        label = "Daerah Berkembang"
+        category = "developing"
+        color_code = "#4299e1"  # Blue
+        description = (
+            f"IPM tinggi ({ipm:.2f}), "
+            f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan), "
+            f"garis kemiskinan (Rp {garis_kemiskinan:,.0f}/bulan). "
+            f"Daerah dengan potensi pertumbuhan."
+        )
+    
+    # Case 8: IPM rendah dengan pengeluaran di bawah garis kemiskinan
+    elif ipm_normalized < LOW and ratio_to_poverty < BELOW_POVERTY:
+        label = "Daerah Miskin"
         category = "poor"
         color_code = "#f56565"  # Red
         description = (
@@ -81,72 +189,31 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
             f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
             f"Rp {pengeluaran_per_bulan:,.0f}/bulan) berada di bawah garis kemiskinan "
             f"(Rp {garis_kemiskinan:,.0f}/bulan). "
-            f"Daerah dalam cluster ini memerlukan perhatian khusus untuk program pengentasan kemiskinan."
+            f"Daerah ini memerlukan perhatian khusus untuk program pengentasan kemiskinan."
         )
-        
-    elif ipm_normalized > IPM_HIGH and ratio_to_poverty > WELL_ABOVE:
-        # Cluster Tidak Miskin / Sejahtera
-        label = "Cluster Sejahtera"
-        category = "prosperous"
-        color_code = "#48bb78"  # Green
-        description = (
-            f"IPM tinggi ({ipm:.2f}), "
-            f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
-            f"Rp {pengeluaran_per_bulan:,.0f}/bulan) jauh di atas garis kemiskinan "
-            f"(Rp {garis_kemiskinan:,.0f}/bulan). "
-            f"Daerah dalam cluster ini memiliki kesejahteraan yang baik dan dapat menjadi role model."
-        )
-        
-    elif ipm_normalized <= IPM_LOW and ratio_to_poverty > BELOW_POVERTY:
-        # IPM rendah tapi pengeluaran di atas garis kemiskinan
-        label = "Cluster Rentan"
-        category = "vulnerable"
-        color_code = "#ed8936"  # Orange
-        description = (
-            f"IPM rendah ({ipm:.2f}) meskipun pengeluaran per kapita "
-            f"({pengeluaran:.0f} ribu/tahun atau Rp {pengeluaran_per_bulan:,.0f}/bulan) "
-            f"di atas garis kemiskinan (Rp {garis_kemiskinan:,.0f}/bulan). "
-            f"Daerah ini memerlukan peningkatan kualitas pendidikan dan kesehatan."
-        )
-        
-    elif ipm_normalized > IPM_HIGH and ratio_to_poverty < SLIGHTLY_ABOVE:
-        # IPM tinggi tapi pengeluaran rendah
-        label = "Cluster Berkembang"
-        category = "developing"
-        color_code = "#4299e1"  # Blue
-        description = (
-            f"IPM tinggi ({ipm:.2f}) namun pengeluaran per kapita "
-            f"({pengeluaran:.0f} ribu/tahun atau Rp {pengeluaran_per_bulan:,.0f}/bulan) "
-            f"masih mendekati garis kemiskinan (Rp {garis_kemiskinan:,.0f}/bulan). "
-            f"Daerah ini memerlukan peningkatan ekonomi untuk meningkatkan daya beli."
-        )
-        
+    
     else:
-        # Cluster Sedang / Menengah
-        label = "Cluster Menengah"
+        # Default: Cluster Menengah
+        label = "Daerah Menengah"
         category = "middle"
         color_code = "#ecc94b"  # Yellow
         
-        if ratio_to_poverty < SLIGHTLY_ABOVE:
-            description = (
-                f"IPM sedang ({ipm:.2f}), "
-                f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
-                f"Rp {pengeluaran_per_bulan:,.0f}/bulan) sedikit di atas garis kemiskinan "
-                f"(Rp {garis_kemiskinan:,.0f}/bulan). "
-                f"Daerah dalam cluster ini memerlukan program berkelanjutan untuk mencegah kemiskinan dan meningkatkan kesejahteraan."
-            )
-        else:
-            description = (
-                f"IPM sedang ({ipm:.2f}), "
-                f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
-                f"Rp {pengeluaran_per_bulan:,.0f}/bulan) di atas garis kemiskinan "
-                f"(Rp {garis_kemiskinan:,.0f}/bulan). "
-                f"Daerah dalam cluster ini berada dalam kondisi cukup baik namun masih dapat ditingkatkan."
-            )
+        description = (
+            f"IPM sedang ({ipm:.2f}), "
+            f"pengeluaran per kapita ({pengeluaran:.0f} ribu/tahun atau "
+            f"Rp {pengeluaran_per_bulan:,.0f}/bulan), "
+            f"garis kemiskinan (Rp {garis_kemiskinan:,.0f}/bulan). "
+            f"Daerah dalam kondisi menengah dengan potensi untuk ditingkatkan."
+        )
     
     # Additional metrics
     metrics = {
         'ipm_level': _get_ipm_level(ipm_normalized),
+        'ipm_normalized': round(ipm_normalized, 3),
+        'expenditure_level': _get_level(pengeluaran_normalized),
+        'expenditure_normalized': round(pengeluaran_normalized, 3),
+        'poverty_line_level': _get_level(gk_normalized),
+        'poverty_line_normalized': round(gk_normalized, 3),
         'poverty_status': _get_poverty_status(ratio_to_poverty),
         'ipm_score': ipm,
         'poverty_line_ratio': ratio_to_poverty,
@@ -168,6 +235,16 @@ def _get_ipm_level(ipm_normalized: float) -> str:
     if ipm_normalized < 0.33:
         return "Rendah"
     elif ipm_normalized < 0.67:
+        return "Sedang"
+    else:
+        return "Tinggi"
+
+
+def _get_level(normalized: float) -> str:
+    """Get general level description for normalized value"""
+    if normalized < 0.33:
+        return "Rendah"
+    elif normalized < 0.67:
         return "Sedang"
     else:
         return "Tinggi"
@@ -199,7 +276,8 @@ def add_cluster_interpretations(clusters: List[Dict[str, Any]]) -> List[Dict[str
         return clusters
     
     # Extract all centroids for comparison (skip None centroids for noise clusters)
-    all_centroids = [cluster.get('centroid', {}) for cluster in clusters if cluster.get('centroid') is not None]
+    all_centroids = [cluster.get('centroid', {}) for cluster in clusters 
+                     if cluster.get('centroid') is not None]
     
     # Skip interpretation if no valid centroids
     if not all_centroids:
