@@ -3,7 +3,7 @@
     <nav class="navbar">
       <div class="nav-container">
         <router-link to="/" class="nav-logo">
-          <h2>Clustering FCM</h2>
+          <h2>Pemetaan Wilayah Kemiskinan</h2>
         </router-link>
         <ul class="nav-menu">
           <li class="nav-item dropdown">
@@ -12,7 +12,7 @@
               <span class="dropdown-arrow">▼</span>
             </a>
             <ul class="dropdown-menu" :class="{ show: isDropdownOpen }">
-              <li><a href="/#hero" class="dropdown-link" @click="closeDropdown">🏠 Hero</a></li>
+              <li><a href="/#title" class="dropdown-link" @click="closeDropdown">🏠 Title</a></li>
               <li><a href="/#about" class="dropdown-link" @click="closeDropdown">🌟 Algoritma</a></li>
               <li><a href="/#data" class="dropdown-link" @click="closeDropdown">📊 Data</a></li>
               <li><a href="/#background" class="dropdown-link" @click="closeDropdown">📖 Latar Belakang</a></li>

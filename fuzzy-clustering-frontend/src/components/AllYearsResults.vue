@@ -9,16 +9,6 @@
           <p><strong>💡 Catatan:</strong> Mode "All Years" mengelompokkan daerah berdasarkan pola/tren mereka sepanjang waktu, sedangkan mode "Per Tahun" mengelompokkan daerah secara terpisah untuk setiap tahun. Hasil clustering berbeda karena pendekatan analisisnya berbeda.</p>
         </div>
       </div>
-      <div class="header-actions">
-        <button 
-          @click="downloadPDF" 
-          :disabled="isDownloadingPDF"
-          class="btn btn-download"
-        >
-          <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
-          <span v-else>⏳ Generating PDF...</span>
-        </button>
-      </div>
     </div>
 
     <!-- Overall Summary -->
@@ -217,6 +207,17 @@
         :title="`Silhouette Plot - ${resultData.algorithm}`"
         :silhouetteScore="resultData.evaluation.silhouette_score"
       />
+
+      <div class="header-actions", style="margin-bottom: 2rem;">
+        <button 
+          @click="downloadPDF" 
+          :disabled="isDownloadingPDF"
+          class="btn btn-download"
+        >
+          <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
+          <span v-else>⏳ Generating PDF...</span>
+        </button>
+      </div>
     </div>
 
     <!-- Cluster Details -->

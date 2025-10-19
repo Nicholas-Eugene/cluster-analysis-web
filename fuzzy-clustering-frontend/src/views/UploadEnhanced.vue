@@ -4,16 +4,6 @@
       <div class="page-header">
         <h1>Analisis Clustering Regional Indonesia</h1>
         <p>Upload dataset dan konfigurasi parameter untuk analisis clustering <strong>per tahun</strong> menggunakan Fuzzy C-Means atau OPTICS</p>
-        <div class="clustering-info">
-          <div class="info-badge">
-            <span class="info-icon">🗓️</span>
-            <span>Clustering dilakukan terpisah untuk setiap tahun</span>
-          </div>
-          <div class="info-badge">
-            <span class="info-icon">🎯</span>
-            <span>Contoh: 2016 → Cluster A,B,C | 2017 → Cluster A,B,C</span>
-          </div>
-        </div>
       </div>
 
       <!-- Instructions Section -->
@@ -335,27 +325,6 @@
               <span class="help-icon">📌</span>
               Pilih antara 2-10 cluster. <strong>Rekomendasi: 3 atau 4 cluster</strong> untuk hasil yang mudah dipahami.
             </small>
-          </div>
-          
-          <div class="advanced-params-info">
-            <details>
-              <summary>🔧 Parameter Teknis (Otomatis)</summary>
-              <div class="auto-params-list">
-                <div class="auto-param-item">
-                  <span class="param-name">Fuzzy Coefficient:</span>
-                  <span class="param-value">2.0 (optimal)</span>
-                </div>
-                <div class="auto-param-item">
-                  <span class="param-name">Maksimal Iterasi:</span>
-                  <span class="param-value">300 iterasi</span>
-                </div>
-                <div class="auto-param-item">
-                  <span class="param-name">Toleransi Error:</span>
-                  <span class="param-value">0.0001 (presisi tinggi)</span>
-                </div>
-                <p class="auto-params-note">Parameter-parameter ini sudah diatur secara otomatis untuk hasil terbaik.</p>
-              </div>
-            </details>
           </div>
         </div>
 

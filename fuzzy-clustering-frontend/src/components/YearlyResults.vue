@@ -8,16 +8,6 @@
           <p><strong>💡 Catatan:</strong> Mode ini berbeda dengan "All Years" yang mengelompokkan berdasarkan pola multi-tahun. Hasil akan berbeda karena pendekatan analisisnya berbeda.</p>
         </div>
       </div>
-      <div class="header-actions">
-        <button 
-          @click="downloadPDF" 
-          :disabled="isDownloadingPDF"
-          class="btn btn-download"
-        >
-          <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
-          <span v-else>⏳ Generating PDF...</span>
-        </button>
-      </div>
     </div>
 
     <!-- Overall Summary -->
@@ -279,7 +269,16 @@
             :silhouetteScore="selectedYearResults.evaluation.silhouette_score"
           />
         </div>
-
+        <div class="header-actions" style="margin-bottom: 2rem;">
+          <button 
+            @click="downloadPDF" 
+            :disabled="isDownloadingPDF"
+            class="btn btn-download"
+          >
+            <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
+            <span v-else>⏳ Generating PDF...</span>
+          </button>
+        </div>
         <!-- Cluster Details for Selected Year -->
         <ClusterDetailCard 
           v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0"
