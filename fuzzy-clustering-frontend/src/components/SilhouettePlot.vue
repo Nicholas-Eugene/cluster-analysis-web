@@ -117,17 +117,19 @@ export default {
         return props.silhouetteScore
       }
       
-      // Calculate approximate average
+      // Calculate approximate average (exclude noise clusters)
       let total = 0
       let count = 0
       
-      props.clusters.forEach(cluster => {
-        cluster.members.forEach(member => {
-          const score = getSilhouetteScore(member)
-          total += score
-          count++
+      props.clusters
+        .filter(c => c.id !== -1 && c.id !== '-1') // Filter noise
+        .forEach(cluster => {
+          cluster.members.forEach(member => {
+            const score = getSilhouetteScore(member)
+            total += score
+            count++
+          })
         })
-      })
       
       return count > 0 ? total / count : 0
     })

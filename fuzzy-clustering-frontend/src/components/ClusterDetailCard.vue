@@ -16,14 +16,14 @@
     
     <div v-if="activeCluster" class="cluster-detail">
       <div class="cluster-info">
-        <h4>Cluster {{ activeCluster.id }}</h4>
+        <h4>{{ getClusterLabel(activeCluster) }}</h4>
         <div class="cluster-stats">
           <div class="stat-item">
             <span class="stat-label">Jumlah Daerah:</span>
             <span class="stat-value">{{ activeCluster.size }}</span>
           </div>
           <div v-if="activeCluster.centroid" class="centroid-info">
-            <h5>Centroid (Rata-rata):</h5>
+            <h5>Centroid (Rata-rata Cluster):</h5>
             <div class="centroid-values">
               <div class="centroid-item">
                 <span>IPM:</span>
@@ -122,7 +122,7 @@ export default {
       return colors[index % colors.length]
     }
 
-    // Helper to normalize cluster ID (convert to number if possible, handle 0 properly)
+    // Helper to normalize cluster ID (convert to number if possible, handle 0 and -1 properly)
     const normalizeId = (id) => {
       // Explicitly handle null/undefined
       if (id === null || id === undefined) return null
@@ -130,8 +130,17 @@ export default {
       // Try to convert to number
       const num = Number(id)
       
-      // Return number if it's valid (including 0!), otherwise return original
+      // Return number if it's valid (including 0 and -1!), otherwise return original
       return isNaN(num) ? id : num
+    }
+    
+    // Get display label for cluster (handle noise cluster from OPTICS)
+    const getClusterLabel = (cluster) => {
+      if (!cluster) return 'Unknown'
+      if (cluster.id === -1 || cluster.id === '-1') {
+        return '🔸 Noise (Outliers)'
+      }
+      return cluster.interpretation?.label || `Cluster ${cluster.id}`
     }
 
     // Check if cluster is active (handles type coercion properly)
@@ -201,6 +210,7 @@ export default {
       selectCluster,
       isClusterActive,
       normalizeId,
+      getClusterLabel,
       getInterpretationIcon
     }
   }
@@ -431,5 +441,7 @@ export default {
     width: 100%;
   }
 }
+</style>
+tyle>
 </style>
 tyle>

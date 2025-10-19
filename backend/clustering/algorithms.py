@@ -356,7 +356,8 @@ class ClusteringAlgorithms:
             cluster_members_df = df_clean[cluster_mask].copy()
 
             if len(cluster_members_df) > 0:
-                cluster_id = "noise" if label == -1 else int(label)
+                # Use -1 as cluster_id for noise (not string "noise")
+                cluster_id = int(label)
 
                 # Calculate centroid (None for noise)
                 centroid = None
