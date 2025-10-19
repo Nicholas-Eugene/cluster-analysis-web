@@ -81,6 +81,91 @@ class ClusteringPDFGenerator:
         ]
         return colors_list[:n_clusters]
     
+    def _create_cluster_map(self, clusters: List[Dict], title: str):
+        """Create geographical cluster map"""
+        try:
+            # Check if we have geographical data
+            has_geo_data = False
+            for cluster in clusters:
+                for member in cluster.get('members', []):
+                    if member.get('latitude') and member.get('longitude'):
+                        has_geo_data = True
+                        break
+                if has_geo_data:
+                    break
+            
+            if not has_geo_data:
+                # Create a simple text placeholder
+                fig, ax = plt.subplots(figsize=(8, 6))
+                ax.text(0.5, 0.5, 'Geographical data not available\nfor map visualization',
+                       ha='center', va='center', fontsize=14, color='gray')
+                ax.axis('off')
+                plt.tight_layout()
+                
+                img_buffer = io.BytesIO()
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                img_buffer.seek(0)
+                plt.close(fig)
+                return img_buffer
+            
+            # Create map
+            fig, ax = plt.subplots(figsize=(10, 8))
+            colors = self._get_cluster_colors(len(clusters))
+            
+            # Plot each cluster
+            for idx, cluster in enumerate(clusters):
+                members = cluster.get('members', [])
+                
+                lats = []
+                lons = []
+                
+                for member in members:
+                    lat = member.get('latitude')
+                    lon = member.get('longitude')
+                    if lat is not None and lon is not None:
+                        lats.append(lat)
+                        lons.append(lon)
+                
+                if lats and lons:
+                    ax.scatter(lons, lats, c=colors[idx], 
+                             label=f'Cluster {cluster["id"]} ({len(lats)} regions)',
+                             alpha=0.6, edgecolors='white', linewidth=1.5, s=150,
+                             zorder=5)
+            
+            # Set labels and title
+            ax.set_xlabel('Longitude', fontsize=12, fontweight='bold')
+            ax.set_ylabel('Latitude', fontsize=12, fontweight='bold')
+            ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+            ax.legend(loc='best', frameon=True, shadow=True)
+            ax.grid(True, alpha=0.3, linestyle='--')
+            
+            # Add background
+            ax.set_facecolor('#f0f0f0')
+            
+            plt.tight_layout()
+            
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+            img_buffer.seek(0)
+            plt.close(fig)
+            
+            return img_buffer
+            
+        except Exception as e:
+            print(f"Error creating cluster map: {e}")
+            # Return placeholder on error
+            fig, ax = plt.subplots(figsize=(8, 6))
+            ax.text(0.5, 0.5, f'Error creating map:\n{str(e)}',
+                   ha='center', va='center', fontsize=12, color='red')
+            ax.axis('off')
+            plt.tight_layout()
+            
+            img_buffer = io.BytesIO()
+            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+            img_buffer.seek(0)
+            plt.close(fig)
+            return img_buffer
+    
     def _create_scatter_plot(self, clusters: List[Dict], feature_x: str, feature_y: str, title: str):
         """Create scatter plot for two features"""
         fig, ax = plt.subplots(figsize=(8, 6))
@@ -440,10 +525,34 @@ class ClusteringPDFGenerator:
                 story.append(img2)
                 story.append(Spacer(1, 0.2*inch))
                 
-                # Box plots
+                scatter3 = self._create_scatter_plot(clusters, 'garis_kemiskinan', 'pengeluaran_per_kapita',
+                                                     f'Garis Kemiskinan vs Pengeluaran Per Kapita ({year})')
+                img_scatter3 = Image(scatter3, width=5*inch, height=3.75*inch)
+                story.append(img_scatter3)
+                story.append(Spacer(1, 0.2*inch))
+                
+                # Box plots - All 3 variables
                 box1 = self._create_box_plot(clusters, 'ipm', f'IPM Distribution by Cluster ({year})')
                 img3 = Image(box1, width=6*inch, height=3.6*inch)
                 story.append(img3)
+                story.append(Spacer(1, 0.2*inch))
+                
+                box2 = self._create_box_plot(clusters, 'garis_kemiskinan', 
+                                             f'Garis Kemiskinan Distribution by Cluster ({year})')
+                img_box2 = Image(box2, width=6*inch, height=3.6*inch)
+                story.append(img_box2)
+                story.append(Spacer(1, 0.2*inch))
+                
+                box3 = self._create_box_plot(clusters, 'pengeluaran_per_kapita',
+                                             f'Pengeluaran Per Kapita Distribution by Cluster ({year})')
+                img_box3 = Image(box3, width=6*inch, height=3.6*inch)
+                story.append(img_box3)
+                story.append(Spacer(1, 0.2*inch))
+                
+                # Cluster map
+                cluster_map = self._create_cluster_map(clusters, f'Geographical Distribution ({year})')
+                img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
+                story.append(img_map)
                 story.append(Spacer(1, 0.2*inch))
                 
                 # Correlation heatmap
@@ -532,6 +641,9 @@ class ClusteringPDFGenerator:
             story.append(Spacer(1, 0.3*inch))
             
             # Scatter plots
+            story.append(Paragraph("Scatter Plot Analysis", self.subheading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
             scatter1 = self._create_scatter_plot(clusters, 'ipm', 'garis_kemiskinan',
                                                  'IPM vs Garis Kemiskinan')
             img1 = Image(scatter1, width=5*inch, height=3.75*inch)
@@ -542,6 +654,12 @@ class ClusteringPDFGenerator:
                                                  'IPM vs Pengeluaran Per Kapita')
             img2 = Image(scatter2, width=5*inch, height=3.75*inch)
             story.append(img2)
+            story.append(Spacer(1, 0.3*inch))
+            
+            scatter3 = self._create_scatter_plot(clusters, 'garis_kemiskinan', 'pengeluaran_per_kapita',
+                                                 'Garis Kemiskinan vs Pengeluaran Per Kapita')
+            img_scatter3 = Image(scatter3, width=5*inch, height=3.75*inch)
+            story.append(img_scatter3)
             story.append(PageBreak())
             
             # Box plots
@@ -557,6 +675,21 @@ class ClusteringPDFGenerator:
                                          'Garis Kemiskinan Distribution by Cluster')
             img4 = Image(box2, width=6*inch, height=3.6*inch)
             story.append(img4)
+            story.append(Spacer(1, 0.3*inch))
+            
+            box3 = self._create_box_plot(clusters, 'pengeluaran_per_kapita',
+                                         'Pengeluaran Per Kapita Distribution by Cluster')
+            img_box3 = Image(box3, width=6*inch, height=3.6*inch)
+            story.append(img_box3)
+            story.append(PageBreak())
+            
+            # Geographical map
+            story.append(Paragraph("Geographical Distribution", self.subheading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
+            cluster_map = self._create_cluster_map(clusters, 'Cluster Map')
+            img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
+            story.append(img_map)
             story.append(PageBreak())
             
             # Correlation heatmap
