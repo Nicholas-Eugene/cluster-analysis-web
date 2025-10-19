@@ -661,5 +661,3 @@ def run_clustering_all_years(
         "overall_summary": overall_summary,
         "results_per_year": results_per_year,
     }
-,
-    }
