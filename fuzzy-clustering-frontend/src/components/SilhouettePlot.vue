@@ -124,11 +124,13 @@ export default {
       props.clusters
         .filter(c => c.id !== -1 && c.id !== '-1') // Filter noise
         .forEach(cluster => {
-          cluster.members.forEach(member => {
-            const score = getSilhouetteScore(member)
-            total += score
-            count++
-          })
+          if (cluster.members && Array.isArray(cluster.members)) {
+            cluster.members.forEach(member => {
+              const score = getSilhouetteScore(member)
+              total += score
+              count++
+            })
+          }
         })
       
       return count > 0 ? total / count : 0
@@ -181,14 +183,21 @@ export default {
 
         console.log('✅ Canvas and context ready')
 
+        // Filter out noise clusters (id = -1) from OPTICS
+        const validClusters = props.clusters.filter(c => c.id !== -1 && c.id !== '-1')
+        console.log(`Processing ${validClusters.length} valid clusters (filtered out noise)...`)
+        
+        if (validClusters.length === 0) {
+          console.warn('⚠️ No valid clusters to display (all are noise)')
+          return
+        }
+
         // Prepare silhouette data with better spacing
         const datasets = []
         let yPosition = 0
         const gapBetweenClusters = 10 // Fixed gap
 
-        console.log(`Processing ${props.clusters.length} clusters...`)
-
-        props.clusters.forEach((cluster, clusterIndex) => {
+        validClusters.forEach((cluster, clusterIndex) => {
           console.log(`Cluster ${cluster.id}:`, cluster.members?.length, 'members')
           
           if (!cluster.members || cluster.members.length === 0) {
@@ -552,3 +561,4 @@ export default {
   }
 }
 </style>
+>
