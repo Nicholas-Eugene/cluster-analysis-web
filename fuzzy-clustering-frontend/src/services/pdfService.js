@@ -15,8 +15,6 @@ export const pdfService = {
    */
   async downloadPDF(sessionId) {
     try {
-      console.log(`📄 Requesting PDF download for session: ${sessionId}`)
-      
       const response = await axios.get(
         `${API_BASE_URL}/clustering/download-pdf/${sessionId}/`,
         {
@@ -25,10 +23,8 @@ export const pdfService = {
         }
       )
       
-      console.log('✅ PDF downloaded successfully')
       return response.data
     } catch (error) {
-      console.error('❌ Error downloading PDF:', error)
       throw new Error(
         error.response?.data?.error || 
         'Failed to download PDF report. Please try again.'

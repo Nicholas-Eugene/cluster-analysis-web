@@ -399,100 +399,14 @@ export default {
 
       isDownloadingPDF.value = true
       try {
-        console.log('📄 Starting PDF download...')
-        const filename = await pdfService.downloadAndSave(props.sessionId, 'yearly')
-        console.log('✅ PDF downloaded:', filename)
+        await pdfService.downloadAndSave(props.sessionId, 'yearly')
       } catch (error) {
-        console.error('❌ Error downloading PDF:', error)
         alert(error.message || 'Error generating PDF. Please try again.')
       } finally {
         isDownloadingPDF.value = false
       }
     }
 
-    const exportToCSV = () => {
-      const csvRows = []
-      csvRows.push(['Year', 'Cluster', 'Kabupaten/Kota', 'IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita', 'Membership'])
-
-      Object.keys(props.results.results_per_year).forEach(year => {
-        const yearData = props.results.results_per_year[year]
-        if (yearData.clusters) {
-          yearData.clusters.forEach(cluster => {
-            cluster.members.forEach(member => {
-              csvRows.push([
-                year,
-                cluster.id,
-                member.kabupaten_kota,
-                member.ipm?.toFixed(2),
-                member.garis_kemiskinan,
-                member.pengeluaran_per_kapita,
-                member.membership?.toFixed(4) || '1.0'
-              ])
-            })
-          })
-        }
-      })
-
-      const csvContent = csvRows.map(row => row.join(',')).join('\n')
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `clustering-yearly-results-${new Date().getTime()}.csv`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    }
-
-    const exportToJSON = () => {
-      const jsonContent = JSON.stringify(props.results, null, 2)
-      const blob = new Blob([jsonContent], { type: 'application/json' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `clustering-yearly-results-${new Date().getTime()}.json`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    }
-
-    const generateTextReport = () => {
-      const reportLines = [
-        `LAPORAN ANALISIS CLUSTERING PER TAHUN`,
-        `Algoritma: ${props.results.overall_summary.algorithm}`,
-        `Tanggal: ${new Date().toLocaleDateString('id-ID')}`,
-        ``,
-        `RINGKASAN KESELURUHAN:`,
-        `- Total Tahun: ${props.results.overall_summary.total_years}`,
-        `- Tahun Berhasil: ${props.results.overall_summary.successful_years}`,
-        `- Success Rate: ${(props.results.overall_summary.success_rate * 100).toFixed(1)}%`,
-        ``,
-        `HASIL PER TAHUN:`,
-        ``
-      ]
-
-      Object.keys(props.results.results_per_year).sort().forEach(year => {
-        const yearData = props.results.results_per_year[year]
-        reportLines.push(`\n=== TAHUN ${year} ===`)
-        reportLines.push(`Jumlah Cluster: ${yearData.summary.num_clusters}`)
-        reportLines.push(`Total Daerah: ${yearData.summary.total_regions}`)
-        reportLines.push(`Davies-Bouldin: ${yearData.evaluation.davies_bouldin?.toFixed(4)}`)
-        reportLines.push(`Silhouette Score: ${yearData.evaluation.silhouette_score?.toFixed(4)}`)
-      })
-
-      const reportContent = reportLines.join('\n')
-      const blob = new Blob([reportContent], { type: 'text/plain;charset=utf-8' })
-      const url = window.URL.createObjectURL(blob)
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `laporan-clustering-yearly-${new Date().getTime()}.txt`
-      document.body.appendChild(a)
-      a.click()
-      document.body.removeChild(a)
-      window.URL.revokeObjectURL(url)
-    }
 
     // Set default selected year when component mounts or data changes
     const setDefaultYear = async () => {
@@ -502,7 +416,7 @@ export default {
           selectedYear.value = availableYears.value[availableYears.value.length - 1] // Latest year
         }
       } catch (error) {
-        console.warn('Error setting default year in YearlyResults:', error)
+        // Ignore initialization errors
       }
     }
 
@@ -527,10 +441,7 @@ export default {
       getSilhouetteQuality,
       getSilhouetteQualityText,
       isDownloadingPDF,
-      downloadPDF,
-      exportToCSV,
-      exportToJSON,
-      generateTextReport
+      downloadPDF
     }
   }
 }
@@ -967,18 +878,6 @@ export default {
   padding: 1rem 2rem;
 }
 
-.export-description {
-  color: #718096;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-}
-
-.export-options {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
-}
 
 /* Table header consistency */
 thead th {

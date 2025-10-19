@@ -182,29 +182,6 @@
       :showMembership="true"
     />
 
-    <!-- Export Options -->
-    <div class="card year-cluster-details">
-      <h3>📥 Export Hasil</h3>
-      <div class="export-options">
-        <button 
-          @click="downloadPDF" 
-          :disabled="isDownloadingPDF"
-          class="btn btn-primary btn-download-main"
-        >
-          <span v-if="!isDownloadingPDF">📄 Download Complete PDF Report</span>
-          <span v-else>⏳ Generating PDF...</span>
-        </button>
-        <button @click="exportToCSV" class="btn btn-secondary">
-          📊 Export ke CSV
-        </button>
-        <button @click="exportToJSON" class="btn btn-secondary">
-          📄 Export ke JSON
-        </button>
-        <button @click="generateReport" class="btn btn-secondary">
-          📋 Generate Text Report
-        </button>
-      </div>
-    </div>
   </div>
 </template>
 
@@ -410,9 +387,6 @@ export default {
       getDBIQualityText,
       getSilhouetteQuality,
       getSilhouetteQualityText,
-      exportToCSV,
-      exportToJSON,
-      generateReport,
       isDownloadingPDF,
       downloadPDF
     }
@@ -727,12 +701,6 @@ export default {
   margin: 0;
 }
 
-.export-options {
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 1.5rem;
-}
 
 /* Consistent card styling - Same as YearlyResults */
 .card {
@@ -836,14 +804,6 @@ export default {
   
   .year-stats {
     grid-template-columns: 1fr;
-  }
-  
-  .export-options {
-    flex-direction: column;
-  }
-  
-  .export-options button {
-    width: 100%;
   }
 }
 </style>

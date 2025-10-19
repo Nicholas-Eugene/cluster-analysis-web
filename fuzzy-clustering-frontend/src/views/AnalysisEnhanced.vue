@@ -21,12 +21,6 @@
               </span>
             </p>
           </div>
-          <div class="header-actions" v-if="results">
-            <button @click="downloadPDFReport" class="btn btn-primary">
-              <span class="icon">📥</span>
-              Download PDF Report (All Years)
-            </button>
-          </div>
         </div>
       </div>
 
@@ -615,8 +609,7 @@ export default defineComponent({
       getSilhouetteQualityText,
       exportToCSV,
       exportToJSON,
-      generateReport,
-      downloadPDFReport
+      generateReport
     }
   }
 })
