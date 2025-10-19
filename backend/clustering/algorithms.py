@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import OPTICS
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.metrics import davies_bouldin_score, silhouette_score, silhouette_samples
 import skfuzzy as fuzz
 from typing import Dict, List, Tuple, Any
 import time
