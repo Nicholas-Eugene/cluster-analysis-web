@@ -18,7 +18,7 @@
         <div v-for="(cluster, index) in clusters" :key="cluster.id" class="stat-card">
           <div class="stat-header">
             <div class="stat-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-            <h4>Cluster {{ cluster.id }}</h4>
+            <h4>{{ cluster.interpretation?.label || `Cluster ${cluster.id}` }}</h4>
           </div>
           <div class="stat-values">
             <div class="stat-item">

@@ -177,7 +177,7 @@ export default {
         }))
 
         return {
-          label: `Cluster ${cluster.id}`,
+          label: `${cluster.interpretation?.label || `Cluster ${cluster.id}`}`,
           data: data,
           backgroundColor: getClusterColor(index),
           borderColor: '#ffffff',

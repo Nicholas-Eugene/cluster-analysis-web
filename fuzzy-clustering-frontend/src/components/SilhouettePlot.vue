@@ -228,7 +228,7 @@ export default {
           console.log(`Cluster ${cluster.id} data points:`, data.length)
 
           datasets.push({
-            label: `Cluster ${cluster.id}`,
+            label: cluster.interpretation?.label || `Cluster ${cluster.id}`,
             data: data,
             backgroundColor: getClusterColor(clusterIndex),
             borderColor: getClusterColor(clusterIndex),

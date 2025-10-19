@@ -10,7 +10,7 @@
         :style="{ borderColor: getClusterColor(index) }"
       >
         <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-        Cluster {{ cluster.id }} ({{ cluster.size }})
+        {{ cluster.interpretation?.label || `Cluster ${cluster.id}` }} ({{ cluster.size }})
       </button>
     </div>
     
@@ -432,3 +432,4 @@ export default {
   }
 }
 </style>
+tyle>

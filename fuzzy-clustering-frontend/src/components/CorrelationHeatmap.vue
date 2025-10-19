@@ -8,7 +8,7 @@
           <select v-model="selectedCluster" @change="updateHeatmap">
             <option value="all">Semua Cluster</option>
             <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
-              Cluster {{ cluster.id }}
+              {{ cluster.interpretation?.label || `Cluster ${cluster.id}` }}
             </option>
           </select>
         </div>
