@@ -213,8 +213,13 @@ export default {
 
           console.log(`Cluster ${cluster.id} data points:`, data.length)
 
+          // Ensure label is clean string
+          const clusterLabel = cluster.interpretation?.label 
+            ? String(cluster.interpretation.label)
+            : `Cluster ${cluster.id}`
+
           datasets.push({
-            label: cluster.interpretation?.label || `Cluster ${cluster.id}`,
+            label: clusterLabel,
             data: data,
             backgroundColor: getClusterColor(clusterIndex),
             borderColor: getClusterColor(clusterIndex),

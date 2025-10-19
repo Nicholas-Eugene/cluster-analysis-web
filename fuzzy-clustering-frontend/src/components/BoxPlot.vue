@@ -15,10 +15,10 @@
     </div>
     <div class="statistics-summary">
       <div class="stats-grid">
-        <div v-for="(cluster, index) in clusters" :key="cluster.id" class="stat-card">
+        <div v-for="(cluster, index) in clusters" :key="`cluster-${cluster.id}`" class="stat-card">
           <div class="stat-header">
             <div class="stat-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-            <h4>{{ cluster.interpretation?.label || `Cluster ${cluster.id}` }}</h4>
+            <h4>{{ getClusterLabel(cluster) }}</h4>
           </div>
           <div class="stat-values">
             <div class="stat-item">
@@ -93,6 +93,19 @@ export default {
 
     const getClusterColor = (index) => {
       return colors[index % colors.length]
+    }
+    
+    // Safe cluster label getter (handles noise clusters and object interpretation)
+    const getClusterLabel = (cluster) => {
+      if (!cluster) return 'Unknown'
+      if (cluster.id === -1 || cluster.id === '-1') {
+        return 'Noise (Outliers)'
+      }
+      // Ensure we get a clean string, not an object
+      if (cluster.interpretation && cluster.interpretation.label) {
+        return String(cluster.interpretation.label)
+      }
+      return `Cluster ${cluster.id}`
     }
 
     const formatValue = (value) => {
@@ -452,6 +465,7 @@ export default {
       chartCanvas,
       selectedMetric,
       getClusterColor,
+      getClusterLabel,
       getStatistics,
       formatValue,
       updateChart
