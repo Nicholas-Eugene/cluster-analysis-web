@@ -7,8 +7,8 @@ from .views import (
     GetGeographicalDataView,
     GetClusterDetailsView,
     GetEvaluationMetricsView,
+    DownloadPDFReportView,
 )
-from .views_pdf import DownloadClusterReportView
 
 
 urlpatterns = [
@@ -46,8 +46,8 @@ urlpatterns = [
         name="get-evaluation-metrics",
     ),
     path(
-        "clustering/download-pdf/",
-        DownloadClusterReportView.as_view(),
-        name="download-pdf",
+        "clustering/download-pdf/<uuid:session_id>/",
+        DownloadPDFReportView.as_view(),
+        name="download-pdf-report",
     ),
 ]

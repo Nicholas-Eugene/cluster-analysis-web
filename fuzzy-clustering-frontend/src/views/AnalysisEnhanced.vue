@@ -49,12 +49,12 @@
         
         <!-- Per Year Results -->
         <div v-if="results.clustering_type === 'per_year'">
-          <YearlyResults :results="results" />
+          <YearlyResults :results="results" :sessionId="sessionId" />
         </div>
         
         <!-- All Years Wide Results -->
         <div v-else-if="results.clustering_type === 'all_years_wide'">
-          <AllYearsResults :results="results" />
+          <AllYearsResults :results="results" :sessionId="sessionId" />
         </div>
         
         <!-- Legacy Single Year Results (for backward compatibility) -->
@@ -243,6 +243,7 @@ export default defineComponent({
     const error = ref('')
     const results = ref(null)
     const selectedYear = ref(null)
+    const sessionId = ref(null)
 
     // Consistent cluster colors matching the design system
     const colors = [
@@ -371,12 +372,14 @@ export default defineComponent({
         isLoading.value = true
         error.value = ''
         
-        const sessionId = route.query.sessionId
-        if (!sessionId) {
+        const sid = route.query.sessionId
+        if (!sid) {
           throw new Error('Session ID tidak ditemukan')
         }
+        
+        sessionId.value = sid
 
-        const rawResults = await apiService.getResults(sessionId)
+        const rawResults = await apiService.getResults(sid)
         results.value = rawResults
         
         // The 'watch' on filteredClusters will handle setting the default selectedCluster
@@ -603,6 +606,7 @@ export default defineComponent({
       selectedYear,
       availableYears,
       filteredClusters,
+      sessionId,
       getClusterColor,
       formatCurrency,
       getDBIQuality,

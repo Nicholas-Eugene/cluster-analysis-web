@@ -216,7 +216,7 @@ import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
 import ClusterDetailCard from './ClusterDetailCard.vue'
 import SilhouettePlot from './SilhouettePlot.vue'
-import { exportAllYearsResultsToPDF } from '../utils/pdfExporter.js'
+import { pdfService } from '../services/pdfService.js'
 
 export default {
   name: 'AllYearsResults',
@@ -232,6 +232,10 @@ export default {
     results: {
       type: Object,
       required: true
+    },
+    sessionId: {
+      type: String,
+      required: false
     }
   },
   setup(props) {

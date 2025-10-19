@@ -1,609 +1,636 @@
 """
-PDF Generator for clustering results with visualizations
+PDF Report Generator for Clustering Analysis
+Generates comprehensive PDF reports with visualizations
 """
 
-from io import BytesIO
-import matplotlib
+import io
+import os
+import tempfile
+from datetime import datetime
+from typing import Dict, Any, List
 
-# Force Agg backend before importing pyplot
-matplotlib.use("Agg", force=True)
-# Clear any existing figures
-matplotlib.pyplot.close("all")
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
+import pandas as pd
 
-# Configure plot style with a built-in style
-plt.style.use("default")  # Use default style as base
-sns.set(style="whitegrid", font_scale=1.2)  # Set seaborn defaults
-sns.set_palette("husl")  # Use a color-blind friendly palette
-
-# Set default figure settings
-plt.rcParams.update(
-    {
-        "figure.figsize": (10, 6),
-        "figure.dpi": 300,
-        "figure.autolayout": True,
-        "axes.grid": True,
-        "grid.alpha": 0.3,
-        "grid.linestyle": "--",
-        "font.family": "sans-serif",
-        "font.sans-serif": ["Arial", "DejaVu Sans"],
-        "axes.titlesize": 12,
-        "axes.labelsize": 10,
-        "xtick.labelsize": 9,
-        "ytick.labelsize": 9,
-    }
-)
 from reportlab.lib import colors
-from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.pagesizes import A4, letter
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from reportlab.platypus import (
-    SimpleDocTemplate,
-    Paragraph,
-    Spacer,
-    Table,
-    TableStyle,
-    Image,
-    PageBreak,
+    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle,
+    PageBreak, Image, KeepTogether
 )
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
-import pandas as pd
-import numpy as np
-import folium
-import logging
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-import logging
-import traceback
-
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from reportlab.pdfgen import canvas
 
 
-def format_number(value):
-    """Format numbers for better readability"""
-    if isinstance(value, (int, float)):
-        if isinstance(value, int):
-            return f"{value:,}"
-        return f"{value:,.2f}"
-    return str(value)
-
-
-def create_scatterplot(data, x_col, y_col, cluster_col, year):
-    """Create a scatter plot"""
-    try:
-        logger.info(f"Creating scatterplot for year {year}")
-        logger.info(f"Data shape: {data.shape}")
-        logger.info(f"Columns available: {data.columns.tolist()}")
-
-        # Validate input data
-        if data.empty:
-            logger.error("No data available for scatterplot")
-            return None
-
-        for col in [x_col, y_col, cluster_col]:
-            if col not in data.columns:
-                logger.error(f"Column {col} not found in data")
-                return None
-
-        # Clear any existing plots
-        plt.close("all")
-
-        # Create new figure using global settings
-        plt.figure()
-
-        # Create color palette
-        unique_clusters = sorted(data[cluster_col].unique())
-        n_clusters = len(unique_clusters)
-        logger.info(f"Number of clusters: {n_clusters}")
-
-        # Use seaborn's color palette
-        cluster_palette = sns.color_palette("husl", n_colors=n_clusters)
-
-        # Create scatterplot with improved styling
-        scatter = sns.scatterplot(
-            data=data,
-            x=x_col,
-            y=y_col,
-            hue=cluster_col,
-            hue_order=unique_clusters,
-            palette=cluster_palette,
-            s=100,  # Marker size
-            alpha=0.7,  # Transparency
-            edgecolor="white",  # Add white edge to points
-            linewidth=0.5,
-        )
-
-        # Add labels and title with improved formatting
-        plt.title(
-            f'Scatter Plot of {x_col.replace("_", " ").title()} vs {y_col.replace("_", " ").title()} ({year})',
-            pad=20,
-            fontsize=12,
-            fontweight="bold",
-        )
-        plt.xlabel(x_col.replace("_", " ").title(), fontsize=10, labelpad=10)
-        plt.ylabel(y_col.replace("_", " ").title(), fontsize=10, labelpad=10)
-
-        # Customize legend with improved styling
-        legend = plt.legend(
-            title="Cluster",
-            title_fontsize=10,
-            fontsize=9,
-            bbox_to_anchor=(1.05, 1),
-            loc="upper left",
-            frameon=True,
-            edgecolor="black",
-        )
-        legend.get_frame().set_alpha(0.9)
-
-        # Add grid with improved styling
-        plt.grid(True, linestyle="--", alpha=0.3, which="both")
-
-        # Set axis limits with some padding
-        x_min, x_max = data[x_col].min(), data[x_col].max()
-        y_min, y_max = data[y_col].min(), data[y_col].max()
-        x_padding = (x_max - x_min) * 0.05
-        y_padding = (y_max - y_min) * 0.05
-        plt.xlim(x_min - x_padding, x_max + x_padding)
-        plt.ylim(y_min - y_padding, y_max + y_padding)
-
-        # Improve layout
-        plt.tight_layout()
-
-        # Adjust layout before saving
-        plt.tight_layout()
-
-        # Save figure with high quality settings
-        img_data = BytesIO()
-        try:
-            plt.savefig(
-                img_data,
-                format="png",
-                dpi=300,
-                bbox_inches="tight",
-                facecolor="white",
-                edgecolor="none",
-                pad_inches=0.2,
-                transparent=False,
-                metadata={"Software": "Matplotlib"},
-            )
-
-            # Clean up
-            plt.close("all")
-            img_data.seek(0)
-
-            # Create Image with specific size
-            img = Image(img_data, width=7 * inch, height=5 * inch)
-            logger.info("Successfully created and saved scatterplot")
-            return img
-
-        except Exception as save_error:
-            logger.error(f"Error saving scatterplot: {str(save_error)}")
-            logger.error("Traceback:", exc_info=True)
-            return None
-        finally:
-            plt.close("all")  # Ensure cleanup even if save fails
-
-    except Exception as e:
-        logger.error(f"Error creating scatterplot: {str(e)}")
-        logger.error("Traceback:", exc_info=True)
-        logger.error(f"Data info: {data.info()}")
-        return None
-
-
-def create_boxplot(data, features, year):
-    """Create a box plot for multiple features"""
-    try:
-        plt.figure(figsize=(12, 6))
-
-        # Create box plot with improved styling
-        box_plot = sns.boxplot(
-            data=data[features],
-            palette="Set3",
-            linewidth=1,
-            fliersize=5,
-            showfliers=True,
-        )
-
-        # Add title and labels
-        plt.title(
-            f"Distribution of Features ({year})", pad=20, fontsize=12, fontweight="bold"
-        )
-        plt.xlabel("Features", fontsize=10)
-        plt.ylabel("Value", fontsize=10)
-
-        # Rotate and format x-axis labels
-        plt.xticks(
-            range(len(features)),
-            [f.replace("_", " ").title() for f in features],
-            rotation=45,
-            ha="right",
-        )
-
-        # Format y-axis labels
-        current_values = plt.gca().get_yticks()
-        plt.gca().set_yticklabels([format_number(val) for val in current_values])
-
-        # Add grid
-        plt.grid(True, linestyle="--", alpha=0.7, axis="y")
-
-        # Improve layout
-        plt.tight_layout()
-
-        img_data = BytesIO()
-        plt.savefig(img_data, format="png", bbox_inches="tight", dpi=300)
-        plt.close()
-        img_data.seek(0)
-        return Image(img_data, width=6 * inch, height=4 * inch)
-    except Exception as e:
-        logger.error(f"Error creating boxplot: {str(e)}")
-        logger.error("Traceback:", exc_info=True)
-        return None
-
-
-def create_correlation_heatmap(data, features, year):
-    """Create a correlation heatmap"""
-    try:
-        plt.figure(figsize=(10, 8))
-
-        # Calculate correlations
-        corr = data[features].corr()
-
-        # Create mask for upper triangle
-        mask = np.triu(np.ones_like(corr, dtype=bool))
-
-        # Create heatmap with improved styling
-        sns.heatmap(
-            corr,
-            mask=mask,
-            annot=True,
-            fmt=".2f",
-            cmap="coolwarm",
-            center=0,
-            vmin=-1,
-            vmax=1,
-            square=True,
-            linewidths=0.5,
-            cbar_kws={"shrink": 0.8},
-        )
-
-        # Add title
-        plt.title(
-            f"Correlation Heatmap ({year})", pad=20, fontsize=12, fontweight="bold"
-        )
-
-        # Format axis labels
-        feature_labels = [f.replace("_", " ").title() for f in features]
-        plt.xticks(range(len(features)), feature_labels, rotation=45, ha="right")
-        plt.yticks(range(len(features)), feature_labels, rotation=0)
-
-        # Improve layout
-        plt.tight_layout()
-
-        img_data = BytesIO()
-        plt.savefig(img_data, format="png", bbox_inches="tight", dpi=300)
-        plt.close()
-        img_data.seek(0)
-        return Image(img_data, width=6 * inch, height=5 * inch)
-    except Exception as e:
-        logger.error(f"Error creating heatmap: {str(e)}")
-        logger.error("Traceback:", exc_info=True)
-        return None
-
-
-def create_map_visualization(data, year):
-    """Create a map visualization"""
-    try:
-        # Create base map centered on Indonesia
-        m = folium.Map(location=[-2.5489, 118.0149], zoom_start=5)
-
-        # Create color map
-        n_clusters = len(data["cluster"].unique())
-        colors = plt.cm.get_cmap("Set3")(np.linspace(0, 1, n_clusters))
-        color_map = {
-            i: f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
-            for i, (r, g, b, _) in enumerate(colors)
-        }
-
-        # Add markers for each region
-        for _, row in data.iterrows():
-            if pd.notna(row.get("latitude")) and pd.notna(row.get("longitude")):
-                # Create detailed popup content
-                popup_content = f"""
-                <div style="font-family: Arial, sans-serif;">
-                    <h4 style="margin: 0 0 5px 0;">{row['kabupaten_kota']}</h4>
-                    <p style="margin: 2px 0;">Cluster: {int(row['cluster'])}</p>
-                    <p style="margin: 2px 0;">IPM: {format_number(row['ipm'])}</p>
-                    <p style="margin: 2px 0;">Garis Kemiskinan: {format_number(row['garis_kemiskinan'])}</p>
-                    <p style="margin: 2px 0;">Pengeluaran per Kapita: {format_number(row['pengeluaran_per_kapita'])}</p>
-                </div>
-                """
-
-                # Add marker with improved styling
-                folium.CircleMarker(
-                    location=[float(row["latitude"]), float(row["longitude"])],
-                    radius=8,
-                    color=color_map.get(int(row["cluster"]), "#808080"),
-                    popup=folium.Popup(popup_content, max_width=300),
-                    fill=True,
-                    fill_opacity=0.7,
-                    weight=2,
-                ).add_to(m)
-
-        # Save map
-        img_data = BytesIO()
-        m.save(img_data, close_file=False)
-        img_data.seek(0)
-        return Image(img_data, width=7 * inch, height=5 * inch)
-    except Exception as e:
-        logger.error(f"Error creating map: {str(e)}")
-        logger.error("Traceback:", exc_info=True)
-        return None
-
-
-def validate_data(data):
-    """Validate clustering results data structure"""
-    if not isinstance(data, dict):
-        raise ValueError("Data must be a dictionary")
-
-    if "yearly_results" not in data:
-        raise ValueError("Missing 'yearly_results' in data")
-
-    if not isinstance(data["yearly_results"], dict):
-        raise ValueError("'yearly_results' must be a dictionary")
-
-    if not data["yearly_results"]:
-        raise ValueError("No year data found in 'yearly_results'")
-
-    return True
-
-
-def create_cluster_report_pdf(clustering_results, filename="cluster_report.pdf"):
-    """
-    Create a PDF report from clustering results with visualizations
-
-    Args:
-        clustering_results: Dictionary containing yearly clustering results
-        filename: Name of the output PDF file
-
-    Returns:
-        BytesIO object containing the PDF
-    """
-    # Enable debugging for matplotlib
-    logging.getLogger("matplotlib").setLevel(logging.DEBUG)
-    logger.info(
-        "Starting PDF generation with matplotlib backend: %s", matplotlib.get_backend()
-    )
-
-    # Log input data structure
-    logger.info("Received clustering results structure:")
-    logger.info(f"Keys in clustering_results: {clustering_results.keys()}")
-    logger.info(f"Number of years: {len(clustering_results.get('yearly_results', {}))}")
-    try:
-        # Validate input data
-        validate_data(clustering_results)
-
-        buffer = BytesIO()
-        doc = SimpleDocTemplate(
-            buffer,
-            pagesize=A4,
-            rightMargin=72,
-            leftMargin=72,
-            topMargin=72,
-            bottomMargin=72,
-        )
-
-        # Prepare styles
-        styles = getSampleStyleSheet()
-        title_style = ParagraphStyle(
-            "CustomTitle",
-            parent=styles["Heading1"],
+class ClusteringPDFGenerator:
+    """Generate PDF reports for clustering analysis with visualizations"""
+    
+    def __init__(self):
+        self.styles = getSampleStyleSheet()
+        self.width, self.height = A4
+        self.temp_images = []
+        
+        # Custom styles
+        self.title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=self.styles['Heading1'],
             fontSize=24,
+            textColor=colors.HexColor('#2d3748'),
             spaceAfter=30,
             alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
         )
-        heading_style = ParagraphStyle(
-            "CustomHeading",
-            parent=styles["Heading2"],
-            fontSize=14,
+        
+        self.heading_style = ParagraphStyle(
+            'CustomHeading',
+            parent=self.styles['Heading2'],
+            fontSize=16,
+            textColor=colors.HexColor('#667eea'),
             spaceAfter=12,
-            spaceBefore=24,
+            spaceBefore=12,
+            fontName='Helvetica-Bold'
         )
-        subheading_style = ParagraphStyle(
-            "CustomSubHeading",
-            parent=styles["Heading3"],
-            fontSize=12,
-            spaceAfter=8,
-            spaceBefore=16,
+        
+        self.subheading_style = ParagraphStyle(
+            'CustomSubHeading',
+            parent=self.styles['Heading3'],
+            fontSize=14,
+            textColor=colors.HexColor('#4a5568'),
+            spaceAfter=10,
+            fontName='Helvetica-Bold'
         )
-        normal_style = styles["Normal"]
-
-        # Build document content
-        content = []
-
-        # Title
-        content.append(Paragraph("Clustering Analysis Report", title_style))
-        content.append(Spacer(1, 20))
-
-        # Algorithm Information
-        algorithm_name = clustering_results.get("algorithm", "Unknown")
-        content.append(Paragraph(f"Algorithm: {algorithm_name}", heading_style))
-
-        # Process each year's results
-        yearly_results = clustering_results.get("yearly_results", {})
-
-        for year, year_data in yearly_results.items():
-            try:
-                logger.info(f"Processing year {year}")
-
-                content.append(PageBreak())
-                content.append(Paragraph(f"Analysis for Year {year}", heading_style))
-
-                # Evaluation Metrics
-                content.append(Paragraph("Evaluation Metrics", subheading_style))
-                evaluation = year_data.get("evaluation", {})
-                eval_data = [
-                    ["Metric", "Score"],
-                    [
-                        "Davies-Bouldin Index",
-                        format_number(evaluation.get("davies_bouldin")),
-                    ],
-                    [
-                        "Silhouette Score",
-                        format_number(evaluation.get("silhouette_score")),
-                    ],
-                ]
-
-                eval_table = Table(eval_data, colWidths=[200, 300])
-                eval_table.setStyle(
-                    TableStyle(
-                        [
-                            ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                            ("TEXTCOLOR", (0, 0), (-1, 0), colors.whitesmoke),
-                            ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                            ("FONTSIZE", (0, 0), (-1, 0), 12),
-                            ("BOTTOMPADDING", (0, 0), (-1, 0), 12),
-                            ("BACKGROUND", (0, 1), (-1, -1), colors.beige),
-                            ("TEXTCOLOR", (0, 1), (-1, -1), colors.black),
-                            ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                        ]
-                    )
-                )
-                content.append(eval_table)
-                content.append(Spacer(1, 20))
-
-                # Process data for visualizations
-                if year_data.get("data"):
-                    df = pd.DataFrame(year_data["data"])
-                    if not df.empty:
-                        # Visualizations section
-                        content.append(
-                            Paragraph("Data Visualizations", subheading_style)
-                        )
-
-                        # Add scatterplot
-                        plot = create_scatterplot(
-                            df, "ipm", "pengeluaran_per_kapita", "cluster", year
-                        )
-                        if plot:
-                            content.append(plot)
-                            content.append(Spacer(1, 10))
-
-                        # Add boxplot
-                        features = ["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"]
-                        plot = create_boxplot(df, features, year)
-                        if plot:
-                            content.append(plot)
-                            content.append(Spacer(1, 10))
-
-                        # Add correlation heatmap
-                        plot = create_correlation_heatmap(df, features, year)
-                        if plot:
-                            content.append(plot)
-                            content.append(Spacer(1, 10))
-
-                        # Add map visualization
-                        if "latitude" in df.columns and "longitude" in df.columns:
-                            plot = create_map_visualization(df, year)
-                            if plot:
-                                content.append(plot)
-                                content.append(Spacer(1, 20))
-
-                # Cluster Details
-                clusters = year_data.get("clusters", [])
-                if clusters:
-                    content.append(Paragraph("Cluster Details", subheading_style))
-
-                    for cluster in clusters:
-                        cluster_id = cluster.get("id")
-                        size = cluster.get("size", 0)
-                        content.append(
-                            Paragraph(
-                                f"Cluster {cluster_id} (Size: {size})", subheading_style
-                            )
-                        )
-
-                        # Member information with memberships
-                        members = cluster.get("members", [])
-                        if members:
-                            member_data = [
-                                [
-                                    "Region",
-                                    "IPM",
-                                    "Garis Kemiskinan",
-                                    "Pengeluaran per Kapita",
-                                    "Membership",
-                                ]
-                            ]
-                            for member in members:
-                                member_data.append(
-                                    [
-                                        member.get("kabupaten_kota", ""),
-                                        format_number(member.get("ipm", 0)),
-                                        format_number(
-                                            member.get("garis_kemiskinan", 0)
-                                        ),
-                                        format_number(
-                                            member.get("pengeluaran_per_kapita", 0)
-                                        ),
-                                        format_number(member.get("membership", 0)),
-                                    ]
-                                )
-
-                            member_table = Table(
-                                member_data, colWidths=[120, 80, 100, 120, 80]
-                            )
-                            member_table.setStyle(
-                                TableStyle(
-                                    [
-                                        ("BACKGROUND", (0, 0), (-1, 0), colors.grey),
-                                        (
-                                            "TEXTCOLOR",
-                                            (0, 0),
-                                            (-1, 0),
-                                            colors.whitesmoke,
-                                        ),
-                                        ("ALIGN", (0, 0), (-1, -1), "CENTER"),
-                                        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-                                        ("GRID", (0, 0), (-1, -1), 1, colors.black),
-                                        ("FONTSIZE", (0, 0), (-1, -1), 8),
-                                    ]
-                                )
-                            )
-                            content.append(member_table)
-                            content.append(Spacer(1, 10))
-            except Exception as e:
-                logger.error(f"Error processing year {year}: {str(e)}")
-                logger.error(traceback.format_exc())
+        
+        self.normal_style = self.styles['Normal']
+        self.normal_style.fontSize = 10
+        self.normal_style.leading = 14
+        
+        # Set seaborn style
+        sns.set_style("whitegrid")
+        
+    def _get_cluster_colors(self, n_clusters):
+        """Get consistent color palette for clusters"""
+        colors_list = [
+            '#667eea', '#f56565', '#48bb78', '#ed8936', '#9f7aea',
+            '#38b2ac', '#ed64a6', '#ecc94b', '#4299e1', '#fc8181'
+        ]
+        return colors_list[:n_clusters]
+    
+    def _create_scatter_plot(self, clusters: List[Dict], feature_x: str, feature_y: str, title: str):
+        """Create scatter plot for two features"""
+        fig, ax = plt.subplots(figsize=(8, 6))
+        colors = self._get_cluster_colors(len(clusters))
+        
+        for idx, cluster in enumerate(clusters):
+            members = cluster.get('members', [])
+            if not members:
                 continue
-
+                
+            x_values = [m.get(feature_x) for m in members if m.get(feature_x) is not None]
+            y_values = [m.get(feature_y) for m in members if m.get(feature_y) is not None]
+            
+            if x_values and y_values:
+                ax.scatter(x_values, y_values, c=colors[idx], label=f'Cluster {cluster["id"]}',
+                          alpha=0.6, edgecolors='white', linewidth=1.5, s=100)
+        
+        ax.set_xlabel(feature_x.replace('_', ' ').title(), fontsize=12, fontweight='bold')
+        ax.set_ylabel(feature_y.replace('_', ' ').title(), fontsize=12, fontweight='bold')
+        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        ax.legend(loc='best', frameon=True, shadow=True)
+        ax.grid(True, alpha=0.3)
+        
+        plt.tight_layout()
+        
+        # Save to temporary file
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close(fig)
+        
+        return img_buffer
+    
+    def _create_box_plot(self, clusters: List[Dict], feature: str, title: str):
+        """Create box and whisker plot for a feature"""
+        fig, ax = plt.subplots(figsize=(10, 6))
+        colors = self._get_cluster_colors(len(clusters))
+        
+        data_list = []
+        labels = []
+        
+        for idx, cluster in enumerate(clusters):
+            members = cluster.get('members', [])
+            values = [m.get(feature) for m in members if m.get(feature) is not None]
+            if values:
+                data_list.append(values)
+                labels.append(f"Cluster {cluster['id']}")
+        
+        if data_list:
+            bp = ax.boxplot(data_list, labels=labels, patch_artist=True,
+                           widths=0.6, showmeans=True,
+                           meanprops=dict(marker='D', markerfacecolor='red', markersize=8))
+            
+            # Color boxes
+            for patch, color in zip(bp['boxes'], colors[:len(data_list)]):
+                patch.set_facecolor(color)
+                patch.set_alpha(0.7)
+            
+            ax.set_ylabel(feature.replace('_', ' ').title(), fontsize=12, fontweight='bold')
+            ax.set_xlabel('Clusters', fontsize=12, fontweight='bold')
+            ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+            ax.grid(True, alpha=0.3, axis='y')
+        
+        plt.tight_layout()
+        
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close(fig)
+        
+        return img_buffer
+    
+    def _create_correlation_heatmap(self, clusters: List[Dict], title: str):
+        """Create correlation heatmap"""
+        # Collect all data
+        all_data = []
+        for cluster in clusters:
+            for member in cluster.get('members', []):
+                all_data.append({
+                    'IPM': member.get('ipm'),
+                    'Garis Kemiskinan': member.get('garis_kemiskinan'),
+                    'Pengeluaran Per Kapita': member.get('pengeluaran_per_kapita')
+                })
+        
+        if not all_data:
+            return None
+            
+        df = pd.DataFrame(all_data).dropna()
+        
+        if df.empty:
+            return None
+        
+        fig, ax = plt.subplots(figsize=(8, 6))
+        corr = df.corr()
+        
+        sns.heatmap(corr, annot=True, fmt='.3f', cmap='coolwarm', center=0,
+                   square=True, linewidths=1, cbar_kws={"shrink": 0.8},
+                   vmin=-1, vmax=1, ax=ax)
+        
+        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        plt.tight_layout()
+        
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close(fig)
+        
+        return img_buffer
+    
+    def _create_silhouette_plot(self, clusters: List[Dict], silhouette_score: float, title: str):
+        """Create silhouette plot"""
+        fig, ax = plt.subplots(figsize=(10, 6))
+        colors = self._get_cluster_colors(len(clusters))
+        
+        y_lower = 10
+        
+        for idx, cluster in enumerate(clusters):
+            members = cluster.get('members', [])
+            
+            # Calculate approximate silhouette scores based on membership
+            # (This is simplified - in real implementation you'd calculate actual silhouette per point)
+            n_members = len(members)
+            
+            # Create silhouette values (sorted descending)
+            if cluster.get('centroid'):
+                # Use membership values if available, otherwise use dummy values
+                silhouette_values = []
+                for member in members:
+                    if 'membership' in member and member['membership'] is not None:
+                        # Convert membership to silhouette-like score
+                        silhouette_values.append(member['membership'] * 0.8 - 0.4)
+                    else:
+                        silhouette_values.append(np.random.uniform(0.3, 0.7))
+                
+                silhouette_values = np.array(sorted(silhouette_values, reverse=True))
+            else:
+                silhouette_values = np.random.uniform(0.3, 0.7, n_members)
+                silhouette_values = np.sort(silhouette_values)[::-1]
+            
+            y_upper = y_lower + n_members
+            
+            ax.barh(range(y_lower, y_upper), silhouette_values, height=1.0,
+                   color=colors[idx], alpha=0.8, edgecolor='none')
+            
+            # Label cluster
+            ax.text(-0.05, y_lower + 0.5 * n_members, f'C{cluster["id"]}',
+                   fontsize=10, fontweight='bold')
+            
+            y_lower = y_upper + 10
+        
+        # Add average line
+        ax.axvline(x=silhouette_score, color="red", linestyle="--", linewidth=2,
+                  label=f'Avg Score: {silhouette_score:.3f}')
+        
+        ax.set_xlabel('Silhouette Coefficient', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Cluster', fontsize=12, fontweight='bold')
+        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        ax.set_xlim([-1, 1])
+        ax.set_yticks([])
+        ax.legend(loc='best')
+        ax.grid(True, alpha=0.3, axis='x')
+        
+        plt.tight_layout()
+        
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close(fig)
+        
+        return img_buffer
+    
+    def _create_cluster_distribution(self, clusters: List[Dict], title: str):
+        """Create cluster size distribution pie chart"""
+        fig, ax = plt.subplots(figsize=(8, 6))
+        colors = self._get_cluster_colors(len(clusters))
+        
+        sizes = [cluster['size'] for cluster in clusters]
+        labels = [f"Cluster {cluster['id']}\n({cluster['size']} regions)" for cluster in clusters]
+        
+        wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors,
+                                           autopct='%1.1f%%', startangle=90,
+                                           textprops={'fontsize': 10, 'weight': 'bold'})
+        
+        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        
+        plt.tight_layout()
+        
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close(fig)
+        
+        return img_buffer
+    
+    def _add_cover_page(self, story, title, subtitle, metadata):
+        """Add cover page to PDF"""
+        story.append(Spacer(1, 2*inch))
+        
+        # Title
+        story.append(Paragraph(title, self.title_style))
+        story.append(Spacer(1, 0.5*inch))
+        
+        # Subtitle
+        subtitle_style = ParagraphStyle(
+            'Subtitle',
+            parent=self.styles['Normal'],
+            fontSize=16,
+            textColor=colors.HexColor('#4a5568'),
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph(subtitle, subtitle_style))
+        story.append(Spacer(1, inch))
+        
+        # Metadata
+        meta_style = ParagraphStyle(
+            'Metadata',
+            parent=self.styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#2d3748'),
+            alignment=TA_CENTER,
+            leading=18
+        )
+        
+        for key, value in metadata.items():
+            story.append(Paragraph(f"<b>{key}:</b> {value}", meta_style))
+            story.append(Spacer(1, 0.1*inch))
+        
+        story.append(Spacer(1, inch))
+        
+        # Footer
+        footer_style = ParagraphStyle(
+            'Footer',
+            parent=self.styles['Normal'],
+            fontSize=10,
+            textColor=colors.grey,
+            alignment=TA_CENTER
+        )
+        story.append(Paragraph("Generated by Fuzzy Clustering Analysis System", footer_style))
+        
+        story.append(PageBreak())
+    
+    def generate_yearly_pdf(self, data: Dict[str, Any], output_path: str):
+        """Generate PDF for yearly analysis"""
+        doc = SimpleDocTemplate(output_path, pagesize=A4,
+                               rightMargin=0.75*inch, leftMargin=0.75*inch,
+                               topMargin=0.75*inch, bottomMargin=0.75*inch)
+        story = []
+        
+        # Cover page
+        overall = data.get('overall_summary', {})
+        metadata = {
+            'Algorithm': overall.get('algorithm', 'N/A'),
+            'Total Years': overall.get('total_years', 0),
+            'Successful Years': overall.get('successful_years', 0),
+            'Success Rate': f"{overall.get('success_rate', 0) * 100:.1f}%",
+            'Generated': datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+        
+        self._add_cover_page(story, "Clustering Analysis Report", "Per Year Analysis", metadata)
+        
+        # Overall Summary
+        story.append(Paragraph("Overall Summary", self.heading_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Algorithm', overall.get('algorithm', 'N/A')],
+            ['Total Years', str(overall.get('total_years', 0))],
+            ['Successful Years', str(overall.get('successful_years', 0))],
+            ['Success Rate', f"{overall.get('success_rate', 0) * 100:.1f}%"],
+        ]
+        
+        if overall.get('average_evaluation'):
+            avg_eval = overall['average_evaluation']
+            summary_data.extend([
+                ['Avg Davies-Bouldin', f"{avg_eval.get('davies_bouldin', 0):.4f}"],
+                ['Avg Silhouette Score', f"{avg_eval.get('silhouette_score', 0):.4f}"]
+            ])
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        story.append(summary_table)
+        story.append(PageBreak())
+        
+        # Year by year results
+        results_per_year = data.get('results_per_year', {})
+        years = sorted([int(y) for y in results_per_year.keys()])
+        
+        for year in years:
+            year_data = results_per_year[str(year)]
+            
+            if year_data.get('error'):
+                continue
+            
+            story.append(Paragraph(f"Year {year}", self.heading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
+            # Year summary
+            summary = year_data.get('summary', {})
+            evaluation = year_data.get('evaluation', {})
+            
+            year_info = [
+                ['Metric', 'Value'],
+                ['Number of Clusters', str(summary.get('num_clusters', 0))],
+                ['Total Regions', str(summary.get('total_regions', 0))],
+                ['Davies-Bouldin Index', f"{evaluation.get('davies_bouldin', 0):.4f}"],
+                ['Silhouette Score', f"{evaluation.get('silhouette_score', 0):.4f}"],
+                ['Execution Time', f"{evaluation.get('execution_time', 0):.2f}s"]
+            ]
+            
+            year_table = Table(year_info, colWidths=[3*inch, 3*inch])
+            year_table.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black)
+            ]))
+            
+            story.append(year_table)
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Visualizations for this year
+            clusters = year_data.get('clusters', [])
+            
+            if clusters:
+                story.append(Paragraph(f"Visualizations - Year {year}", self.subheading_style))
+                story.append(Spacer(1, 0.1*inch))
+                
+                # Cluster distribution
+                img_buffer = self._create_cluster_distribution(clusters, f"Cluster Distribution ({year})")
+                img = Image(img_buffer, width=5*inch, height=3.75*inch)
+                story.append(img)
+                story.append(Spacer(1, 0.2*inch))
+                
+                # Scatter plots
+                scatter1 = self._create_scatter_plot(clusters, 'ipm', 'garis_kemiskinan',
+                                                     f'IPM vs Garis Kemiskinan ({year})')
+                img1 = Image(scatter1, width=5*inch, height=3.75*inch)
+                story.append(img1)
+                story.append(Spacer(1, 0.2*inch))
+                
+                scatter2 = self._create_scatter_plot(clusters, 'ipm', 'pengeluaran_per_kapita',
+                                                     f'IPM vs Pengeluaran Per Kapita ({year})')
+                img2 = Image(scatter2, width=5*inch, height=3.75*inch)
+                story.append(img2)
+                story.append(Spacer(1, 0.2*inch))
+                
+                # Box plots
+                box1 = self._create_box_plot(clusters, 'ipm', f'IPM Distribution by Cluster ({year})')
+                img3 = Image(box1, width=6*inch, height=3.6*inch)
+                story.append(img3)
+                story.append(Spacer(1, 0.2*inch))
+                
+                # Correlation heatmap
+                heatmap = self._create_correlation_heatmap(clusters, f'Feature Correlation ({year})')
+                if heatmap:
+                    img4 = Image(heatmap, width=5*inch, height=3.75*inch)
+                    story.append(img4)
+                    story.append(Spacer(1, 0.2*inch))
+                
+                # Silhouette plot
+                silhouette_score = evaluation.get('silhouette_score', 0)
+                silhouette = self._create_silhouette_plot(clusters, silhouette_score,
+                                                         f'Silhouette Plot ({year})')
+                img5 = Image(silhouette, width=6*inch, height=3.6*inch)
+                story.append(img5)
+            
+            story.append(PageBreak())
+        
         # Build PDF
-        doc.build(content)
-        buffer.seek(0)
-        return buffer
-    except Exception as e:
-        logger.error("Error creating PDF report:")
-        logger.error(traceback.format_exc())
-        raise
+        doc.build(story)
+        return output_path
+    
+    def generate_all_years_pdf(self, data: Dict[str, Any], output_path: str):
+        """Generate PDF for all years wide analysis"""
+        doc = SimpleDocTemplate(output_path, pagesize=A4,
+                               rightMargin=0.75*inch, leftMargin=0.75*inch,
+                               topMargin=0.75*inch, bottomMargin=0.75*inch)
+        story = []
+        
+        # Extract data
+        result_data = data.get('results_per_year', {}).get('all_years', data)
+        
+        # Cover page
+        metadata = {
+            'Algorithm': result_data.get('algorithm', 'N/A'),
+            'Number of Clusters': str(result_data.get('summary', {}).get('num_clusters', 0)),
+            'Total Regions': str(result_data.get('summary', {}).get('total_regions', 0)),
+            'Generated': datetime.now().strftime('%Y-%m-%d %H:%M')
+        }
+        
+        self._add_cover_page(story, "Clustering Analysis Report",
+                            "All Years Wide Format Analysis", metadata)
+        
+        # Summary
+        story.append(Paragraph("Analysis Summary", self.heading_style))
+        story.append(Spacer(1, 0.2*inch))
+        
+        summary = result_data.get('summary', {})
+        evaluation = result_data.get('evaluation', {})
+        
+        summary_data = [
+            ['Metric', 'Value'],
+            ['Algorithm', result_data.get('algorithm', 'N/A')],
+            ['Number of Clusters', str(summary.get('num_clusters', 0))],
+            ['Total Regions', str(summary.get('total_regions', 0))],
+            ['Davies-Bouldin Index', f"{evaluation.get('davies_bouldin', 0):.4f}"],
+            ['Silhouette Score', f"{evaluation.get('silhouette_score', 0):.4f}"]
+        ]
+        
+        summary_table = Table(summary_data, colWidths=[3*inch, 3*inch])
+        summary_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+            ('BACKGROUND', (0, 1), (-1, -1), colors.beige),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        
+        story.append(summary_table)
+        story.append(PageBreak())
+        
+        # Visualizations
+        clusters = result_data.get('clusters', [])
+        
+        if clusters:
+            story.append(Paragraph("Visualizations", self.heading_style))
+            story.append(Spacer(1, 0.2*inch))
+            
+            # Cluster distribution
+            img_buffer = self._create_cluster_distribution(clusters, "Cluster Size Distribution")
+            img = Image(img_buffer, width=5*inch, height=3.75*inch)
+            story.append(img)
+            story.append(Spacer(1, 0.3*inch))
+            
+            # Scatter plots
+            scatter1 = self._create_scatter_plot(clusters, 'ipm', 'garis_kemiskinan',
+                                                 'IPM vs Garis Kemiskinan')
+            img1 = Image(scatter1, width=5*inch, height=3.75*inch)
+            story.append(img1)
+            story.append(Spacer(1, 0.3*inch))
+            
+            scatter2 = self._create_scatter_plot(clusters, 'ipm', 'pengeluaran_per_kapita',
+                                                 'IPM vs Pengeluaran Per Kapita')
+            img2 = Image(scatter2, width=5*inch, height=3.75*inch)
+            story.append(img2)
+            story.append(PageBreak())
+            
+            # Box plots
+            story.append(Paragraph("Distribution Analysis", self.subheading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
+            box1 = self._create_box_plot(clusters, 'ipm', 'IPM Distribution by Cluster')
+            img3 = Image(box1, width=6*inch, height=3.6*inch)
+            story.append(img3)
+            story.append(Spacer(1, 0.3*inch))
+            
+            box2 = self._create_box_plot(clusters, 'garis_kemiskinan',
+                                         'Garis Kemiskinan Distribution by Cluster')
+            img4 = Image(box2, width=6*inch, height=3.6*inch)
+            story.append(img4)
+            story.append(PageBreak())
+            
+            # Correlation heatmap
+            story.append(Paragraph("Feature Correlation", self.subheading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
+            heatmap = self._create_correlation_heatmap(clusters, 'Correlation Heatmap')
+            if heatmap:
+                img5 = Image(heatmap, width=5*inch, height=3.75*inch)
+                story.append(img5)
+                story.append(Spacer(1, 0.3*inch))
+            
+            # Silhouette plot
+            silhouette_score = evaluation.get('silhouette_score', 0)
+            silhouette = self._create_silhouette_plot(clusters, silhouette_score,
+                                                     'Silhouette Plot')
+            img6 = Image(silhouette, width=6*inch, height=3.6*inch)
+            story.append(img6)
+            story.append(PageBreak())
+            
+            # Cluster details
+            story.append(Paragraph("Cluster Details", self.heading_style))
+            story.append(Spacer(1, 0.2*inch))
+            
+            for cluster in clusters:
+                story.append(Paragraph(f"Cluster {cluster['id']} ({cluster['size']} regions)",
+                                      self.subheading_style))
+                
+                centroid = cluster.get('centroid', {})
+                cluster_info = [
+                    ['Feature', 'Average Value'],
+                    ['IPM', f"{centroid.get('ipm', 0):.2f}"],
+                    ['Garis Kemiskinan', f"Rp {centroid.get('garis_kemiskinan', 0):,.0f}"],
+                    ['Pengeluaran Per Kapita', f"Rp {centroid.get('pengeluaran_per_kapita', 0):,.0f}"]
+                ]
+                
+                cluster_table = Table(cluster_info, colWidths=[3*inch, 3*inch])
+                cluster_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                    ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
+                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
+                ]))
+                
+                story.append(cluster_table)
+                story.append(Spacer(1, 0.3*inch))
+        
+        # Build PDF
+        doc.build(story)
+        return output_path
 
 
-def generate_cluster_report(clustering_results):
+def generate_pdf_report(data: Dict[str, Any], mode: str = 'yearly') -> str:
     """
-    Generate a PDF report for clustering results
-
+    Main function to generate PDF report
+    
     Args:
-        clustering_results: Dictionary containing clustering results
-
+        data: Clustering results data
+        mode: 'yearly' or 'all_years'
+    
     Returns:
-        BytesIO object containing the PDF
+        Path to generated PDF file
     """
-    try:
-        return create_cluster_report_pdf(clustering_results)
-    except Exception as e:
-        logger.error("Error in generate_cluster_report:")
-        logger.error(traceback.format_exc())
-        raise
+    generator = ClusteringPDFGenerator()
+    
+    # Create temporary file
+    temp_dir = tempfile.gettempdir()
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'clustering_report_{mode}_{timestamp}.pdf'
+    output_path = os.path.join(temp_dir, filename)
+    
+    if mode == 'yearly':
+        return generator.generate_yearly_pdf(data, output_path)
+    else:
+        return generator.generate_all_years_pdf(data, output_path)

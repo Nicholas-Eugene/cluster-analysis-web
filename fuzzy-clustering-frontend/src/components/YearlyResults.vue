@@ -271,7 +271,7 @@ import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
 import SilhouettePlot from './SilhouettePlot.vue'
 import ClusterDetailCard from './ClusterDetailCard.vue'
-import { exportYearlyResultsToPDF } from '../utils/pdfExporter.js'
+import { pdfService } from '../services/pdfService.js'
 
 export default {
   name: 'YearlyResults',
@@ -287,6 +287,10 @@ export default {
     results: {
       type: Object,
       required: true
+    },
+    sessionId: {
+      type: String,
+      required: false
     }
   },
   setup(props) {
@@ -388,13 +392,19 @@ export default {
     const isDownloadingPDF = ref(false)
 
     const downloadPDF = async () => {
+      if (!props.sessionId) {
+        alert('Session ID tidak tersedia. Tidak dapat mendownload PDF.')
+        return
+      }
+
       isDownloadingPDF.value = true
       try {
-        const filename = await exportYearlyResultsToPDF(props.results)
+        console.log('📄 Starting PDF download...')
+        const filename = await pdfService.downloadAndSave(props.sessionId, 'yearly')
         console.log('✅ PDF downloaded:', filename)
       } catch (error) {
         console.error('❌ Error downloading PDF:', error)
-        alert('Error generating PDF. Please try again.')
+        alert(error.message || 'Error generating PDF. Please try again.')
       } finally {
         isDownloadingPDF.value = false
       }

@@ -2,15 +2,17 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.db import transaction
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from .models import ClusteringSession
 from .algorithms import run_clustering_all_years, run_clustering_per_year
+from .pdf_generator import generate_pdf_report
 
 import pandas as pd
 import numpy as np
 import json
 import io
 import csv
+import os
 
 # Configure matplotlib for headless environments
 import matplotlib
@@ -607,3 +609,63 @@ class GetEvaluationMetricsView(APIView):
             }
 
         return Response(evaluation_data, status=status.HTTP_200_OK)
+
+
+class DownloadPDFReportView(APIView):
+    """
+    API endpoint to download complete PDF report with all visualizations
+    """
+    def get(self, request, session_id: str):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response(
+                {"error": "Session tidak ditemukan"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            results = session.results
+            clustering_type = results.get('clustering_type', 'per_year')
+            
+            # Determine mode for PDF generation
+            if clustering_type == 'per_year':
+                mode = 'yearly'
+            else:
+                mode = 'all_years'
+            
+            print(f"📄 Generating PDF report for session {session_id}, mode: {mode}")
+            
+            # Generate PDF
+            pdf_path = generate_pdf_report(results, mode=mode)
+            
+            print(f"✅ PDF generated successfully: {pdf_path}")
+            
+            # Check if file exists
+            if not os.path.exists(pdf_path):
+                return Response(
+                    {"error": "Failed to generate PDF"}, 
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+            
+            # Read and return PDF file
+            with open(pdf_path, 'rb') as pdf_file:
+                response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+                response['Content-Disposition'] = f'attachment; filename="clustering_report_{session_id}_{mode}.pdf"'
+                
+            # Clean up temporary file
+            try:
+                os.remove(pdf_path)
+            except Exception as e:
+                print(f"⚠️ Warning: Could not remove temp file: {e}")
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error generating PDF: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"error": f"Error generating PDF: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
