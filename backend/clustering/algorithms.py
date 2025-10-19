@@ -7,6 +7,8 @@ import skfuzzy as fuzz
 from typing import Dict, List, Tuple, Any
 import time
 
+from .cluster_interpreter import add_cluster_interpretations, get_cluster_summary_stats
+
 # --- Utility Function ---
 
 
@@ -380,6 +382,10 @@ class ClusteringAlgorithms:
                         "members": members,
                     }
                 )
+
+        # Add cluster interpretations
+        results["clusters"] = add_cluster_interpretations(results["clusters"])
+        results["interpretation_summary"] = get_cluster_summary_stats(results["clusters"])
 
         return results
 

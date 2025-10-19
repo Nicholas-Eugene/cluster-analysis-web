@@ -15,6 +15,33 @@
     </div>
     
     <div v-if="activeCluster" class="cluster-detail">
+      <!-- Cluster Interpretation Badge -->
+      <div v-if="activeCluster.interpretation" class="interpretation-badge" 
+           :style="{ borderLeftColor: activeCluster.interpretation.color_code }">
+        <div class="interpretation-header">
+          <span class="interpretation-icon" 
+                :style="{ backgroundColor: activeCluster.interpretation.color_code }">
+            {{ getInterpretationIcon(activeCluster.interpretation.category) }}
+          </span>
+          <h4 class="interpretation-label">{{ activeCluster.interpretation.label }}</h4>
+        </div>
+        <p class="interpretation-description">{{ activeCluster.interpretation.description }}</p>
+        <div v-if="activeCluster.interpretation.metrics" class="interpretation-metrics">
+          <div class="metric-badge">
+            <span class="metric-label">IPM:</span>
+            <span class="metric-value">{{ activeCluster.interpretation.metrics.ipm_level }}</span>
+          </div>
+          <div class="metric-badge">
+            <span class="metric-label">Status:</span>
+            <span class="metric-value">{{ activeCluster.interpretation.metrics.poverty_status }}</span>
+          </div>
+          <div class="metric-badge">
+            <span class="metric-label">Rasio Kemiskinan:</span>
+            <span class="metric-value">{{ activeCluster.interpretation.metrics.poverty_line_ratio?.toFixed(2) }}x</span>
+          </div>
+        </div>
+      </div>
+
       <div class="cluster-info">
         <h4>Cluster {{ activeCluster.id }}</h4>
         <div class="cluster-stats">
@@ -35,7 +62,11 @@
               </div>
               <div class="centroid-item">
                 <span>Pengeluaran Per Kapita:</span>
-                <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
+                <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }} ribu/tahun</span>
+              </div>
+              <div v-if="activeCluster.interpretation?.metrics?.expenditure_per_month" class="centroid-item">
+                <span>Pengeluaran Per Bulan:</span>
+                <span>{{ formatCurrency(activeCluster.interpretation.metrics.expenditure_per_month) }}</span>
               </div>
             </div>
           </div>
@@ -174,6 +205,17 @@ export default {
       }).format(value)
     }
 
+    const getInterpretationIcon = (category) => {
+      const icons = {
+        'poor': '⚠️',
+        'prosperous': '✨',
+        'vulnerable': '⚡',
+        'developing': '📈',
+        'middle': '🔄'
+      }
+      return icons[category] || '📊'
+    }
+
     // Initialize with first cluster - always select first cluster when clusters change
     watch(() => props.clusters, (newClusters) => {
       if (newClusters && newClusters.length > 0) {
@@ -189,7 +231,8 @@ export default {
       formatCurrency,
       selectCluster,
       isClusterActive,
-      normalizeId
+      normalizeId,
+      getInterpretationIcon
     }
   }
 }
@@ -406,6 +449,81 @@ export default {
   z-index: 1;
 }
 
+/* Interpretation Badge */
+.interpretation-badge {
+  background: linear-gradient(135deg, #f7fafc 0%, #edf2f7 100%);
+  border-left: 4px solid #667eea;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.interpretation-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.interpretation-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: white;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.interpretation-label {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: #2d3748;
+}
+
+.interpretation-description {
+  margin: 0 0 1rem 0;
+  color: #4a5568;
+  line-height: 1.6;
+  font-size: 0.95rem;
+}
+
+.interpretation-metrics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.metric-badge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  background: white;
+  border-radius: 6px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.metric-label {
+  font-size: 0.75rem;
+  color: #718096;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.metric-value {
+  font-size: 0.9rem;
+  color: #2d3748;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .members-grid {
     grid-template-columns: 1fr;
@@ -417,6 +535,10 @@ export default {
   
   .cluster-tab {
     width: 100%;
+  }
+  
+  .interpretation-metrics {
+    flex-direction: column;
   }
 }
 </style>
