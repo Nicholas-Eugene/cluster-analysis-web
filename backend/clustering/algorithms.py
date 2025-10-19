@@ -177,9 +177,12 @@ class ClusteringAlgorithms:
             db_score = None
         try:
             sil_score = silhouette_score(scaled_data, cluster_labels)
+            # Calculate per-sample silhouette scores for silhouette plot
+            sil_samples = silhouette_samples(scaled_data, cluster_labels)
         except ValueError as e:
             print(f"   ⚠️ Cannot calculate Silhouette score: {e}")
             sil_score = -1.0
+            sil_samples = None
 
         execution_time = time.time() - start_time
 
@@ -221,6 +224,9 @@ class ClusteringAlgorithms:
                 members = []
                 # Get the membership values for this cluster
                 cluster_memberships = u[i, cluster_mask]
+                
+                # Get indices in original dataframe for silhouette scores
+                cluster_indices = np.where(cluster_mask)[0]
 
                 for idx, (_, row) in enumerate(cluster_members_df.iterrows()):
                     member_info = {
@@ -233,6 +239,11 @@ class ClusteringAlgorithms:
                         "longitude": float(row.get("longitude", 0.0)),
                         "membership": float(cluster_memberships[idx]),
                     }
+                    
+                    # Add silhouette score for this member
+                    if sil_samples is not None and idx < len(cluster_indices):
+                        member_info["silhouette_score"] = float(sil_samples[cluster_indices[idx]])
+                    
                     # Add feature values
                     for feature in features:
                         member_info[feature] = float(row.get(feature, 0.0))
@@ -296,6 +307,7 @@ class ClusteringAlgorithms:
         # Calculate evaluation metrics (excluding noise points)
         db_score = None
         sil_score = -1.0
+        sil_samples = None
         if n_clusters > 1:
             valid_mask = cluster_labels != -1
             if np.sum(valid_mask) > 1:
@@ -309,6 +321,13 @@ class ClusteringAlgorithms:
                     sil_score = silhouette_score(
                         scaled_data[valid_mask], cluster_labels[valid_mask]
                     )
+                    # Calculate per-sample silhouette scores
+                    sil_samples_valid = silhouette_samples(
+                        scaled_data[valid_mask], cluster_labels[valid_mask]
+                    )
+                    # Map back to full array (noise points get None)
+                    sil_samples = np.full(len(cluster_labels), np.nan)
+                    sil_samples[valid_mask] = sil_samples_valid
                 except ValueError as e:
                     print(f"   ⚠️ Cannot calculate Silhouette score: {e}")
 
@@ -354,7 +373,10 @@ class ClusteringAlgorithms:
 
                 # Prepare member information
                 members = []
-                for _, row in cluster_members_df.iterrows():
+                # Get indices in original dataframe for silhouette scores
+                cluster_indices = np.where(cluster_mask)[0]
+                
+                for idx, (_, row) in enumerate(cluster_members_df.iterrows()):
                     member_info = {
                         "kabupaten_kota": str(row.get("kabupaten_kota", "")),
                         "provinsi": str(row.get("provinsi", "")),
@@ -363,6 +385,13 @@ class ClusteringAlgorithms:
                         "longitude": float(row.get("longitude", 0.0)),
                         "membership": 1.0,  # OPTICS gives hard assignments
                     }
+                    
+                    # Add silhouette score for this member
+                    if sil_samples is not None and idx < len(cluster_indices):
+                        sil_val = sil_samples[cluster_indices[idx]]
+                        if not np.isnan(sil_val):
+                            member_info["silhouette_score"] = float(sil_val)
+                    
                     # Add feature values
                     for feature in features:
                         member_info[feature] = float(row.get(feature, 0.0))

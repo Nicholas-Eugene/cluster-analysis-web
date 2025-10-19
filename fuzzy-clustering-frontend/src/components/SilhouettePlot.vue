@@ -102,30 +102,14 @@ export default {
       return true
     })
 
-    // Calculate silhouette-like approximation based on cluster cohesion
-    const calculateApproximateSilhouette = (member, cluster, allClusters) => {
-      // Simple approximation: use distance from centroid
-      if (!cluster.centroid) return 0.5
-      
-      const features = ['ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita']
-      let distance = 0
-      let count = 0
-      
-      features.forEach(feature => {
-        if (member[feature] != null && cluster.centroid[feature] != null) {
-          const diff = (member[feature] - cluster.centroid[feature]) / cluster.centroid[feature]
-          distance += diff * diff
-          count++
-        }
-      })
-      
-      if (count === 0) return 0.5
-      
-      distance = Math.sqrt(distance / count)
-      
-      // Normalize to silhouette-like score (-1 to 1)
-      // Lower distance = higher silhouette score
-      return Math.max(-1, Math.min(1, 1 - distance))
+    // Get silhouette score from member data (calculated by backend)
+    const getSilhouetteScore = (member) => {
+      // Use backend-calculated silhouette score if available
+      if (member.silhouette_score !== undefined && member.silhouette_score !== null) {
+        return member.silhouette_score
+      }
+      // Fallback to approximation if not available (shouldn't happen with new backend)
+      return 0.5
     }
 
     const averageSilhouetteScore = computed(() => {
@@ -139,7 +123,7 @@ export default {
       
       props.clusters.forEach(cluster => {
         cluster.members.forEach(member => {
-          const score = calculateApproximateSilhouette(member, cluster, props.clusters)
+          const score = getSilhouetteScore(member)
           total += score
           count++
         })
@@ -210,9 +194,9 @@ export default {
             return
           }
 
-          // Calculate silhouette scores for members
+          // Get silhouette scores for members (from backend)
           const scores = cluster.members.map(member => ({
-            score: calculateApproximateSilhouette(member, cluster, props.clusters),
+            score: getSilhouetteScore(member),
             name: member.kabupaten_kota || 'Unknown'
           }))
 
