@@ -198,13 +198,18 @@ def add_cluster_interpretations(clusters: List[Dict[str, Any]]) -> List[Dict[str
     if not clusters:
         return clusters
     
-    # Extract all centroids for comparison
-    all_centroids = [cluster.get('centroid', {}) for cluster in clusters]
+    # Extract all centroids for comparison (skip None centroids for noise clusters)
+    all_centroids = [cluster.get('centroid', {}) for cluster in clusters if cluster.get('centroid') is not None]
+    
+    # Skip interpretation if no valid centroids
+    if not all_centroids:
+        return clusters
     
     # Add interpretation to each cluster
     for cluster in clusters:
-        centroid = cluster.get('centroid', {})
-        if centroid:
+        centroid = cluster.get('centroid')
+        # Only interpret clusters with valid centroid (skip noise clusters)
+        if centroid is not None and centroid:
             interpretation = interpret_cluster_label(centroid, all_centroids)
             cluster['interpretation'] = interpretation
     
