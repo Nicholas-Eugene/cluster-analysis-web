@@ -176,9 +176,10 @@
       />
       
       <SilhouettePlot 
+        v-if="resultData.clusters && resultData.clusters.length > 0"
         :clusters="resultData.clusters" 
-        :title="`Silhouette Plot - ${resultData.algorithm}`"
-        :silhouetteScore="resultData.evaluation.silhouette_score"
+        :title="`Silhouette Plot - ${resultData.algorithm || 'Clustering'}`"
+        :silhouetteScore="resultData.evaluation?.silhouette_score"
       />
 
       <div class="header-actions", style="margin-bottom: 2rem;">

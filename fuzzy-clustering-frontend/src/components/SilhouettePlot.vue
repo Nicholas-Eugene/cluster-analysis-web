@@ -279,10 +279,14 @@ export default {
                 callbacks: {
                   label: (context) => {
                     const point = context.raw
+                    // Ensure label is string, not object
+                    const datasetLabel = context.dataset.label 
+                      ? String(context.dataset.label) 
+                      : 'Unknown Cluster'
                     return [
                       `Region: ${point.name || 'N/A'}`,
                       `Score: ${point.x?.toFixed(3) || 'N/A'}`,
-                      context.dataset.label
+                      `Cluster: ${datasetLabel}`
                     ]
                   }
                 }
