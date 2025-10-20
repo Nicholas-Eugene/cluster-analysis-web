@@ -504,32 +504,84 @@ class ClusteringPDFGenerator:
         description = interpretation.get('description', 'No description available')
         category = interpretation.get('category', 'unknown')
         
+        # Create styles for better text wrapping
+        header_style = ParagraphStyle(
+            'ClusterHeader',
+            parent=self.normal_style,
+            fontSize=11,
+            leading=14,
+            fontName='Helvetica-Bold',
+            textColor=colors.whitesmoke
+        )
+        
+        label_style = ParagraphStyle(
+            'ClusterLabel',
+            parent=self.normal_style,
+            fontSize=9,
+            leading=12,
+            fontName='Helvetica-Bold'
+        )
+        
+        value_style = ParagraphStyle(
+            'ClusterValue',
+            parent=self.normal_style,
+            fontSize=9,
+            leading=12
+        )
+        
+        desc_style = ParagraphStyle(
+            'ClusterDesc',
+            parent=self.normal_style,
+            fontSize=8,
+            leading=11
+        )
+        
         # Create data for table
         table_data = []
         
-        # Header with cluster label
-        table_data.append([f'Cluster {cluster_id}: {label}', f'{cluster_size} Regions'])
+        # Header with cluster label - use Paragraphs for proper wrapping
+        header_left = Paragraph(f'<b>Cluster {cluster_id}: {label}</b>', header_style)
+        header_right = Paragraph(f'<b>{cluster_size} Regions</b>', header_style)
+        table_data.append([header_left, header_right])
         
-        # Add interpretation description
+        # Add interpretation description with Paragraph for wrapping
         if description and description != 'No description available':
-            # Wrap description to fit in table
-            desc_wrapped = description[:200] + '...' if len(description) > 200 else description
-            table_data.append(['Description', desc_wrapped])
+            desc_label = Paragraph('<b>Description</b>', label_style)
+            desc_text = Paragraph(description, desc_style)
+            table_data.append([desc_label, desc_text])
         
         # Add centroid values
         centroid = cluster.get('centroid', {})
         if centroid:
             table_data.append(['', ''])  # Separator
-            table_data.append(['Cluster Characteristics', 'Average Values'])
-            table_data.append(['IPM', f"{centroid.get('ipm', 0):.2f}"])
-            table_data.append(['Garis Kemiskinan', f"Rp {centroid.get('garis_kemiskinan', 0):,.0f}/bulan"])
-            table_data.append(['Pengeluaran Per Kapita', f"Rp {centroid.get('pengeluaran_per_kapita', 0) * 1000:,.0f}/tahun"])
+            
+            char_label = Paragraph('<b>Cluster Characteristics</b>', label_style)
+            char_value = Paragraph('<b>Average Values</b>', label_style)
+            table_data.append([char_label, char_value])
+            
+            # IPM
+            ipm_label = Paragraph('IPM', value_style)
+            ipm_value = Paragraph(f"{centroid.get('ipm', 0):.2f}", value_style)
+            table_data.append([ipm_label, ipm_value])
+            
+            # Garis Kemiskinan
+            gk_label = Paragraph('Garis Kemiskinan', value_style)
+            gk_value = Paragraph(f"Rp {centroid.get('garis_kemiskinan', 0):,.0f}/bulan", value_style)
+            table_data.append([gk_label, gk_value])
+            
+            # Pengeluaran Per Kapita
+            ppk_label = Paragraph('Pengeluaran Per Kapita', value_style)
+            ppk_value = Paragraph(f"Rp {centroid.get('pengeluaran_per_kapita', 0) * 1000:,.0f}/tahun", value_style)
+            table_data.append([ppk_label, ppk_value])
         
         # Add members list as comma-separated string
         members = cluster.get('members', [])
         if members:
             table_data.append(['', ''])  # Separator
-            table_data.append(['Members', Paragraph(f'<b>Total: {len(members)} Regions</b>', self.normal_style)])
+            
+            members_header_label = Paragraph('<b>Members</b>', label_style)
+            members_header_value = Paragraph(f'<b>Total: {len(members)} Regions</b>', label_style)
+            table_data.append([members_header_label, members_header_value])
             
             # Create comma-separated list of members
             member_names = []
@@ -543,8 +595,18 @@ class ClusteringPDFGenerator:
                     member_names.append(region_name)
             
             # Split members into chunks to avoid cells that are too tall
-            # Max ~15 members per chunk to keep cell height manageable
-            chunk_size = 15
+            # Max ~12 members per chunk for better spacing
+            chunk_size = 12
+            
+            # Create smaller font style for members list
+            members_style = ParagraphStyle(
+                'MembersStyle',
+                parent=self.normal_style,
+                fontSize=7.5,
+                leading=10,
+                spaceBefore=2,
+                spaceAfter=2
+            )
             
             for i in range(0, len(member_names), chunk_size):
                 chunk = member_names[i:i + chunk_size]
@@ -554,46 +616,43 @@ class ClusteringPDFGenerator:
                 if i + chunk_size < len(member_names):
                     members_text += ','
                 
-                # Create smaller font style for members to save space
-                members_style = ParagraphStyle(
-                    'MembersStyle',
-                    parent=self.normal_style,
-                    fontSize=8,
-                    leading=10
-                )
-                
                 members_paragraph = Paragraph(members_text, members_style)
                 table_data.append(['', members_paragraph])
         
-        # Create table
-        col_widths = [1*inch, 5.5*inch]
+        # Create table with adjusted widths for A4 page
+        # A4 width = 210mm = 8.27 inches, minus margins ~7.5 inches usable
+        col_widths = [1.5*inch, 5.5*inch]
         table = Table(table_data, colWidths=col_widths)
         
-        # Style table
+        # Style table with increased padding
         table_style = [
             # Header row
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('FONTSIZE', (0, 0), (-1, 0), 11),
             ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
-            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+            ('LEFTPADDING', (0, 0), (-1, 0), 8),
+            ('RIGHTPADDING', (0, 0), (-1, 0), 8),
+            ('TOPPADDING', (0, 0), (-1, 0), 12),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
             
-            # Rest of table
+            # Rest of table - increased padding to prevent overlap
             ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
             ('FONTSIZE', (0, 1), (-1, -1), 9),
             ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
             ('VALIGN', (0, 1), (-1, -1), 'TOP'),
-            ('LEFTPADDING', (0, 1), (-1, -1), 6),
-            ('RIGHTPADDING', (0, 1), (-1, -1), 6),
-            ('TOPPADDING', (0, 1), (-1, -1), 4),
-            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            ('LEFTPADDING', (0, 1), (-1, -1), 8),
+            ('RIGHTPADDING', (0, 1), (-1, -1), 8),
+            ('TOPPADDING', (0, 1), (-1, -1), 6),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 6),
             
             # Grid
             ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
             
-            # Alternate row colors
-            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+            # Alternate row colors for better readability
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f7f7f7')]),
         ]
         
         table.setStyle(TableStyle(table_style))
