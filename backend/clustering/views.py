@@ -101,22 +101,6 @@ class UploadAndProcessView(APIView):
                 {"error": f"Parameter tidak valid: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-    
-    def _parse_selected_years(self, selected_years_json):
-        """Parse selected years from JSON string."""
-        if not selected_years_json:
-            return None
-        
-        try:
-            selected_years = json.loads(selected_years_json)
-            if selected_years:
-                selected_years = [int(y) for y in selected_years]
-                print(f"🎯 Selected years from request: {selected_years}")
-                return selected_years
-        except Exception as e:
-            print(f"⚠️ Error parsing selected_years: {e}")
-        
-        return None
 
         # Read and validate file
         try:
@@ -203,6 +187,22 @@ class UploadAndProcessView(APIView):
             {"session_id": str(session.id), "results": results},
             status=status.HTTP_201_CREATED,
         )
+    
+    def _parse_selected_years(self, selected_years_json):
+        """Parse selected years from JSON string."""
+        if not selected_years_json:
+            return None
+        
+        try:
+            selected_years = json.loads(selected_years_json)
+            if selected_years:
+                selected_years = [int(y) for y in selected_years]
+                print(f"🎯 Selected years from request: {selected_years}")
+                return selected_years
+        except Exception as e:
+            print(f"⚠️ Error parsing selected_years: {e}")
+        
+        return None
     
     def _execute_clustering(
         self,
