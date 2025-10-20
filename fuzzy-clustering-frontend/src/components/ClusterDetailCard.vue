@@ -31,11 +31,11 @@
               </div>
               <div class="centroid-item">
                 <span>Garis Kemiskinan:</span>
-                <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
+                <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }} / bulan</span>
               </div>
               <div class="centroid-item">
                 <span>Pengeluaran Per Kapita:</span>
-                <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }} ribu/tahun</span>
+                <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita * 1000) }} /tahun</span>
               </div>
             </div>
           </div>
@@ -59,11 +59,11 @@
               </div>
               <div class="member-stat">
                 <span>Garis Kemiskinan:</span>
-                <span>{{ formatCurrency(member.garis_kemiskinan) }} Rp/kapita/bulan</span>
+                <span>{{ formatCurrency(member.garis_kemiskinan) }} / bulan</span>
               </div>
               <div class="member-stat">
                 <span>Pengeluaran:</span>
-                <span>{{ formatCurrency(member.pengeluaran_per_kapita) }}</span>
+                <span>{{ formatCurrency(member.pengeluaran_per_kapita * 1000)}} / tahun</span>
               </div>
               <div v-if="showMembership && member.membership != null" class="member-stat membership-stat">
                 <span>Membership:</span>
@@ -442,6 +442,3 @@ export default {
   }
 }
 </style>
-tyle>
-</style>
-tyle>
