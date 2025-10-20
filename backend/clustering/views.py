@@ -6,6 +6,31 @@ from django.http import HttpResponse, FileResponse
 from .models import ClusteringSession
 from .algorithms import run_clustering_all_years, run_clustering_per_year
 from .pdf_generator import generate_pdf_report
+from .utils import (
+    normalize_column_names,
+    validate_required_columns,
+    clean_and_validate_data,
+    read_data_file,
+    format_clustering_parameters,
+    safe_int_conversion,
+    safe_float_conversion,
+)
+from .constants import (
+    ALGORITHM_FCM,
+    ALGORITHM_OPTICS,
+    SUPPORTED_ALGORITHMS,
+    MODE_PER_YEAR,
+    MODE_ALL_YEARS,
+    DEFAULT_NUM_CLUSTERS,
+    DEFAULT_FUZZY_COEFF,
+    DEFAULT_MAX_ITER,
+    DEFAULT_TOLERANCE,
+    DEFAULT_MIN_SAMPLES,
+    DEFAULT_XI,
+    DEFAULT_MIN_CLUSTER_SIZE,
+    CLUSTERING_FEATURES,
+    MATPLOTLIB_BACKEND,
+)
 
 import pandas as pd
 import numpy as np
@@ -16,260 +41,149 @@ import os
 
 # Configure matplotlib for headless environments
 import matplotlib
-
-matplotlib.use("Agg")  # Use non-interactive backend
+matplotlib.use(MATPLOTLIB_BACKEND)
 import matplotlib.pyplot as plt
-
-import pandas as pd
 import seaborn as sns
-import matplotlib.pyplot as plt
-import io
 import base64
 
 
 class UploadAndProcessView(APIView):
+    """
+    API View for uploading and processing clustering data.
+    Handles file upload, validation, and clustering execution.
+    """
+    
     def post(self, request):
+        """Process uploaded file and perform clustering analysis."""
         file_obj = request.FILES.get("file")
         if not file_obj:
             return Response(
-                {"error": "File tidak ditemukan"}, status=status.HTTP_400_BAD_REQUEST
+                {"error": "File tidak ditemukan"}, 
+                status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Parse and validate parameters
         try:
-            algorithm = request.POST.get("algorithm", "fcm").lower()
-            num_clusters = int(request.POST.get("num_clusters", 3))
-            fuzzy_coeff = float(request.POST.get("fuzzy_coeff", 2.0))
-            max_iter = int(request.POST.get("max_iter", 300))
-            tolerance = float(request.POST.get("tolerance", 0.0001))
+            algorithm = request.POST.get("algorithm", ALGORITHM_FCM).lower()
+            num_clusters = safe_int_conversion(
+                request.POST.get("num_clusters"), DEFAULT_NUM_CLUSTERS
+            )
+            fuzzy_coeff = safe_float_conversion(
+                request.POST.get("fuzzy_coeff"), DEFAULT_FUZZY_COEFF
+            )
+            max_iter = safe_int_conversion(
+                request.POST.get("max_iter"), DEFAULT_MAX_ITER
+            )
+            tolerance = safe_float_conversion(
+                request.POST.get("tolerance"), DEFAULT_TOLERANCE
+            )
             selected_year = request.POST.get("selected_year")
-            clustering_mode = request.POST.get("clustering_mode", "per_year")
+            clustering_mode = request.POST.get("clustering_mode", MODE_PER_YEAR)
             
             # Get selected years for per_year mode (optional)
-            selected_years_json = request.POST.get("selected_years")
-            selected_years = None
-            if selected_years_json:
-                import json
-                try:
-                    selected_years = json.loads(selected_years_json)
-                    # Convert to integers if they are strings
-                    if selected_years:
-                        selected_years = [int(y) for y in selected_years]
-                        print(f"🎯 Selected years from request: {selected_years}")
-                except Exception as e:
-                    print(f"⚠️ Error parsing selected_years: {e}")
-                    selected_years = None
+            selected_years = self._parse_selected_years(
+                request.POST.get("selected_years")
+            )
 
-            # OPTICS specific parameters - make them more adaptive
-            min_samples = int(request.POST.get("min_samples", 5))
-            xi = float(request.POST.get("xi", 0.05))
-            min_cluster_size = float(request.POST.get("min_cluster_size", 0.05))
+            # OPTICS specific parameters
+            min_samples = safe_int_conversion(
+                request.POST.get("min_samples"), DEFAULT_MIN_SAMPLES
+            )
+            xi = safe_float_conversion(
+                request.POST.get("xi"), DEFAULT_XI
+            )
+            min_cluster_size = safe_float_conversion(
+                request.POST.get("min_cluster_size"), DEFAULT_MIN_CLUSTER_SIZE
+            )
 
-            # Adaptive parameter adjustment based on data size will be done in algorithms.py
         except Exception as e:
             return Response(
                 {"error": f"Parameter tidak valid: {str(e)}"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+    
+    def _parse_selected_years(self, selected_years_json):
+        """Parse selected years from JSON string."""
+        if not selected_years_json:
+            return None
+        
         try:
-            # Detect file type and read accordingly
-            filename = getattr(file_obj, "name", "").lower()
-            if filename.endswith(".xlsx") or filename.endswith(".xls"):
-                df = pd.read_excel(file_obj, engine="openpyxl")
-            elif filename.endswith(".csv"):
-                df = pd.read_csv(file_obj)
-            else:
-                # Try CSV first, then Excel
-                try:
-                    df = pd.read_csv(file_obj)
-                except:
-                    file_obj.seek(0)  # Reset file pointer
-                    df = pd.read_excel(file_obj, engine="openpyxl")
+            selected_years = json.loads(selected_years_json)
+            if selected_years:
+                selected_years = [int(y) for y in selected_years]
+                print(f"🎯 Selected years from request: {selected_years}")
+                return selected_years
         except Exception as e:
+            print(f"⚠️ Error parsing selected_years: {e}")
+        
+        return None
+
+        # Read and validate file
+        try:
+            df = read_data_file(file_obj)
+        except ValueError as e:
             return Response(
-                {
-                    "error": f"Gagal membaca file: {str(e)}. Pastikan file dalam format CSV atau Excel (.xlsx)"
-                },
+                {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Check for required columns - long format only (5 columns)
-        # Normalize column names for flexible matching
-        df_columns_lower = [
-            col.lower().replace("/", "_").replace(" ", "_") for col in df.columns
-        ]
-        df_columns_map = {
-            col.lower().replace("/", "_").replace(" ", "_"): col for col in df.columns
-        }
-
-        required_cols = {
-            "kabupaten_kota": ["kabupaten_kota", "kabupaten/kota", "kabupaten kota"],
-            "tahun": ["tahun"],
-            "ipm": ["ipm"],
-            "garis_kemiskinan": ["garis_kemiskinan", "garis kemiskinan"],
-            "pengeluaran_per_kapita": [
-                "pengeluaran_per_kapita",
-                "pengeluaran per kapita",
-                "pengeluaran_perkapita",
-            ],
-        }
-
-        missing_cols = []
-        column_mapping = {}
-
-        for required_col, possible_names in required_cols.items():
-            found = False
-            for possible_name in possible_names:
-                normalized_name = (
-                    possible_name.lower().replace("/", "_").replace(" ", "_")
-                )
-                if normalized_name in df_columns_lower:
-                    # Map the required column to the actual column name in the dataframe
-                    actual_col_name = df_columns_map[normalized_name]
-                    column_mapping[required_col] = actual_col_name
-                    found = True
-                    break
-
-            if not found:
-                missing_cols.append(required_col)
-
+        # Normalize column names
+        df, column_mapping = normalize_column_names(df)
+        
+        # Validate required columns
+        missing_cols = validate_required_columns(df)
         if missing_cols:
             return Response(
                 {"error": f'Kolom wajib hilang: {", ".join(missing_cols)}'},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Rename columns to standardized names for consistent processing
-        df = df.rename(columns={v: k for k, v in column_mapping.items()})
-
-        # Validate data types and clean data
+        # Clean and validate data
         try:
-            # Ensure tahun is numeric
-            df["tahun"] = pd.to_numeric(df["tahun"], errors="coerce")
-
-            # Ensure numeric columns are numeric
-            df["ipm"] = pd.to_numeric(df["ipm"], errors="coerce")
-            df["garis_kemiskinan"] = pd.to_numeric(
-                df["garis_kemiskinan"], errors="coerce"
-            )
-            df["pengeluaran_per_kapita"] = pd.to_numeric(
-                df["pengeluaran_per_kapita"], errors="coerce"
-            )
-
-            # Remove rows with invalid data
-            df = df.dropna(
-                subset=["tahun", "ipm", "garis_kemiskinan", "pengeluaran_per_kapita"]
-            )
-
-            if df.empty:
-                return Response(
-                    {
-                        "error": "Tidak ada data valid yang dapat diproses. Pastikan semua kolom numerik berisi angka yang valid."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # Ensure kabupaten_kota is string and not empty
-            df["kabupaten_kota"] = df["kabupaten_kota"].astype(str).str.strip()
-            df = df[df["kabupaten_kota"] != ""]
-
-            if df.empty:
-                return Response(
-                    {
-                        "error": "Tidak ada data valid yang dapat diproses. Pastikan kolom kabupaten_kota tidak kosong."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        except Exception as e:
+            df = clean_and_validate_data(df)
+        except ValueError as e:
             return Response(
-                {"error": f"Error dalam validasi data: {str(e)}"},
+                {"error": str(e)},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Data is now in standardized long format with consistent column names and validated data types
+        # Format parameters for storage
+        parameters = format_clustering_parameters(
+            algorithm=algorithm,
+            num_clusters=num_clusters,
+            fuzzy_coeff=fuzzy_coeff,
+            max_iter=max_iter,
+            tolerance=tolerance,
+            min_samples=min_samples,
+            xi=xi,
+            min_cluster_size=min_cluster_size,
+            selected_year=selected_year,
+        )
 
-        parameters = {
-            "algorithm": algorithm,
-            "num_clusters": num_clusters,
-            "fuzzy_coeff": fuzzy_coeff,
-            "max_iter": max_iter,
-            "tolerance": tolerance,
-            "selected_year": selected_year,
-            "min_samples": min_samples,
-            "xi": xi,
-            "min_cluster_size": min_cluster_size,
-        }
+        # Validate algorithm
+        if algorithm not in SUPPORTED_ALGORITHMS:
+            return Response(
+                {"error": f'Algoritma tidak dikenal. Gunakan "{ALGORITHM_FCM}" atau "{ALGORITHM_OPTICS}"'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
+        # Execute clustering
         try:
-            # Branch logic based on clustering_mode
-            if clustering_mode == "all_years":
-                print("📅 Clustering all years at once (wide format, all year columns)")
-                # Pass to all-years clustering
-                if algorithm == "fcm":
-                    results = run_clustering_all_years(
-                        df,
-                        algorithm="fcm",
-                        n_clusters=num_clusters,
-                        m=fuzzy_coeff,
-                        max_iter=max_iter,
-                        error=tolerance,
-                        selected_year=selected_year,
-                    )
-                elif algorithm == "optics":
-                    results = run_clustering_all_years(
-                        df,
-                        algorithm="optics",
-                        min_samples=min_samples,
-                        xi=xi,
-                        min_cluster_size=min_cluster_size,
-                        selected_year=selected_year,
-                    )
-                else:
-                    return Response(
-                        {
-                            "error": 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                results["clustering_mode"] = "all_years"
-            else:
-                # Per year clustering (default)
-                if selected_year:
-                    print(f"🎯 Single year clustering for {selected_year}")
-                else:
-                    print(f"🗓️ Per year clustering for all available years")
-                if algorithm == "fcm":
-                    results = run_clustering_per_year(
-                        df,
-                        algorithm="fcm",
-                        features=["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"],
-                        n_clusters=num_clusters,
-                        m=fuzzy_coeff,
-                        max_iter=max_iter,
-                        error=tolerance,
-                        selected_year=selected_year,
-                        selected_years=selected_years,
-                    )
-                elif algorithm == "optics":
-                    results = run_clustering_per_year(
-                        df,
-                        algorithm="optics",
-                        features=["ipm", "garis_kemiskinan", "pengeluaran_per_kapita"],
-                        min_samples=min_samples,
-                        xi=xi,
-                        min_cluster_size=min_cluster_size,
-                        selected_year=selected_year,
-                        selected_years=selected_years,
-                    )
-                else:
-                    return Response(
-                        {
-                            "error": 'Algoritma tidak dikenal. Gunakan "fcm" atau "optics"'
-                        },
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-                results["clustering_mode"] = clustering_mode
+            results = self._execute_clustering(
+                df=df,
+                algorithm=algorithm,
+                clustering_mode=clustering_mode,
+                num_clusters=num_clusters,
+                fuzzy_coeff=fuzzy_coeff,
+                max_iter=max_iter,
+                tolerance=tolerance,
+                min_samples=min_samples,
+                xi=xi,
+                min_cluster_size=min_cluster_size,
+                selected_year=selected_year,
+                selected_years=selected_years,
+            )
+            results["clustering_mode"] = clustering_mode
 
         except Exception as e:
             return Response(
@@ -277,6 +191,7 @@ class UploadAndProcessView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
+        # Save session
         with transaction.atomic():
             session = ClusteringSession.objects.create(
                 original_filename=getattr(file_obj, "name", ""),
@@ -288,6 +203,130 @@ class UploadAndProcessView(APIView):
             {"session_id": str(session.id), "results": results},
             status=status.HTTP_201_CREATED,
         )
+    
+    def _execute_clustering(
+        self,
+        df,
+        algorithm,
+        clustering_mode,
+        num_clusters,
+        fuzzy_coeff,
+        max_iter,
+        tolerance,
+        min_samples,
+        xi,
+        min_cluster_size,
+        selected_year,
+        selected_years,
+    ):
+        """Execute clustering based on mode and algorithm."""
+        if clustering_mode == MODE_ALL_YEARS:
+            print("📅 Clustering all years at once (wide format, all year columns)")
+            return self._run_all_years_clustering(
+                df=df,
+                algorithm=algorithm,
+                num_clusters=num_clusters,
+                fuzzy_coeff=fuzzy_coeff,
+                max_iter=max_iter,
+                tolerance=tolerance,
+                min_samples=min_samples,
+                xi=xi,
+                min_cluster_size=min_cluster_size,
+                selected_year=selected_year,
+            )
+        else:
+            # Per year clustering (default)
+            if selected_year:
+                print(f"🎯 Single year clustering for {selected_year}")
+            else:
+                print(f"🗓️ Per year clustering for all available years")
+            
+            return self._run_per_year_clustering(
+                df=df,
+                algorithm=algorithm,
+                num_clusters=num_clusters,
+                fuzzy_coeff=fuzzy_coeff,
+                max_iter=max_iter,
+                tolerance=tolerance,
+                min_samples=min_samples,
+                xi=xi,
+                min_cluster_size=min_cluster_size,
+                selected_year=selected_year,
+                selected_years=selected_years,
+            )
+    
+    def _run_all_years_clustering(
+        self,
+        df,
+        algorithm,
+        num_clusters,
+        fuzzy_coeff,
+        max_iter,
+        tolerance,
+        min_samples,
+        xi,
+        min_cluster_size,
+        selected_year,
+    ):
+        """Run clustering for all years combined."""
+        if algorithm == ALGORITHM_FCM:
+            return run_clustering_all_years(
+                df,
+                algorithm=ALGORITHM_FCM,
+                n_clusters=num_clusters,
+                m=fuzzy_coeff,
+                max_iter=max_iter,
+                error=tolerance,
+                selected_year=selected_year,
+            )
+        else:  # OPTICS
+            return run_clustering_all_years(
+                df,
+                algorithm=ALGORITHM_OPTICS,
+                min_samples=min_samples,
+                xi=xi,
+                min_cluster_size=min_cluster_size,
+                selected_year=selected_year,
+            )
+    
+    def _run_per_year_clustering(
+        self,
+        df,
+        algorithm,
+        num_clusters,
+        fuzzy_coeff,
+        max_iter,
+        tolerance,
+        min_samples,
+        xi,
+        min_cluster_size,
+        selected_year,
+        selected_years,
+    ):
+        """Run clustering per year."""
+        if algorithm == ALGORITHM_FCM:
+            return run_clustering_per_year(
+                df,
+                algorithm=ALGORITHM_FCM,
+                features=CLUSTERING_FEATURES,
+                n_clusters=num_clusters,
+                m=fuzzy_coeff,
+                max_iter=max_iter,
+                error=tolerance,
+                selected_year=selected_year,
+                selected_years=selected_years,
+            )
+        else:  # OPTICS
+            return run_clustering_per_year(
+                df,
+                algorithm=ALGORITHM_OPTICS,
+                features=CLUSTERING_FEATURES,
+                min_samples=min_samples,
+                xi=xi,
+                min_cluster_size=min_cluster_size,
+                selected_year=selected_year,
+                selected_years=selected_years,
+            )
 
 
 class GetResultsView(APIView):
