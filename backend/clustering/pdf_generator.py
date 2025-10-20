@@ -15,6 +15,9 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 import pandas as pd
+import folium
+from folium import plugins
+from PIL import Image
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4, letter
@@ -165,8 +168,34 @@ class ClusteringPDFGenerator:
         ]
         return colors_list[:n_clusters]
     
+    def _html_to_image_playwright(self, html_path):
+        """Convert HTML to PNG using Playwright"""
+        from playwright.sync_api import sync_playwright
+        
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=True)
+            page = browser.new_page(viewport={'width': 1400, 'height': 1000})
+            
+            # Load HTML file
+            page.goto(f'file://{os.path.abspath(html_path)}')
+            
+            # Wait for map to load
+            page.wait_for_timeout(2000)  # 2 seconds
+            
+            # Take screenshot
+            screenshot_bytes = page.screenshot(full_page=True)
+            
+            # Close browser
+            browser.close()
+            
+            # Convert to buffer
+            img_buffer = io.BytesIO(screenshot_bytes)
+            img_buffer.seek(0)
+            
+            return img_buffer
+    
     def _create_cluster_map(self, clusters: List[Dict], title: str):
-        """Create geographical cluster map - returns None if no valid coordinates"""
+        """Create geographical cluster map with Indonesia basemap using Folium"""
         try:
             # Collect all valid coordinates
             all_points = []
@@ -183,7 +212,7 @@ class ClusteringPDFGenerator:
                     lat = member.get('latitude', 0)
                     lon = member.get('longitude', 0)
                     
-                    # Try to get coordinates from mapping first if available
+                    # Try to get coordinates from mapping first
                     if HAS_CITY_COORDS and city_name:
                         mapped_coords = get_city_coordinates(city_name)
                         if mapped_coords:
@@ -208,74 +237,107 @@ class ClusteringPDFGenerator:
                         'points': cluster_points
                     })
             
-            # If no valid coordinates, return None (skip map in PDF)
+            # If no valid coordinates, return None
             if not all_points:
                 print(f"⚠️ No valid geographical coordinates found for map")
                 print(f"   Mapped from city names: {coords_from_mapping}")
                 print(f"   From data: {coords_from_data}")
                 return None
             
-            print(f"✅ Creating map with {len(all_points)} points across {len(cluster_data)} clusters")
+            print(f"✅ Creating Folium map with {len(all_points)} points across {len(cluster_data)} clusters")
             print(f"   Coordinates mapped from city names: {coords_from_mapping}")
             print(f"   Coordinates from member data: {coords_from_data}")
             
-            # Create map
-            fig, ax = plt.subplots(figsize=(12, 9))
-            colors = self._get_cluster_colors(len(clusters))
+            # Calculate center of Indonesia
+            center_lat = sum(p[0] for p in all_points) / len(all_points)
+            center_lon = sum(p[1] for p in all_points) / len(all_points)
             
-            # Plot each cluster
+            # Create Folium map with OpenStreetMap basemap
+            m = folium.Map(
+                location=[center_lat, center_lon],
+                zoom_start=5,
+                tiles='OpenStreetMap',
+                control_scale=True,
+                width=1200,
+                height=800
+            )
+            
+            # Get cluster colors
+            colors_list = self._get_cluster_colors(len(clusters))
+            
+            # Add markers for each cluster
             for cluster_info in cluster_data:
                 cluster_id = cluster_info['id']
                 cluster_label = cluster_info['label']
                 points = cluster_info['points']
                 
-                lats = [p[0] for p in points]
-                lons = [p[1] for p in points]
-                
-                # Find color index
                 color_idx = next((i for i, c in enumerate(clusters) if c['id'] == cluster_id), 0)
+                cluster_color = colors_list[color_idx]
                 
-                ax.scatter(lons, lats, c=colors[color_idx], 
-                         label=f'{cluster_label} ({len(points)})',
-                         alpha=0.8, edgecolors='black', linewidth=1, s=200,
-                         zorder=5, marker='o')
+                for lat, lon, city_name in points:
+                    folium.CircleMarker(
+                        location=[lat, lon],
+                        radius=8,
+                        popup=f"<b>{city_name}</b><br>{cluster_label}",
+                        tooltip=f"{city_name} - {cluster_label}",
+                        color='black',
+                        fillColor=cluster_color,
+                        fillOpacity=0.7,
+                        weight=2
+                    ).add_to(m)
             
-            # Set labels and title
-            ax.set_xlabel('Longitude', fontsize=14, fontweight='bold')
-            ax.set_ylabel('Latitude', fontsize=14, fontweight='bold')
-            ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
+            # Add legend
+            legend_html = f'''
+            <div style="position: fixed; 
+                        top: 10px; right: 10px; width: 280px; 
+                        background-color: white; z-index:9999; font-size:13px;
+                        border:2px solid grey; border-radius: 5px; padding: 10px">
+                <h4 style="margin-top:0; font-size:14px">{title}</h4>
+            '''
             
-            # Legend
-            ax.legend(loc='upper left', frameon=True, shadow=True, 
-                     fancybox=True, fontsize=10, bbox_to_anchor=(0.02, 0.98))
+            for cluster_info in cluster_data:
+                cluster_label = cluster_info['label']
+                cluster_id = cluster_info['id']
+                color_idx = next((i for i, c in enumerate(clusters) if c['id'] == cluster_id), 0)
+                cluster_color = colors_list[color_idx]
+                point_count = len(cluster_info['points'])
+                
+                legend_html += f'''
+                <p style="margin:5px 0; font-size:12px">
+                    <span style="background-color:{cluster_color}; 
+                                 border: 2px solid black;
+                                 width: 14px; height: 14px; 
+                                 display: inline-block; margin-right: 5px;
+                                 border-radius: 50%;"></span>
+                    {cluster_label} ({point_count})
+                </p>
+                '''
             
-            # Grid
-            ax.grid(True, alpha=0.4, linestyle='--', linewidth=0.8)
+            legend_html += '</div>'
+            m.get_root().html.add_child(folium.Element(legend_html))
             
-            # Background
-            ax.set_facecolor('#e8f4f8')
-            fig.patch.set_facecolor('white')
+            # Save to temporary HTML
+            temp_html = tempfile.NamedTemporaryFile(mode='w', suffix='.html', delete=False, encoding='utf-8')
+            m.save(temp_html.name)
+            temp_html.close()
+            self.temp_images.append(temp_html.name)
             
-            # Add margins
-            all_lats = [p[0] for p in all_points]
-            all_lons = [p[1] for p in all_points]
-            lat_margin = (max(all_lats) - min(all_lats)) * 0.1 or 1
-            lon_margin = (max(all_lons) - min(all_lons)) * 0.1 or 1
-            
-            ax.set_xlim([min(all_lons) - lon_margin, max(all_lons) + lon_margin])
-            ax.set_ylim([min(all_lats) - lat_margin, max(all_lats) + lat_margin])
-            
-            plt.tight_layout()
-            
-            img_buffer = io.BytesIO()
-            plt.savefig(img_buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white')
-            img_buffer.seek(0)
-            plt.close(fig)
-            
-            return img_buffer
+            # Try to convert to image using Playwright
+            try:
+                print("   Attempting to convert Folium map to PNG using Playwright...")
+                img_buffer = self._html_to_image_playwright(temp_html.name)
+                print("   ✅ Folium map converted successfully!")
+                return img_buffer
+            except Exception as e:
+                print(f"   ⚠️ Could not convert Folium map to image: {e}")
+                print(f"   Map will be skipped in PDF")
+                import traceback
+                traceback.print_exc()
+                # Return None - map will be skipped in PDF
+                return None
             
         except Exception as e:
-            print(f"❌ Error creating cluster map: {e}")
+            print(f"❌ Error creating Folium map: {e}")
             import traceback
             traceback.print_exc()
             return None
