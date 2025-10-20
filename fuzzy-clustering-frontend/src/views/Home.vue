@@ -1,11 +1,10 @@
 <template>
   <div class="home">
     <div class="container">
-      <!-- Hero Section -->
-      <section class="hero">
+      <section id="title" class="hero">
         <div class="hero-content">
           <h1 class="hero-title">
-            Analisis Clustering Regional Indonesia 
+            Rancangan Pemetaan Wilayah Kemiskinan di Indonesia
             Berdasarkan IPM, Garis Kemiskinan & Pengeluaran Per Kapita
           </h1>
           <p class="hero-subtitle">
@@ -76,7 +75,7 @@
       </section>
 
       <!-- Data Information Section -->
-      <section class="data-section">
+      <section id="data" class="data-section">
         <div class="card">
           <h2 class="section-title">Data yang Dianalisis</h2>
           <div class="grid grid-3">
@@ -127,7 +126,7 @@
       </section>
 
       <!-- Background Section -->
-      <section class="background-section">
+      <section id="background" class="background-section">
         <div class="card">
           <h2 class="section-title">Latar Belakang Penelitian</h2>
           <div class="background-content">
@@ -167,7 +166,7 @@
       </section>
 
       <!-- Features Section -->
-      <section class="features-section">
+      <section id="features" class="features-section">
         <div class="card">
           <h2 class="section-title">Fitur Aplikasi</h2>
           <div class="grid grid-3">
@@ -186,7 +185,6 @@
               <div class="feature-icon">📊</div>
               <h3>Visualisasi Interaktif</h3>
               <p>Dashboard dengan peta interaktif, scatter plot, box plot, dan metrik evaluasi clustering</p>
-              <router-link to="/analysis-mockup" class="feature-link">Lihat Demo →</router-link>
             </div>
           </div>
         </div>

@@ -20,9 +20,9 @@
       <canvas ref="chartCanvas" class="scatter-plot-canvas"></canvas>
     </div>
     <div class="chart-legend">
-      <div v-for="(cluster, index) in clusters" :key="cluster.id" class="legend-item">
+      <div v-for="(cluster, index) in clusters" :key="`legend-${cluster.id}`" class="legend-item">
         <div class="legend-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-        <span>Cluster {{ cluster.id }} ({{ cluster.size }} daerah)</span>
+        <span>{{ getClusterLabel(cluster) }} ({{ cluster.size }} daerah)</span>
       </div>
     </div>
   </div>
@@ -66,6 +66,19 @@ export default {
 
     const getClusterColor = (index) => {
       return colors[index % colors.length]
+    }
+    
+    // Safe cluster label getter (handles noise clusters and object interpretation)
+    const getClusterLabel = (cluster) => {
+      if (!cluster) return 'Unknown'
+      if (cluster.id === -1 || cluster.id === '-1') {
+        return 'Noise (Outliers)'
+      }
+      // Ensure we get a clean string, not an object
+      if (cluster.interpretation && cluster.interpretation.label) {
+        return String(cluster.interpretation.label)
+      }
+      return `Cluster ${cluster.id}`
     }
 
     const formatAxisLabel = (axis) => {
@@ -176,18 +189,25 @@ export default {
           membership: member.membership || 1.0
         }))
 
+        // Ensure label is always a clean string (no objects, no special chars)
+        const clusterLabel = cluster.interpretation?.label 
+          ? String(cluster.interpretation.label) 
+          : `Cluster ${cluster.id}`
+        
         return {
-          label: `Cluster ${cluster.id}`,
+          label: clusterLabel,
           data: data,
           backgroundColor: getClusterColor(index),
-          borderColor: getClusterColor(index),
+          borderColor: '#ffffff',
           borderWidth: 2,
           pointRadius: (ctx) => {
             // Size based on membership for FCM
             const membership = ctx.parsed?.membership || 1.0
             return Math.max(4, membership * 8)
           },
-          pointHoverRadius: 8
+          pointHoverRadius: 8,
+          pointHoverBorderColor: '#ffffff',
+          pointHoverBorderWidth: 3
         }
       })
 
@@ -363,6 +383,7 @@ export default {
       selectedXAxis,
       selectedYAxis,
       getClusterColor,
+      getClusterLabel,
       updateChart
     }
   }

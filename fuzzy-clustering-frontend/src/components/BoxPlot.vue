@@ -15,10 +15,10 @@
     </div>
     <div class="statistics-summary">
       <div class="stats-grid">
-        <div v-for="(cluster, index) in clusters" :key="cluster.id" class="stat-card">
+        <div v-for="(cluster, index) in clusters" :key="`cluster-${cluster.id}`" class="stat-card">
           <div class="stat-header">
             <div class="stat-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-            <h4>Cluster {{ cluster.id }}</h4>
+            <h4>{{ getClusterLabel(cluster) }}</h4>
           </div>
           <div class="stat-values">
             <div class="stat-item">
@@ -55,6 +55,10 @@
 <script>
 import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import Chart from 'chart.js/auto'
+import { BoxPlotController, BoxAndWiskers } from '@sgratzl/chartjs-chart-boxplot'
+
+// Register the box plot controller
+Chart.register(BoxPlotController, BoxAndWiskers)
 
 export default {
   name: 'BoxPlot',
@@ -65,7 +69,7 @@ export default {
     },
     title: {
       type: String,
-      default: 'Box Plot Analisis per Cluster'
+      default: 'Box and Whisker Plot - Analisis Distribusi per Cluster'
     }
   },
   setup(props) {
@@ -89,6 +93,19 @@ export default {
 
     const getClusterColor = (index) => {
       return colors[index % colors.length]
+    }
+    
+    // Safe cluster label getter (handles noise clusters and object interpretation)
+    const getClusterLabel = (cluster) => {
+      if (!cluster) return 'Unknown'
+      if (cluster.id === -1 || cluster.id === '-1') {
+        return 'Noise (Outliers)'
+      }
+      // Ensure we get a clean string, not an object
+      if (cluster.interpretation && cluster.interpretation.label) {
+        return String(cluster.interpretation.label)
+      }
+      return `Cluster ${cluster.id}`
     }
 
     const formatValue = (value) => {
@@ -134,6 +151,13 @@ export default {
       return stats
     }
 
+    const calculateOutliers = (values, stats) => {
+      const iqr = stats.q3 - stats.q1
+      const lowerBound = stats.q1 - 1.5 * iqr
+      const upperBound = stats.q3 + 1.5 * iqr
+      return values.filter(v => v < lowerBound || v > upperBound)
+    }
+
     const createBoxPlotData = () => {
       return props.clusters.map((cluster, index) => {
         const values = cluster.members
@@ -141,18 +165,21 @@ export default {
           .filter(val => val != null)
         
         const stats = calculateStatistics(values)
+        const outliers = calculateOutliers(values, stats)
         
         return {
           label: `Cluster ${cluster.id}`,
-          data: [{
-            x: `Cluster ${cluster.id}`,
-            y: [stats.min, stats.q1, stats.median, stats.q3, stats.max]
-          }],
-          backgroundColor: getClusterColor(index) + '80', // Add transparency
+          data: [values],
+          backgroundColor: getClusterColor(index) + 'B3', // 70% opacity
           borderColor: getClusterColor(index),
           borderWidth: 2,
           outlierColor: getClusterColor(index),
-          outlierBackgroundColor: getClusterColor(index)
+          outlierBackgroundColor: getClusterColor(index) + '80',
+          outlierBorderColor: getClusterColor(index),
+          outlierRadius: 4,
+          itemRadius: 0,
+          itemStyle: 'circle',
+          itemBackgroundColor: getClusterColor(index) + '40'
         }
       })
     }
@@ -236,37 +263,30 @@ export default {
           return
         }
       
-      // Create box plot visualization
-      const datasets = []
-      
-      props.clusters.forEach((cluster, index) => {
-        const values = cluster.members
-          .map(member => member[selectedMetric.value])
-          .filter(val => val != null)
-        
-        const stats = calculateStatistics(values)
-        const color = getClusterColor(index)
-        
-        // Single bar for the box plot
-        datasets.push({
-          label: `Cluster ${cluster.id}`,
-          data: [{
-            x: `Cluster ${cluster.id}`,
-            y: [stats.min, stats.q1, stats.median, stats.q3, stats.max]
-          }],
-          backgroundColor: color + 'B3', // 70% opacity
-          borderColor: color,
-          borderWidth: 2,
-          type: 'bar',
-          barPercentage: 0.4,
-          stats: stats
-        })
-      })
+      // Create box and whisker plot visualization with proper structure
+      const labels = props.clusters.map(cluster => `Cluster ${cluster.id}`)
+      const datasets = [{
+        label: 'Clusters',
+        data: props.clusters.map((cluster, index) => {
+          const values = cluster.members
+            .map(member => member[selectedMetric.value])
+            .filter(val => val != null)
+          return values
+        }),
+        backgroundColor: props.clusters.map((cluster, index) => getClusterColor(index) + 'B3'),
+        borderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+        borderWidth: 2,
+        outlierColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+        outlierBackgroundColor: props.clusters.map((cluster, index) => getClusterColor(index) + '80'),
+        outlierBorderColor: props.clusters.map((cluster, index) => getClusterColor(index)),
+        outlierRadius: 4,
+        itemRadius: 0
+      }]
 
       const config = {
-        type: 'bar',
+        type: 'boxplot',
         data: {
-          labels: props.clusters.map(cluster => `Cluster ${cluster.id}`),
+          labels: labels,
           datasets: datasets
         },
         options: {
@@ -285,27 +305,33 @@ export default {
           plugins: {
             title: {
               display: true,
-              text: `Box Plot ${getMetricLabel(selectedMetric.value)} per Cluster`
+              text: `Box and Whisker Plot - ${getMetricLabel(selectedMetric.value)} per Cluster`,
+              font: {
+                size: 14,
+                weight: 'bold'
+              }
             },
             legend: {
               display: false
             },
             tooltip: {
               callbacks: {
-                title: (context) => {
-                  const clusterLabel = context[0].label.split(' ')[1]  // Get "Cluster X" part
-                  return `Cluster ${clusterLabel}`
-                },
                 label: (context) => {
-                  const stats = context.dataset.stats
-                  if (!stats) return []
+                  const dataIndex = context.dataIndex
+                  const cluster = props.clusters[dataIndex]
+                  const values = cluster.members
+                    .map(member => member[selectedMetric.value])
+                    .filter(val => val != null)
+                  const stats = calculateStatistics(values)
+                  
                   return [
+                    `Cluster ${cluster.id}`,
                     `Min: ${formatValue(stats.min)}`,
                     `Q1: ${formatValue(stats.q1)}`,
                     `Median: ${formatValue(stats.median)}`,
                     `Q3: ${formatValue(stats.q3)}`,
                     `Max: ${formatValue(stats.max)}`,
-                    `Mean: ${formatValue(stats.mean)}`
+                    `Count: ${values.length}`
                   ]
                 }
               }
@@ -439,6 +465,7 @@ export default {
       chartCanvas,
       selectedMetric,
       getClusterColor,
+      getClusterLabel,
       getStatistics,
       formatValue,
       updateChart

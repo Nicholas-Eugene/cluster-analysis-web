@@ -1,8 +1,13 @@
 <template>
   <div class="yearly-results">
     <div class="results-header">
-      <h2>📅 Hasil Clustering Per Tahun</h2>
-      <p>Analisis clustering dilakukan secara terpisah untuk setiap tahun</p>
+      <div class="header-content">
+        <h2>📅 Hasil Clustering Per Tahun</h2>
+        <p>Analisis clustering dilakukan secara terpisah untuk setiap tahun. Setiap tahun dianalisis secara independen menggunakan fitur: IPM, Garis Kemiskinan, dan Pengeluaran Per Kapita.</p>
+        <div class="mode-note">
+          <p><strong>💡 Catatan:</strong> Mode ini berbeda dengan "All Years" yang mengelompokkan berdasarkan pola multi-tahun. Hasil akan berbeda karena pendekatan analisisnya berbeda.</p>
+        </div>
+      </div>
     </div>
 
     <!-- Overall Summary -->
@@ -44,7 +49,22 @@
         <h4>📊 Rata-rata Metrik Evaluasi</h4>
         <div class="metrics-grid">
           <div class="metric-card">
-            <h5>Davies-Bouldin Index</h5>
+            <div class="metric-header">
+              <h5>Davies-Bouldin Index</h5>
+              <div class="metric-tooltip">
+                <span class="tooltip-icon">ℹ️</span>
+                <div class="tooltip-content">
+                  <p><strong>Rentang Nilai:</strong></p>
+                  <ul>
+                    <li>< 1.0 = Sangat Baik ✅</li>
+                    <li>1.0 - 1.5 = Baik 👍</li>
+                    <li>1.5 - 2.0 = Cukup ⚠️</li>
+                    <li>> 2.0 = Perlu Perbaikan ❌</li>
+                  </ul>
+                  <p class="tooltip-desc">Semakin rendah semakin baik. Mengukur rasio jarak dalam cluster vs antar cluster.</p>
+                </div>
+              </div>
+            </div>
             <div class="metric-value">
               {{ results.overall_summary.average_evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
             </div>
@@ -55,7 +75,22 @@
             </div>
           </div>
           <div class="metric-card">
-            <h5>Silhouette Score</h5>
+            <div class="metric-header">
+              <h5>Silhouette Score</h5>
+              <div class="metric-tooltip">
+                <span class="tooltip-icon">ℹ️</span>
+                <div class="tooltip-content">
+                  <p><strong>Rentang Nilai:</strong></p>
+                  <ul>
+                    <li>> 0.7 = Sangat Baik ✅</li>
+                    <li>0.5 - 0.7 = Baik 👍</li>
+                    <li>0.25 - 0.5 = Cukup ⚠️</li>
+                    <li>< 0.25 = Perlu Perbaikan ❌</li>
+                  </ul>
+                  <p class="tooltip-desc">Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.</p>
+                </div>
+              </div>
+            </div>
             <div class="metric-value">
               {{ results.overall_summary.average_evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
             </div>
@@ -124,7 +159,22 @@
             <h4>📈 Metrik Evaluasi</h4>
             <div class="metrics-grid">
               <div class="metric-card">
-                <h5>Davies-Bouldin Index</h5>
+                <div class="metric-header">
+                  <h5>Davies-Bouldin Index</h5>
+                  <div class="metric-tooltip">
+                    <span class="tooltip-icon">ℹ️</span>
+                    <div class="tooltip-content">
+                      <p><strong>Rentang Nilai:</strong></p>
+                      <ul>
+                        <li>< 1.0 = Sangat Baik ✅</li>
+                        <li>1.0 - 1.5 = Baik 👍</li>
+                        <li>1.5 - 2.0 = Cukup ⚠️</li>
+                        <li>> 2.0 = Perlu Perbaikan ❌</li>
+                      </ul>
+                      <p class="tooltip-desc">Semakin rendah semakin baik. Mengukur rasio jarak dalam cluster vs antar cluster.</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="metric-value">
                   {{ selectedYearResults.evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
                 </div>
@@ -135,7 +185,22 @@
                 </div>
               </div>
               <div class="metric-card">
-                <h5>Silhouette Score</h5>
+                <div class="metric-header">
+                  <h5>Silhouette Score</h5>
+                  <div class="metric-tooltip">
+                    <span class="tooltip-icon">ℹ️</span>
+                    <div class="tooltip-content">
+                      <p><strong>Rentang Nilai:</strong></p>
+                      <ul>
+                        <li>> 0.7 = Sangat Baik ✅</li>
+                        <li>0.5 - 0.7 = Baik 👍</li>
+                        <li>0.25 - 0.5 = Cukup ⚠️</li>
+                        <li>< 0.25 = Perlu Perbaikan ❌</li>
+                      </ul>
+                      <p class="tooltip-desc">Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.</p>
+                    </div>
+                  </div>
+                </div>
                 <div class="metric-value">
                   {{ selectedYearResults.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
                 </div>
@@ -170,84 +235,29 @@
             :clusters="selectedYearResults.clusters" 
             :title="`Peta Sebaran Cluster - ${selectedYearResults.algorithm} (${selectedYear})`"
           />
-        </div>
-
-        <!-- Cluster Details for Selected Year -->
-        <div v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0" class="year-cluster-details card">
-          <h3>🔍 Detail Cluster Tahun {{ selectedYear }}</h3>
-          <div class="cluster-tabs">
-            <button 
-              v-for="(cluster, index) in selectedYearResults.clusters" 
-              :key="cluster.id"
-              @click="selectedCluster = cluster.id"
-              :class="['cluster-tab', { active: selectedCluster === cluster.id }]"
-              :style="{ borderColor: getClusterColor(index) }"
-            >
-              <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-              Cluster {{ cluster.id }} ({{ cluster.size }})
-            </button>
-          </div>
           
-          <div v-if="activeCluster" class="cluster-detail">
-            <div class="cluster-info">
-              <h4>Cluster {{ activeCluster.id }} - Tahun {{ selectedYear }}</h4>
-              <div class="cluster-stats">
-                <div class="stat-item">
-                  <span class="stat-label">Jumlah Daerah:</span>
-                  <span class="stat-value">{{ activeCluster.size }}</span>
-                </div>
-                <div v-if="activeCluster.centroid" class="centroid-info">
-                  <h5>Centroid (Rata-rata):</h5>
-                  <div class="centroid-values">
-                    <div class="centroid-item">
-                      <span>IPM:</span>
-                      <span>{{ activeCluster.centroid.ipm?.toFixed(2) }}</span>
-                    </div>
-                    <div class="centroid-item">
-                      <span>Garis Kemiskinan:</span>
-                      <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
-                    </div>
-                    <div class="centroid-item">
-                      <span>Pengeluaran Per Kapita:</span>
-                      <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <div class="cluster-members">
-              <h5>Daftar Daerah:</h5>
-              <div class="members-grid">
-                <div 
-                  v-for="member in activeCluster.members" 
-                  :key="member.kabupaten_kota"
-                  class="member-card"
-                >
-                  <h6>{{ member.kabupaten_kota }}</h6>
-                  <div class="member-stats">
-                    <div class="member-stat">
-                      <span>IPM:</span>
-                      <span>{{ member.ipm?.toFixed(2) }}</span>
-                    </div>
-                    <div class="member-stat">
-                      <span>Garis Kemiskinan:</span>
-                      <span>{{ formatCurrency(member.garis_kemiskinan) }}</span>
-                    </div>
-                    <div class="member-stat">
-                      <span>Pengeluaran:</span>
-                      <span>{{ formatCurrency(member.pengeluaran_per_kapita) }}</span>
-                    </div>
-                    <div v-if="member.membership && member.membership < 1.0" class="member-stat">
-                      <span>Membership:</span>
-                      <span>{{ (member.membership * 100).toFixed(1) }}%</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <SilhouettePlot 
+            :clusters="selectedYearResults.clusters" 
+            :title="`Silhouette Plot - ${selectedYearResults.algorithm} (${selectedYear})`"
+            :silhouetteScore="selectedYearResults.evaluation.silhouette_score"
+          />
         </div>
+        <div class="header-actions" style="margin-bottom: 2rem;">
+          <button 
+            @click="downloadPDF" 
+            :disabled="isDownloadingPDF"
+            class="btn btn-download"
+          >
+            <span v-if="!isDownloadingPDF">📄 Download PDF Report</span>
+            <span v-else>⏳ Generating PDF...</span>
+          </button>
+        </div>
+        <!-- Cluster Details for Selected Year -->
+        <ClusterDetailCard 
+          v-if="selectedYearResults.clusters && selectedYearResults.clusters.length > 0"
+          :clusters="selectedYearResults.clusters"
+          :showMembership="true"
+        />
       </div>
     </div>
 </template>
@@ -258,6 +268,9 @@ import ScatterPlot from './ScatterPlot.vue'
 import BoxPlot from './BoxPlot.vue'
 import CorrelationHeatmap from './CorrelationHeatmap.vue'
 import InteractiveMap from './InteractiveMap.vue'
+import SilhouettePlot from './SilhouettePlot.vue'
+import ClusterDetailCard from './ClusterDetailCard.vue'
+import { pdfService } from '../services/pdfService.js'
 
 export default {
   name: 'YearlyResults',
@@ -265,12 +278,18 @@ export default {
     ScatterPlot,
     BoxPlot,
     CorrelationHeatmap,
-    InteractiveMap
+    InteractiveMap,
+    SilhouettePlot,
+    ClusterDetailCard
   },
   props: {
     results: {
       type: Object,
       required: true
+    },
+    sessionId: {
+      type: String,
+      required: false
     }
   },
   setup(props) {
@@ -369,6 +388,24 @@ export default {
       return 'Perlu Perbaikan'
     }
 
+    const isDownloadingPDF = ref(false)
+
+    const downloadPDF = async () => {
+      if (!props.sessionId) {
+        alert('Session ID tidak tersedia. Tidak dapat mendownload PDF.')
+        return
+      }
+
+      isDownloadingPDF.value = true
+      try {
+        await pdfService.downloadAndSave(props.sessionId, 'yearly')
+      } catch (error) {
+        alert(error.message || 'Error generating PDF. Please try again.')
+      } finally {
+        isDownloadingPDF.value = false
+      }
+    }
+
     // Set default selected year when component mounts or data changes
     const setDefaultYear = async () => {
       await nextTick()
@@ -377,7 +414,7 @@ export default {
           selectedYear.value = availableYears.value[availableYears.value.length - 1] // Latest year
         }
       } catch (error) {
-        console.warn('Error setting default year in YearlyResults:', error)
+        // Ignore initialization errors
       }
     }
 
@@ -392,43 +429,82 @@ export default {
 
     return {
       selectedYear,
-      selectedCluster,
       availableYears,
       selectedYearResults,
-      activeCluster,
       hasError,
       getClusterColor,
       formatCurrency,
       getDBIQuality,
       getDBIQualityText,
       getSilhouetteQuality,
-      getSilhouetteQualityText
+      getSilhouetteQualityText,
+      isDownloadingPDF,
+      downloadPDF
     }
   }
 }
 </script>
 
 <style scoped>
+/* Based on AnalysisEnhanced.vue styling for consistency */
 .yearly-results {
   padding: 2rem 0;
 }
 
 .results-header {
+  margin-bottom: 3rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+}
+
+.header-content {
+  flex: 1;
   text-align: center;
-  margin-bottom: 2rem;
+}
+
+.header-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
 }
 
 .results-header h2 {
+  font-size: 2.5rem;
   color: #2d3748;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .results-header p {
+  font-size: 1.2rem;
   color: #718096;
+  line-height: 1.6;
+}
+
+.mode-note {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border-left: 4px solid #667eea;
+  border-radius: 4px;
+}
+
+.mode-note p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.9rem;
+  line-height: 1.6;
 }
 
 .overall-summary {
   margin-bottom: 2rem;
+}
+
+.overall-summary h3 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
 }
 
 .summary-grid {
@@ -442,25 +518,29 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding: 1rem;
-  background: #f7fafc;
-  border-radius: 8px;
-  border-left: 4px solid #667eea;
+  padding: 2rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
 }
 
 .summary-icon {
   font-size: 2rem;
+  opacity: 0.9;
 }
 
 .summary-content h4 {
-  color: #2d3748;
+  color: white;
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 2rem;
+  font-weight: 700;
 }
 
 .summary-content p {
-  color: #718096;
+  color: rgba(255, 255, 255, 0.9);
   margin: 0.25rem 0 0 0;
+  opacity: 0.9;
   font-size: 0.875rem;
 }
 
@@ -476,32 +556,134 @@ export default {
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 2rem;
+  margin-top: 1.5rem;
 }
 
 .metric-card {
-  background: white;
-  padding: 1.5rem;
+  background: #f7fafc;
+  padding: 2rem;
   border-radius: 8px;
   border: 1px solid #e2e8f0;
   text-align: center;
 }
 
-.metric-card h5 {
-  color: #4a5568;
+.metric-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
   margin-bottom: 1rem;
 }
 
+.metric-card h5 {
+  color: #2d3748;
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.metric-tooltip {
+  position: relative;
+  display: inline-block;
+}
+
+.tooltip-icon {
+  cursor: help;
+  font-size: 1rem;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.tooltip-icon:hover {
+  opacity: 1;
+}
+
+.tooltip-content {
+  visibility: hidden;
+  opacity: 0;
+  position: absolute;
+  z-index: 1000;
+  bottom: 125%;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #2d3748;
+  color: white;
+  text-align: left;
+  padding: 1rem;
+  border-radius: 8px;
+  min-width: 280px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tooltip-content::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  margin-left: -5px;
+  border-width: 5px;
+  border-style: solid;
+  border-color: #2d3748 transparent transparent transparent;
+}
+
+.metric-tooltip:hover .tooltip-content {
+  visibility: visible;
+  opacity: 1;
+}
+
+.tooltip-content p {
+  margin: 0 0 0.5rem 0;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.tooltip-content ul {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0;
+}
+
+.tooltip-content li {
+  padding: 0.25rem 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+}
+
+.tooltip-desc {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  font-size: 0.8rem;
+  opacity: 0.9;
+  line-height: 1.4;
+}
+
 .metric-value {
-  font-size: 2rem;
+  font-size: 2.5rem;
   font-weight: 700;
   color: #667eea;
-  margin-bottom: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.metric-description {
+  color: #718096;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  margin-bottom: 1rem;
 }
 
 .metric-quality {
-  font-size: 0.875rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.quality-label {
+  font-weight: 600;
+  color: #4a5568;
 }
 
 .quality-excellent { color: #38a169; font-weight: 600; }
@@ -512,6 +694,10 @@ export default {
 
 .year-selection {
   margin-bottom: 2rem;
+}
+
+.year-selector {
+  margin-top: 1.5rem;
 }
 
 .year-tabs {
@@ -579,7 +765,7 @@ export default {
 .year-stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
   margin-bottom: 2rem;
 }
 
@@ -587,9 +773,7 @@ export default {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem;
-  background: #f7fafc;
-  border-radius: 6px;
+  padding: 0.5rem 0;
 }
 
 .stat-label {
@@ -616,136 +800,110 @@ export default {
   margin: 2rem 0;
 }
 
-.cluster-tabs {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-bottom: 2rem;
-  border-bottom: 1px solid #e2e8f0;
-  padding-bottom: 1rem;
+.visualizations {
+  margin: 2rem 0;
 }
 
-.cluster-tab {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  border: 2px solid #e2e8f0;
+/* Consistent card styling - Exact match with AnalysisEnhanced */
+.card {
   background: white;
-  color: #4a5568;
-  border-radius: 6px;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.1);
+  margin-bottom: 2rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+}
+
+.card h2 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+.card h3 {
+  color: #2d3748;
+  margin-bottom: 1.5rem;
+  font-size: 1.5rem;
+}
+
+/* Unified color theme - Purple gradient (from AnalysisEnhanced) */
+.summary-item,
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+}
+
+.btn-success {
+  background: linear-gradient(135deg, #48bb78 0%, #38a169 100%) !important;
+}
+
+.btn-info {
+  background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%) !important;
+}
+
+.btn-warning {
+  background: linear-gradient(135deg, #ed8936 0%, #dd6b20 100%) !important;
+}
+
+.btn-download {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s ease;
-  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  white-space: nowrap;
 }
 
-.cluster-tab:hover {
+.btn-download:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 6px 16px rgba(102, 126, 234, 0.4);
 }
 
-.cluster-tab.active {
-  background: #f7fafc;
-  transform: translateY(-2px);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+.btn-download:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-.tab-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
+.btn-download-main {
+  font-size: 1.1rem;
+  padding: 1rem 2rem;
 }
 
-.cluster-detail {
-  display: grid;
-  gap: 2rem;
-}
-
-.cluster-info {
-  background: #f7fafc;
-  padding: 2rem;
-  border-radius: 8px;
-}
-
-.cluster-info h4 {
-  color: #2d3748;
-  margin-bottom: 1rem;
-  font-size: 1.25rem;
-}
-
-.cluster-stats {
-  display: grid;
-  gap: 1rem;
-}
-
-.centroid-info h5 {
-  color: #4a5568;
-  margin-bottom: 0.5rem;
-}
-
-.centroid-values {
-  display: grid;
-  gap: 0.5rem;
-  padding-left: 1rem;
-}
-
-.centroid-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.25rem 0;
-  font-size: 0.875rem;
-}
-
-.cluster-members h5 {
-  color: #2d3748;
-  margin-bottom: 1rem;
-}
-
-.members-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-}
-
-.member-card {
-  background: white;
-  padding: 1rem;
-  border-radius: 8px;
-  border: 1px solid #e2e8f0;
-}
-
-.member-card h6 {
-  color: #2d3748;
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
-}
-
-.member-stats {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.member-stat {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 0.875rem;
-}
-
-.member-stat span:first-child {
-  color: #718096;
-  font-weight: 500;
-}
-
-.member-stat span:last-child {
-  color: #2d3748;
+/* Table header consistency */
+thead th {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
   font-weight: 600;
+  padding: 1rem;
+  text-align: left;
+}
+
+/* Membership bar color */
+.membership-fill {
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+}
+
+.export-options {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
 }
 
 @media (max-width: 768px) {
   .yearly-results {
     padding: 1rem 0;
+  }
+  
+  .results-header h2 {
+    font-size: 2rem;
   }
   
   .summary-grid {
@@ -770,6 +928,14 @@ export default {
   
   .members-grid {
     grid-template-columns: 1fr;
+  }
+
+  .export-options {
+    flex-direction: column;
+  }
+  
+  .export-options button {
+    width: 100%;
   }
 }
 </style>

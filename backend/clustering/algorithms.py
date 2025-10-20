@@ -2,10 +2,12 @@ import numpy as np
 import pandas as pd
 from sklearn.cluster import OPTICS
 from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import davies_bouldin_score, silhouette_score
+from sklearn.metrics import davies_bouldin_score, silhouette_score, silhouette_samples
 import skfuzzy as fuzz
 from typing import Dict, List, Tuple, Any
 import time
+
+from .cluster_interpreter import add_cluster_interpretations, get_cluster_summary_stats
 
 # --- Utility Function ---
 
@@ -175,9 +177,14 @@ class ClusteringAlgorithms:
             db_score = None
         try:
             sil_score = silhouette_score(scaled_data, cluster_labels)
+            # Calculate per-sample silhouette scores for silhouette plot
+            sil_samples = silhouette_samples(scaled_data, cluster_labels)
+            print(f"✅ Silhouette samples calculated: {len(sil_samples)} scores")
+            print(f"   Score range: [{sil_samples.min():.3f}, {sil_samples.max():.3f}]")
         except ValueError as e:
             print(f"   ⚠️ Cannot calculate Silhouette score: {e}")
             sil_score = -1.0
+            sil_samples = None
 
         execution_time = time.time() - start_time
 
@@ -219,6 +226,9 @@ class ClusteringAlgorithms:
                 members = []
                 # Get the membership values for this cluster
                 cluster_memberships = u[i, cluster_mask]
+                
+                # Get indices in original dataframe for silhouette scores
+                cluster_indices = np.where(cluster_mask)[0]
 
                 for idx, (_, row) in enumerate(cluster_members_df.iterrows()):
                     member_info = {
@@ -231,6 +241,13 @@ class ClusteringAlgorithms:
                         "longitude": float(row.get("longitude", 0.0)),
                         "membership": float(cluster_memberships[idx]),
                     }
+                    
+                    # Add silhouette score for this member (with boundary check)
+                    if sil_samples is not None and idx < len(cluster_indices):
+                        global_idx = cluster_indices[idx]
+                        if global_idx < len(sil_samples):
+                            member_info["silhouette_score"] = float(sil_samples[global_idx])
+                    
                     # Add feature values
                     for feature in features:
                         member_info[feature] = float(row.get(feature, 0.0))
@@ -294,6 +311,7 @@ class ClusteringAlgorithms:
         # Calculate evaluation metrics (excluding noise points)
         db_score = None
         sil_score = -1.0
+        sil_samples = None
         if n_clusters > 1:
             valid_mask = cluster_labels != -1
             if np.sum(valid_mask) > 1:
@@ -307,6 +325,13 @@ class ClusteringAlgorithms:
                     sil_score = silhouette_score(
                         scaled_data[valid_mask], cluster_labels[valid_mask]
                     )
+                    # Calculate per-sample silhouette scores
+                    sil_samples_valid = silhouette_samples(
+                        scaled_data[valid_mask], cluster_labels[valid_mask]
+                    )
+                    # Map back to full array (noise points get None)
+                    sil_samples = np.full(len(cluster_labels), np.nan)
+                    sil_samples[valid_mask] = sil_samples_valid
                 except ValueError as e:
                     print(f"   ⚠️ Cannot calculate Silhouette score: {e}")
 
@@ -335,7 +360,8 @@ class ClusteringAlgorithms:
             cluster_members_df = df_clean[cluster_mask].copy()
 
             if len(cluster_members_df) > 0:
-                cluster_id = "noise" if label == -1 else int(label)
+                # Use -1 as cluster_id for noise (not string "noise")
+                cluster_id = int(label)
 
                 # Calculate centroid (None for noise)
                 centroid = None
@@ -352,7 +378,10 @@ class ClusteringAlgorithms:
 
                 # Prepare member information
                 members = []
-                for _, row in cluster_members_df.iterrows():
+                # Get indices in original dataframe for silhouette scores
+                cluster_indices = np.where(cluster_mask)[0]
+                
+                for idx, (_, row) in enumerate(cluster_members_df.iterrows()):
                     member_info = {
                         "kabupaten_kota": str(row.get("kabupaten_kota", "")),
                         "provinsi": str(row.get("provinsi", "")),
@@ -361,6 +390,13 @@ class ClusteringAlgorithms:
                         "longitude": float(row.get("longitude", 0.0)),
                         "membership": 1.0,  # OPTICS gives hard assignments
                     }
+                    
+                    # Add silhouette score for this member
+                    if sil_samples is not None and idx < len(cluster_indices):
+                        sil_val = sil_samples[cluster_indices[idx]]
+                        if not np.isnan(sil_val):
+                            member_info["silhouette_score"] = float(sil_val)
+                    
                     # Add feature values
                     for feature in features:
                         member_info[feature] = float(row.get(feature, 0.0))
@@ -381,11 +417,15 @@ class ClusteringAlgorithms:
                     }
                 )
 
+        # Add cluster interpretations
+        results["clusters"] = add_cluster_interpretations(results["clusters"])
+        results["interpretation_summary"] = get_cluster_summary_stats(results["clusters"])
+
         return results
 
 
 def run_clustering_per_year(
-    df: pd.DataFrame, algorithm: str = "fcm", features: List[str] = None, **kwargs
+    df: pd.DataFrame, algorithm: str = "fcm", features: List[str] = None, selected_years: List[int] = None, **kwargs
 ) -> Dict[str, Any]:
     """
     API FEATURE 1: Cluster data for each year individually.
@@ -394,6 +434,7 @@ def run_clustering_per_year(
         df: Input dataframe (MUST be in LONG format with a 'tahun' column)
         algorithm: 'fcm' or 'optics'
         features: List of feature columns to use (e.g., ["ipm", "garis_kemiskinan"])
+        selected_years: Optional list of specific years to process. If None, process all years.
         **kwargs: Additional parameters for the clustering algorithm
                   (e.g., n_clusters=3 for fcm)
 
@@ -405,6 +446,12 @@ def run_clustering_per_year(
 
     clustering = ClusteringAlgorithms()
     available_years = sorted(df["tahun"].unique())
+    
+    # Filter to selected years if provided
+    if selected_years:
+        available_years = [y for y in available_years if y in selected_years]
+        print(f"🎯 Selected years: {selected_years}")
+        print(f"🗓️ Filtering to {len(available_years)} years: {available_years}")
 
     print(
         f"🗓️ Starting 'per_year' clustering for {len(available_years)} years: {available_years}"
@@ -462,6 +509,7 @@ def run_clustering_per_year(
         "years_processed": [int(y) for y in available_years],
         "total_years": int(len(available_years)),
         "successful_years": len(successful_years),
+        "success_rate": len(successful_years) / len(available_years) if len(available_years) > 0 else 0.0,
         "features_used": features,
         "average_evaluation": {
             "davies_bouldin": float(np.mean(avg_db)) if avg_db else None,

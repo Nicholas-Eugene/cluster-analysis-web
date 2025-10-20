@@ -4,26 +4,26 @@
     <div class="cluster-tabs">
       <button 
         v-for="(cluster, index) in clusters" 
-        :key="cluster.id"
-        @click="selectedClusterId = cluster.id"
-        :class="['cluster-tab', { active: selectedClusterId === cluster.id }]"
+        :key="`cluster-${index}`"
+        @click="selectCluster(cluster.id)"
+        :class="['cluster-tab', { active: isClusterActive(cluster.id) }]"
         :style="{ borderColor: getClusterColor(index) }"
       >
         <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-        Cluster {{ cluster.id }} ({{ cluster.size }})
+        {{ cluster.interpretation?.label || `Cluster ${cluster.id}` }} ({{ cluster.size }})
       </button>
     </div>
     
     <div v-if="activeCluster" class="cluster-detail">
       <div class="cluster-info">
-        <h4>Cluster {{ activeCluster.id }}</h4>
+        <h4>{{ getClusterLabel(activeCluster) }}</h4>
         <div class="cluster-stats">
           <div class="stat-item">
             <span class="stat-label">Jumlah Daerah:</span>
             <span class="stat-value">{{ activeCluster.size }}</span>
           </div>
           <div v-if="activeCluster.centroid" class="centroid-info">
-            <h5>Centroid (Rata-rata):</h5>
+            <h5>Centroid (Rata-rata Cluster):</h5>
             <div class="centroid-values">
               <div class="centroid-item">
                 <span>IPM:</span>
@@ -31,11 +31,11 @@
               </div>
               <div class="centroid-item">
                 <span>Garis Kemiskinan:</span>
-                <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
+                <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }} / bulan</span>
               </div>
               <div class="centroid-item">
                 <span>Pengeluaran Per Kapita:</span>
-                <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
+                <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita * 1000) }} /tahun</span>
               </div>
             </div>
           </div>
@@ -59,20 +59,20 @@
               </div>
               <div class="member-stat">
                 <span>Garis Kemiskinan:</span>
-                <span>{{ formatCurrency(member.garis_kemiskinan) }}</span>
+                <span>{{ formatCurrency(member.garis_kemiskinan) }} / bulan</span>
               </div>
               <div class="member-stat">
                 <span>Pengeluaran:</span>
-                <span>{{ formatCurrency(member.pengeluaran_per_kapita) }}</span>
+                <span>{{ formatCurrency(member.pengeluaran_per_kapita * 1000)}} / tahun</span>
               </div>
-              <div v-if="showMembership && member.membership !== undefined" class="member-stat membership-stat">
+              <div v-if="showMembership && member.membership != null" class="member-stat membership-stat">
                 <span>Membership:</span>
                 <div class="membership-bar-mini">
                   <div 
                     class="membership-fill-mini" 
                     :style="{ 
                       width: `${member.membership * 100}%`,
-                      backgroundColor: getClusterColor(clusters.findIndex(c => c.id === activeCluster.id))
+                      backgroundColor: getClusterColor(clusters.findIndex(c => normalizeId(c.id) === normalizeId(activeCluster.id)))
                     }"
                   ></div>
                   <span class="membership-text-mini">{{ (member.membership * 100).toFixed(1) }}%</span>
@@ -122,9 +122,56 @@ export default {
       return colors[index % colors.length]
     }
 
+    // Helper to normalize cluster ID (convert to number if possible, handle 0 and -1 properly)
+    const normalizeId = (id) => {
+      // Explicitly handle null/undefined
+      if (id === null || id === undefined) return null
+      
+      // Try to convert to number
+      const num = Number(id)
+      
+      // Return number if it's valid (including 0 and -1!), otherwise return original
+      return isNaN(num) ? id : num
+    }
+    
+    // Get display label for cluster (handle noise cluster from OPTICS)
+    const getClusterLabel = (cluster) => {
+      if (!cluster) return 'Unknown'
+      if (cluster.id === -1 || cluster.id === '-1') {
+        return '🔸 Noise (Outliers)'
+      }
+      return cluster.interpretation?.label || `Cluster ${cluster.id}`
+    }
+
+    // Check if cluster is active (handles type coercion properly)
+    const isClusterActive = (clusterId) => {
+      const normalizedCluster = normalizeId(clusterId)
+      const normalizedSelected = normalizeId(selectedClusterId.value)
+      return normalizedCluster === normalizedSelected
+    }
+
+    // Select cluster method
+    const selectCluster = (clusterId) => {
+      selectedClusterId.value = normalizeId(clusterId)
+    }
+
     const activeCluster = computed(() => {
-      if (!selectedClusterId.value || !props.clusters) return null
-      return props.clusters.find(cluster => cluster.id === selectedClusterId.value)
+      // Explicitly check for null/undefined, but allow 0
+      if (selectedClusterId.value === null || selectedClusterId.value === undefined) {
+        return null
+      }
+      
+      if (!props.clusters || props.clusters.length === 0) {
+        return null
+      }
+      
+      // Find cluster with normalized comparison
+      const normalizedSelected = normalizeId(selectedClusterId.value)
+      const found = props.clusters.find(cluster => {
+        return normalizeId(cluster.id) === normalizedSelected
+      })
+      
+      return found || null
     })
 
     const formatCurrency = (value) => {
@@ -136,10 +183,22 @@ export default {
       }).format(value)
     }
 
-    // Initialize with first cluster
+    const getInterpretationIcon = (category) => {
+      const icons = {
+        'poor': '⚠️',
+        'prosperous': '✨',
+        'vulnerable': '⚡',
+        'developing': '📈',
+        'middle': '🔄'
+      }
+      return icons[category] || '📊'
+    }
+
+    // Initialize with first cluster - always select first cluster when clusters change
     watch(() => props.clusters, (newClusters) => {
-      if (newClusters && newClusters.length > 0 && !selectedClusterId.value) {
-        selectedClusterId.value = newClusters[0].id
+      if (newClusters && newClusters.length > 0) {
+        // Always reset to first cluster when data changes
+        selectedClusterId.value = normalizeId(newClusters[0].id)
       }
     }, { immediate: true })
 
@@ -147,7 +206,12 @@ export default {
       selectedClusterId,
       activeCluster,
       getClusterColor,
-      formatCurrency
+      formatCurrency,
+      selectCluster,
+      isClusterActive,
+      normalizeId,
+      getClusterLabel,
+      getInterpretationIcon
     }
   }
 }
