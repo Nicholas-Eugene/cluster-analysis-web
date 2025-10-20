@@ -182,7 +182,7 @@
         :silhouetteScore="resultData.evaluation?.silhouette_score"
       />
 
-      <div class="header-actions", style="margin-bottom: 2rem;">
+      <div class="header-actions" style="margin-bottom: 2rem;">
         <button 
           @click="downloadPDF" 
           :disabled="isDownloadingPDF"
