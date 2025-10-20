@@ -233,7 +233,7 @@ export default {
             backgroundColor: getClusterColor(clusterIndex),
             borderColor: getClusterColor(clusterIndex),
             borderWidth: 1,
-            barThickness: 2,
+            barThickness: 40,
             barPercentage: 1.0,
             categoryPercentage: 1.0
           })
