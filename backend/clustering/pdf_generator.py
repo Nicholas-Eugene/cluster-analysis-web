@@ -86,24 +86,36 @@ class ClusteringPDFGenerator:
         try:
             # Check if we have geographical data
             has_geo_data = False
+            total_points = 0
+            points_with_coords = 0
+            
             for cluster in clusters:
                 for member in cluster.get('members', []):
-                    if member.get('latitude') and member.get('longitude'):
+                    total_points += 1
+                    lat = member.get('latitude')
+                    lon = member.get('longitude')
+                    if lat and lon and lat != 0 and lon != 0:
                         has_geo_data = True
-                        break
-                if has_geo_data:
-                    break
+                        points_with_coords += 1
             
-            if not has_geo_data:
-                # Create a simple text placeholder
+            if not has_geo_data or points_with_coords == 0:
+                # Create informative placeholder
                 fig, ax = plt.subplots(figsize=(8, 6))
-                ax.text(0.5, 0.5, 'Geographical data not available\nfor map visualization',
-                       ha='center', va='center', fontsize=14, color='gray')
+                ax.text(0.5, 0.6, 'Geographical Coordinates Not Available',
+                       ha='center', va='center', fontsize=16, fontweight='bold', color='#667eea')
+                ax.text(0.5, 0.45, f'Total regions: {total_points}',
+                       ha='center', va='center', fontsize=12, color='gray')
+                ax.text(0.5, 0.35, 'Coordinates data is required for map visualization.',
+                       ha='center', va='center', fontsize=10, color='gray', style='italic')
+                ax.text(0.5, 0.25, 'Clusters are still valid - see other visualizations above.',
+                       ha='center', va='center', fontsize=10, color='gray', style='italic')
                 ax.axis('off')
+                ax.set_facecolor('white')
+                fig.patch.set_facecolor('white')
                 plt.tight_layout()
                 
                 img_buffer = io.BytesIO()
-                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
                 img_buffer.seek(0)
                 plt.close(fig)
                 return img_buffer
@@ -122,14 +134,18 @@ class ClusteringPDFGenerator:
                 for member in members:
                     lat = member.get('latitude')
                     lon = member.get('longitude')
-                    if lat is not None and lon is not None:
+                    if lat is not None and lon is not None and lat != 0 and lon != 0:
                         lats.append(lat)
                         lons.append(lon)
                 
                 if lats and lons:
+                    # Get cluster label from interpretation
+                    interpretation = cluster.get('interpretation', {})
+                    cluster_label = interpretation.get('label', f'Cluster {cluster["id"]}')
+                    
                     ax.scatter(lons, lats, c=colors[idx], 
-                             label=f'Cluster {cluster["id"]} ({len(lats)} regions)',
-                             alpha=0.6, edgecolors='white', linewidth=1.5, s=150,
+                             label=f'{cluster_label} ({len(lats)} regions)',
+                             alpha=0.7, edgecolors='white', linewidth=1.5, s=150,
                              zorder=5)
             
             # Set labels and title
@@ -337,28 +353,90 @@ class ClusteringPDFGenerator:
         
         return img_buffer
     
-    def _create_cluster_distribution(self, clusters: List[Dict], title: str):
-        """Create cluster size distribution pie chart"""
-        fig, ax = plt.subplots(figsize=(8, 6))
-        colors = self._get_cluster_colors(len(clusters))
+    # Pie chart removed per user request - use cluster details table instead
+    
+    def _create_cluster_details_table(self, cluster: Dict, max_members: int = 20):
+        """Create detailed table for a cluster with interpretation and members"""
+        cluster_id = cluster.get('id', 'N/A')
+        cluster_size = cluster.get('size', 0)
+        interpretation = cluster.get('interpretation', {})
+        label = interpretation.get('label', f'Cluster {cluster_id}')
+        description = interpretation.get('description', 'No description available')
+        category = interpretation.get('category', 'unknown')
         
-        sizes = [cluster['size'] for cluster in clusters]
-        labels = [f"Cluster {cluster['id']}\n({cluster['size']} regions)" for cluster in clusters]
+        # Create data for table
+        table_data = []
         
-        wedges, texts, autotexts = ax.pie(sizes, labels=labels, colors=colors,
-                                           autopct='%1.1f%%', startangle=90,
-                                           textprops={'fontsize': 10, 'weight': 'bold'})
+        # Header with cluster label
+        table_data.append([f'Cluster {cluster_id}: {label}', f'{cluster_size} Regions'])
         
-        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        # Add interpretation description
+        if description and description != 'No description available':
+            # Wrap description to fit in table
+            desc_wrapped = description[:150] + '...' if len(description) > 150 else description
+            table_data.append(['Description', desc_wrapped])
         
-        plt.tight_layout()
+        # Add centroid values
+        centroid = cluster.get('centroid', {})
+        if centroid:
+            table_data.append(['', ''])  # Separator
+            table_data.append(['Cluster Characteristics', 'Average Values'])
+            table_data.append(['IPM', f"{centroid.get('ipm', 0):.2f}"])
+            table_data.append(['Garis Kemiskinan', f"Rp {centroid.get('garis_kemiskinan', 0):,.0f}/bulan"])
+            table_data.append(['Pengeluaran Per Kapita', f"Rp {centroid.get('pengeluaran_per_kapita', 0) * 1000:,.0f}/tahun"])
         
-        img_buffer = io.BytesIO()
-        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
-        img_buffer.seek(0)
-        plt.close(fig)
+        # Add members list
+        members = cluster.get('members', [])
+        if members:
+            table_data.append(['', ''])  # Separator
+            table_data.append(['Regions in This Cluster', f'(Showing {min(len(members), max_members)} of {len(members)})'])
+            
+            # Add up to max_members
+            for idx, member in enumerate(members[:max_members]):
+                region_name = member.get('kabupaten_kota', 'Unknown')
+                provinsi = member.get('provinsi', '')
+                membership = member.get('membership')
+                
+                if membership is not None:
+                    detail = f"{region_name} ({provinsi}) - Membership: {membership:.2%}"
+                else:
+                    detail = f"{region_name} ({provinsi})" if provinsi else region_name
+                
+                table_data.append([f'{idx + 1}.', detail])
         
-        return img_buffer
+        # Create table
+        col_widths = [1*inch, 5.5*inch]
+        table = Table(table_data, colWidths=col_widths)
+        
+        # Style table
+        table_style = [
+            # Header row
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 12),
+            ('ALIGN', (0, 0), (-1, 0), 'LEFT'),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 10),
+            
+            # Rest of table
+            ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+            ('FONTSIZE', (0, 1), (-1, -1), 9),
+            ('ALIGN', (0, 1), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+            ('LEFTPADDING', (0, 1), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 1), (-1, -1), 6),
+            ('TOPPADDING', (0, 1), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+            
+            # Grid
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+            
+            # Alternate row colors
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey]),
+        ]
+        
+        table.setStyle(TableStyle(table_style))
+        return table
     
     def _add_cover_page(self, story, title, subtitle, metadata):
         """Add cover page to PDF"""
@@ -506,11 +584,12 @@ class ClusteringPDFGenerator:
                 story.append(Paragraph(f"Visualizations - Year {year}", self.subheading_style))
                 story.append(Spacer(1, 0.1*inch))
                 
-                # Cluster distribution
-                img_buffer = self._create_cluster_distribution(clusters, f"Cluster Distribution ({year})")
-                img = Image(img_buffer, width=5*inch, height=3.75*inch)
-                story.append(img)
-                story.append(Spacer(1, 0.2*inch))
+                # Cluster Map (moved to top for better visibility)
+                story.append(Paragraph("Geographical Distribution", self.subheading_style))
+                cluster_map = self._create_cluster_map(clusters, f'Geographical Distribution ({year})')
+                img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
+                story.append(img_map)
+                story.append(Spacer(1, 0.3*inch))
                 
                 # Scatter plots
                 scatter1 = self._create_scatter_plot(clusters, 'ipm', 'garis_kemiskinan',
@@ -549,12 +628,6 @@ class ClusteringPDFGenerator:
                 story.append(img_box3)
                 story.append(Spacer(1, 0.2*inch))
                 
-                # Cluster map
-                cluster_map = self._create_cluster_map(clusters, f'Geographical Distribution ({year})')
-                img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
-                story.append(img_map)
-                story.append(Spacer(1, 0.2*inch))
-                
                 # Correlation heatmap
                 heatmap = self._create_correlation_heatmap(clusters, f'Feature Correlation ({year})')
                 if heatmap:
@@ -568,6 +641,16 @@ class ClusteringPDFGenerator:
                                                          f'Silhouette Plot ({year})')
                 img5 = Image(silhouette, width=6*inch, height=3.6*inch)
                 story.append(img5)
+                story.append(Spacer(1, 0.3*inch))
+                
+                # Cluster Details with Labels and Members
+                story.append(Paragraph(f"Cluster Details - Year {year}", self.subheading_style))
+                story.append(Spacer(1, 0.2*inch))
+                
+                for cluster in clusters:
+                    cluster_table = self._create_cluster_details_table(cluster, max_members=15)
+                    story.append(cluster_table)
+                    story.append(Spacer(1, 0.3*inch))
             
             story.append(PageBreak())
         
@@ -634,11 +717,14 @@ class ClusteringPDFGenerator:
             story.append(Paragraph("Visualizations", self.heading_style))
             story.append(Spacer(1, 0.2*inch))
             
-            # Cluster distribution
-            img_buffer = self._create_cluster_distribution(clusters, "Cluster Size Distribution")
-            img = Image(img_buffer, width=5*inch, height=3.75*inch)
-            story.append(img)
-            story.append(Spacer(1, 0.3*inch))
+            # Geographical Map (moved to top for better visibility)
+            story.append(Paragraph("Geographical Distribution", self.subheading_style))
+            story.append(Spacer(1, 0.1*inch))
+            
+            cluster_map = self._create_cluster_map(clusters, 'Cluster Geographical Distribution')
+            img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
+            story.append(img_map)
+            story.append(PageBreak())
             
             # Scatter plots
             story.append(Paragraph("Scatter Plot Analysis", self.subheading_style))
@@ -683,15 +769,6 @@ class ClusteringPDFGenerator:
             story.append(img_box3)
             story.append(PageBreak())
             
-            # Geographical map
-            story.append(Paragraph("Geographical Distribution", self.subheading_style))
-            story.append(Spacer(1, 0.1*inch))
-            
-            cluster_map = self._create_cluster_map(clusters, 'Cluster Map')
-            img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
-            story.append(img_map)
-            story.append(PageBreak())
-            
             # Correlation heatmap
             story.append(Paragraph("Feature Correlation", self.subheading_style))
             story.append(Spacer(1, 0.1*inch))
@@ -710,34 +787,14 @@ class ClusteringPDFGenerator:
             story.append(img6)
             story.append(PageBreak())
             
-            # Cluster details
+            # Cluster Details with Interpretation Labels and Members
             story.append(Paragraph("Cluster Details", self.heading_style))
             story.append(Spacer(1, 0.2*inch))
             
             for cluster in clusters:
-                story.append(Paragraph(f"Cluster {cluster['id']} ({cluster['size']} regions)",
-                                      self.subheading_style))
-                
-                centroid = cluster.get('centroid', {})
-                cluster_info = [
-                    ['Feature', 'Average Value'],
-                    ['IPM', f"{centroid.get('ipm', 0):.2f}"],
-                    ['Garis Kemiskinan', f"Rp {centroid.get('garis_kemiskinan', 0):,.0f}"],
-                    ['Pengeluaran Per Kapita', f"Rp {centroid.get('pengeluaran_per_kapita', 0):,.0f}"]
-                ]
-                
-                cluster_table = Table(cluster_info, colWidths=[3*inch, 3*inch])
-                cluster_table.setStyle(TableStyle([
-                    ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#667eea')),
-                    ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-                    ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-                    ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-                    ('BACKGROUND', (0, 1), (-1, -1), colors.lightgrey),
-                    ('GRID', (0, 0), (-1, -1), 1, colors.black)
-                ]))
-                
+                cluster_table = self._create_cluster_details_table(cluster, max_members=20)
                 story.append(cluster_table)
-                story.append(Spacer(1, 0.3*inch))
+                story.append(Spacer(1, 0.4*inch))
         
         # Build PDF
         doc.build(story)
