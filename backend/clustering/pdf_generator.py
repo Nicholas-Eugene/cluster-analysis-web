@@ -82,105 +82,103 @@ class ClusteringPDFGenerator:
         return colors_list[:n_clusters]
     
     def _create_cluster_map(self, clusters: List[Dict], title: str):
-        """Create geographical cluster map"""
+        """Create geographical cluster map - returns None if no valid coordinates"""
         try:
-            # Check if we have geographical data
-            has_geo_data = False
-            total_points = 0
-            points_with_coords = 0
+            # Collect all valid coordinates
+            all_points = []
+            cluster_data = []
             
             for cluster in clusters:
-                for member in cluster.get('members', []):
-                    total_points += 1
-                    lat = member.get('latitude')
-                    lon = member.get('longitude')
-                    if lat and lon and lat != 0 and lon != 0:
-                        has_geo_data = True
-                        points_with_coords += 1
-            
-            if not has_geo_data or points_with_coords == 0:
-                # Create informative placeholder
-                fig, ax = plt.subplots(figsize=(8, 6))
-                ax.text(0.5, 0.6, 'Geographical Coordinates Not Available',
-                       ha='center', va='center', fontsize=16, fontweight='bold', color='#667eea')
-                ax.text(0.5, 0.45, f'Total regions: {total_points}',
-                       ha='center', va='center', fontsize=12, color='gray')
-                ax.text(0.5, 0.35, 'Coordinates data is required for map visualization.',
-                       ha='center', va='center', fontsize=10, color='gray', style='italic')
-                ax.text(0.5, 0.25, 'Clusters are still valid - see other visualizations above.',
-                       ha='center', va='center', fontsize=10, color='gray', style='italic')
-                ax.axis('off')
-                ax.set_facecolor('white')
-                fig.patch.set_facecolor('white')
-                plt.tight_layout()
+                members = cluster.get('members', [])
+                cluster_points = []
                 
-                img_buffer = io.BytesIO()
-                plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
-                img_buffer.seek(0)
-                plt.close(fig)
-                return img_buffer
+                for member in members:
+                    lat = member.get('latitude', 0)
+                    lon = member.get('longitude', 0)
+                    
+                    # Valid coordinate check
+                    if (lat is not None and lon is not None and 
+                        lat != 0 and lon != 0 and 
+                        -90 <= lat <= 90 and -180 <= lon <= 180):
+                        cluster_points.append((lat, lon, member.get('kabupaten_kota', 'Unknown')))
+                        all_points.append((lat, lon))
+                
+                if cluster_points:
+                    interpretation = cluster.get('interpretation', {})
+                    cluster_label = interpretation.get('label', f'Cluster {cluster["id"]}')
+                    cluster_data.append({
+                        'id': cluster['id'],
+                        'label': cluster_label,
+                        'points': cluster_points
+                    })
+            
+            # If no valid coordinates, return None (skip map in PDF)
+            if not all_points:
+                print(f"⚠️ No valid geographical coordinates found for map")
+                return None
+            
+            print(f"✅ Creating map with {len(all_points)} points across {len(cluster_data)} clusters")
             
             # Create map
-            fig, ax = plt.subplots(figsize=(10, 8))
+            fig, ax = plt.subplots(figsize=(12, 9))
             colors = self._get_cluster_colors(len(clusters))
             
             # Plot each cluster
-            for idx, cluster in enumerate(clusters):
-                members = cluster.get('members', [])
+            for cluster_info in cluster_data:
+                cluster_id = cluster_info['id']
+                cluster_label = cluster_info['label']
+                points = cluster_info['points']
                 
-                lats = []
-                lons = []
+                lats = [p[0] for p in points]
+                lons = [p[1] for p in points]
                 
-                for member in members:
-                    lat = member.get('latitude')
-                    lon = member.get('longitude')
-                    if lat is not None and lon is not None and lat != 0 and lon != 0:
-                        lats.append(lat)
-                        lons.append(lon)
+                # Find color index
+                color_idx = next((i for i, c in enumerate(clusters) if c['id'] == cluster_id), 0)
                 
-                if lats and lons:
-                    # Get cluster label from interpretation
-                    interpretation = cluster.get('interpretation', {})
-                    cluster_label = interpretation.get('label', f'Cluster {cluster["id"]}')
-                    
-                    ax.scatter(lons, lats, c=colors[idx], 
-                             label=f'{cluster_label} ({len(lats)} regions)',
-                             alpha=0.7, edgecolors='white', linewidth=1.5, s=150,
-                             zorder=5)
+                ax.scatter(lons, lats, c=colors[color_idx], 
+                         label=f'{cluster_label} ({len(points)})',
+                         alpha=0.8, edgecolors='black', linewidth=1, s=200,
+                         zorder=5, marker='o')
             
             # Set labels and title
-            ax.set_xlabel('Longitude', fontsize=12, fontweight='bold')
-            ax.set_ylabel('Latitude', fontsize=12, fontweight='bold')
-            ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
-            ax.legend(loc='best', frameon=True, shadow=True)
-            ax.grid(True, alpha=0.3, linestyle='--')
+            ax.set_xlabel('Longitude', fontsize=14, fontweight='bold')
+            ax.set_ylabel('Latitude', fontsize=14, fontweight='bold')
+            ax.set_title(title, fontsize=16, fontweight='bold', pad=20)
             
-            # Add background
-            ax.set_facecolor('#f0f0f0')
+            # Legend
+            ax.legend(loc='upper left', frameon=True, shadow=True, 
+                     fancybox=True, fontsize=10, bbox_to_anchor=(0.02, 0.98))
+            
+            # Grid
+            ax.grid(True, alpha=0.4, linestyle='--', linewidth=0.8)
+            
+            # Background
+            ax.set_facecolor('#e8f4f8')
+            fig.patch.set_facecolor('white')
+            
+            # Add margins
+            all_lats = [p[0] for p in all_points]
+            all_lons = [p[1] for p in all_points]
+            lat_margin = (max(all_lats) - min(all_lats)) * 0.1 or 1
+            lon_margin = (max(all_lons) - min(all_lons)) * 0.1 or 1
+            
+            ax.set_xlim([min(all_lons) - lon_margin, max(all_lons) + lon_margin])
+            ax.set_ylim([min(all_lats) - lat_margin, max(all_lats) + lat_margin])
             
             plt.tight_layout()
             
             img_buffer = io.BytesIO()
-            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight', facecolor='white')
+            plt.savefig(img_buffer, format='png', dpi=200, bbox_inches='tight', facecolor='white')
             img_buffer.seek(0)
             plt.close(fig)
             
             return img_buffer
             
         except Exception as e:
-            print(f"Error creating cluster map: {e}")
-            # Return placeholder on error
-            fig, ax = plt.subplots(figsize=(8, 6))
-            ax.text(0.5, 0.5, f'Error creating map:\n{str(e)}',
-                   ha='center', va='center', fontsize=12, color='red')
-            ax.axis('off')
-            plt.tight_layout()
-            
-            img_buffer = io.BytesIO()
-            plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
-            img_buffer.seek(0)
-            plt.close(fig)
-            return img_buffer
+            print(f"❌ Error creating cluster map: {e}")
+            import traceback
+            traceback.print_exc()
+            return None
     
     def _create_scatter_plot(self, clusters: List[Dict], feature_x: str, feature_y: str, title: str):
         """Create scatter plot for two features"""
@@ -355,7 +353,7 @@ class ClusteringPDFGenerator:
     
     # Pie chart removed per user request - use cluster details table instead
     
-    def _create_cluster_details_table(self, cluster: Dict, max_members: int = 20):
+    def _create_cluster_details_table(self, cluster: Dict):
         """Create detailed table for a cluster with interpretation and members"""
         cluster_id = cluster.get('id', 'N/A')
         cluster_size = cluster.get('size', 0)
@@ -373,7 +371,7 @@ class ClusteringPDFGenerator:
         # Add interpretation description
         if description and description != 'No description available':
             # Wrap description to fit in table
-            desc_wrapped = description[:150] + '...' if len(description) > 150 else description
+            desc_wrapped = description[:200] + '...' if len(description) > 200 else description
             table_data.append(['Description', desc_wrapped])
         
         # Add centroid values
@@ -385,24 +383,47 @@ class ClusteringPDFGenerator:
             table_data.append(['Garis Kemiskinan', f"Rp {centroid.get('garis_kemiskinan', 0):,.0f}/bulan"])
             table_data.append(['Pengeluaran Per Kapita', f"Rp {centroid.get('pengeluaran_per_kapita', 0) * 1000:,.0f}/tahun"])
         
-        # Add members list
+        # Add members list as comma-separated string
         members = cluster.get('members', [])
         if members:
             table_data.append(['', ''])  # Separator
-            table_data.append(['Regions in This Cluster', f'(Showing {min(len(members), max_members)} of {len(members)})'])
+            table_data.append(['Members', f'Total: {len(members)} Regions'])
             
-            # Add up to max_members
-            for idx, member in enumerate(members[:max_members]):
+            # Create comma-separated list of members
+            member_names = []
+            for member in members:
                 region_name = member.get('kabupaten_kota', 'Unknown')
                 provinsi = member.get('provinsi', '')
-                membership = member.get('membership')
                 
-                if membership is not None:
-                    detail = f"{region_name} ({provinsi}) - Membership: {membership:.2%}"
+                if provinsi:
+                    member_names.append(f"{region_name} ({provinsi})")
                 else:
-                    detail = f"{region_name} ({provinsi})" if provinsi else region_name
+                    member_names.append(region_name)
+            
+            # Join with comma and space
+            members_text = ', '.join(member_names)
+            
+            # Split into multiple rows if too long (max ~100 chars per row)
+            if len(members_text) > 100:
+                words = members_text.split(', ')
+                current_row = []
+                current_length = 0
                 
-                table_data.append([f'{idx + 1}.', detail])
+                for word in words:
+                    if current_length + len(word) + 2 > 100 and current_row:
+                        # Add current row and start new one
+                        table_data.append(['', ', '.join(current_row) + ','])
+                        current_row = [word]
+                        current_length = len(word)
+                    else:
+                        current_row.append(word)
+                        current_length += len(word) + 2
+                
+                # Add remaining
+                if current_row:
+                    table_data.append(['', ', '.join(current_row)])
+            else:
+                table_data.append(['', members_text])
         
         # Create table
         col_widths = [1*inch, 5.5*inch]
@@ -584,12 +605,13 @@ class ClusteringPDFGenerator:
                 story.append(Paragraph(f"Visualizations - Year {year}", self.subheading_style))
                 story.append(Spacer(1, 0.1*inch))
                 
-                # Cluster Map (moved to top for better visibility)
-                story.append(Paragraph("Geographical Distribution", self.subheading_style))
+                # Cluster Map (only if coordinates available)
                 cluster_map = self._create_cluster_map(clusters, f'Geographical Distribution ({year})')
-                img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
-                story.append(img_map)
-                story.append(Spacer(1, 0.3*inch))
+                if cluster_map:
+                    story.append(Paragraph("Geographical Distribution", self.subheading_style))
+                    img_map = Image(cluster_map, width=6.5*inch, height=4.875*inch)
+                    story.append(img_map)
+                    story.append(Spacer(1, 0.3*inch))
                 
                 # Scatter plots
                 scatter1 = self._create_scatter_plot(clusters, 'ipm', 'garis_kemiskinan',
@@ -643,12 +665,12 @@ class ClusteringPDFGenerator:
                 story.append(img5)
                 story.append(Spacer(1, 0.3*inch))
                 
-                # Cluster Details with Labels and Members
+                # Cluster Details with Labels and Members (comma-separated)
                 story.append(Paragraph(f"Cluster Details - Year {year}", self.subheading_style))
                 story.append(Spacer(1, 0.2*inch))
                 
                 for cluster in clusters:
-                    cluster_table = self._create_cluster_details_table(cluster, max_members=15)
+                    cluster_table = self._create_cluster_details_table(cluster)
                     story.append(cluster_table)
                     story.append(Spacer(1, 0.3*inch))
             
@@ -717,14 +739,14 @@ class ClusteringPDFGenerator:
             story.append(Paragraph("Visualizations", self.heading_style))
             story.append(Spacer(1, 0.2*inch))
             
-            # Geographical Map (moved to top for better visibility)
-            story.append(Paragraph("Geographical Distribution", self.subheading_style))
-            story.append(Spacer(1, 0.1*inch))
-            
+            # Geographical Map (only if coordinates available)
             cluster_map = self._create_cluster_map(clusters, 'Cluster Geographical Distribution')
-            img_map = Image(cluster_map, width=6*inch, height=4.8*inch)
-            story.append(img_map)
-            story.append(PageBreak())
+            if cluster_map:
+                story.append(Paragraph("Geographical Distribution", self.subheading_style))
+                story.append(Spacer(1, 0.1*inch))
+                img_map = Image(cluster_map, width=6.5*inch, height=4.875*inch)
+                story.append(img_map)
+                story.append(PageBreak())
             
             # Scatter plots
             story.append(Paragraph("Scatter Plot Analysis", self.subheading_style))
@@ -787,12 +809,12 @@ class ClusteringPDFGenerator:
             story.append(img6)
             story.append(PageBreak())
             
-            # Cluster Details with Interpretation Labels and Members
+            # Cluster Details with Interpretation Labels and Members (comma-separated)
             story.append(Paragraph("Cluster Details", self.heading_style))
             story.append(Spacer(1, 0.2*inch))
             
             for cluster in clusters:
-                cluster_table = self._create_cluster_details_table(cluster, max_members=20)
+                cluster_table = self._create_cluster_details_table(cluster)
                 story.append(cluster_table)
                 story.append(Spacer(1, 0.4*inch))
         
