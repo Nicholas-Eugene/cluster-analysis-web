@@ -27,6 +27,90 @@ from reportlab.platypus import (
 )
 from reportlab.pdfgen import canvas
 
+# Indonesian City Coordinates - Simplified embedded version
+# Note: For complete list, see fuzzy-clustering-frontend/src/data/cityCoordinates.js
+CITY_COORDS_LOOKUP = None
+
+def _load_city_coordinates():
+    """Load city coordinates from frontend data file"""
+    global CITY_COORDS_LOOKUP
+    if CITY_COORDS_LOOKUP is not None:
+        return CITY_COORDS_LOOKUP
+    
+    try:
+        import os
+        import re
+        
+        # Try to read from frontend file
+        frontend_coords_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            'fuzzy-clustering-frontend', 'src', 'data', 'cityCoordinates.js'
+        )
+        
+        if os.path.exists(frontend_coords_path):
+            with open(frontend_coords_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # Parse JavaScript object to Python dict
+            CITY_COORDS_LOOKUP = {}
+            # Match patterns like: 'City Name': [lat, lon],
+            pattern = r"'([^']+)':\s*\[([^]]+)\]"
+            matches = re.findall(pattern, content)
+            
+            for city, coords in matches:
+                parts = coords.split(',')
+                if len(parts) == 2:
+                    try:
+                        lat = float(parts[0].strip())
+                        lon = float(parts[1].strip())
+                        CITY_COORDS_LOOKUP[city] = (lat, lon)
+                    except ValueError:
+                        continue
+            
+            print(f"✅ Loaded {len(CITY_COORDS_LOOKUP)} city coordinates from frontend data")
+            return CITY_COORDS_LOOKUP
+        else:
+            print(f"⚠️ Frontend coordinates file not found at: {frontend_coords_path}")
+            CITY_COORDS_LOOKUP = {}
+            return CITY_COORDS_LOOKUP
+            
+    except Exception as e:
+        print(f"⚠️ Error loading city coordinates: {e}")
+        CITY_COORDS_LOOKUP = {}
+        return CITY_COORDS_LOOKUP
+
+
+def get_city_coordinates(city_name):
+    """Get coordinates for a city with fuzzy matching"""
+    coords_db = _load_city_coordinates()
+    
+    if not coords_db or not city_name:
+        return None
+    
+    # Normalize city name
+    normalized = str(city_name).strip()
+    
+    # Remove common prefixes
+    prefixes = ['Kab. ', 'Kabupaten ', 'Kota ', 'Administrasi ', 'DKI ']
+    for prefix in prefixes:
+        normalized = normalized.replace(prefix, '')
+    normalized = normalized.strip()
+    
+    # Direct lookup
+    if normalized in coords_db:
+        return coords_db[normalized]
+    
+    # Fuzzy matching
+    normalized_lower = normalized.lower()
+    for city_key in coords_db.keys():
+        if (normalized_lower in city_key.lower() or 
+            city_key.lower() in normalized_lower):
+            return coords_db[city_key]
+    
+    return None
+
+HAS_CITY_COORDS = True
+
 
 class ClusteringPDFGenerator:
     """Generate PDF reports for clustering analysis with visualizations"""
@@ -87,20 +171,32 @@ class ClusteringPDFGenerator:
             # Collect all valid coordinates
             all_points = []
             cluster_data = []
+            coords_from_mapping = 0
+            coords_from_data = 0
             
             for cluster in clusters:
                 members = cluster.get('members', [])
                 cluster_points = []
                 
                 for member in members:
+                    city_name = member.get('kabupaten_kota', '')
                     lat = member.get('latitude', 0)
                     lon = member.get('longitude', 0)
+                    
+                    # Try to get coordinates from mapping first if available
+                    if HAS_CITY_COORDS and city_name:
+                        mapped_coords = get_city_coordinates(city_name)
+                        if mapped_coords:
+                            lat, lon = mapped_coords
+                            coords_from_mapping += 1
+                        elif lat and lon and lat != 0 and lon != 0:
+                            coords_from_data += 1
                     
                     # Valid coordinate check
                     if (lat is not None and lon is not None and 
                         lat != 0 and lon != 0 and 
                         -90 <= lat <= 90 and -180 <= lon <= 180):
-                        cluster_points.append((lat, lon, member.get('kabupaten_kota', 'Unknown')))
+                        cluster_points.append((lat, lon, city_name or 'Unknown'))
                         all_points.append((lat, lon))
                 
                 if cluster_points:
@@ -115,9 +211,13 @@ class ClusteringPDFGenerator:
             # If no valid coordinates, return None (skip map in PDF)
             if not all_points:
                 print(f"⚠️ No valid geographical coordinates found for map")
+                print(f"   Mapped from city names: {coords_from_mapping}")
+                print(f"   From data: {coords_from_data}")
                 return None
             
             print(f"✅ Creating map with {len(all_points)} points across {len(cluster_data)} clusters")
+            print(f"   Coordinates mapped from city names: {coords_from_mapping}")
+            print(f"   Coordinates from member data: {coords_from_data}")
             
             # Create map
             fig, ax = plt.subplots(figsize=(12, 9))
@@ -387,7 +487,7 @@ class ClusteringPDFGenerator:
         members = cluster.get('members', [])
         if members:
             table_data.append(['', ''])  # Separator
-            table_data.append(['Members', f'Total: {len(members)} Regions'])
+            table_data.append(['Members', Paragraph(f'<b>Total: {len(members)} Regions</b>', self.normal_style)])
             
             # Create comma-separated list of members
             member_names = []
@@ -403,27 +503,9 @@ class ClusteringPDFGenerator:
             # Join with comma and space
             members_text = ', '.join(member_names)
             
-            # Split into multiple rows if too long (max ~100 chars per row)
-            if len(members_text) > 100:
-                words = members_text.split(', ')
-                current_row = []
-                current_length = 0
-                
-                for word in words:
-                    if current_length + len(word) + 2 > 100 and current_row:
-                        # Add current row and start new one
-                        table_data.append(['', ', '.join(current_row) + ','])
-                        current_row = [word]
-                        current_length = len(word)
-                    else:
-                        current_row.append(word)
-                        current_length += len(word) + 2
-                
-                # Add remaining
-                if current_row:
-                    table_data.append(['', ', '.join(current_row)])
-            else:
-                table_data.append(['', members_text])
+            # Use Paragraph for automatic text wrapping
+            members_paragraph = Paragraph(members_text, self.normal_style)
+            table_data.append(['', members_paragraph])
         
         # Create table
         col_widths = [1*inch, 5.5*inch]
