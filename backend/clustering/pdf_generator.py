@@ -500,12 +500,28 @@ class ClusteringPDFGenerator:
                 else:
                     member_names.append(region_name)
             
-            # Join with comma and space
-            members_text = ', '.join(member_names)
+            # Split members into chunks to avoid cells that are too tall
+            # Max ~15 members per chunk to keep cell height manageable
+            chunk_size = 15
             
-            # Use Paragraph for automatic text wrapping
-            members_paragraph = Paragraph(members_text, self.normal_style)
-            table_data.append(['', members_paragraph])
+            for i in range(0, len(member_names), chunk_size):
+                chunk = member_names[i:i + chunk_size]
+                members_text = ', '.join(chunk)
+                
+                # Add continuation indicator if not the last chunk
+                if i + chunk_size < len(member_names):
+                    members_text += ','
+                
+                # Create smaller font style for members to save space
+                members_style = ParagraphStyle(
+                    'MembersStyle',
+                    parent=self.normal_style,
+                    fontSize=8,
+                    leading=10
+                )
+                
+                members_paragraph = Paragraph(members_text, members_style)
+                table_data.append(['', members_paragraph])
         
         # Create table
         col_widths = [1*inch, 5.5*inch]
