@@ -484,7 +484,7 @@
 </template>
 
 <script>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import apiService from '../services/apiService.js'
 
@@ -645,6 +645,11 @@ export default {
             sampleRows: sampleRows,
             years: years,
             format: 'long'
+          }
+          
+          // Auto-select all years for per_year mode
+          if (clusteringMode.value === 'per_year' && years && years.length > 0) {
+            selectedYears.value = [...years]
           }
         } catch (error) {
           uploadError.value = 'Gagal membaca file CSV. Pastikan format file benar.'
@@ -905,6 +910,19 @@ Surabaya,2018,78.34,420000,6400000`
       parameters.minClusterSize = 0.05
       clusteringMode.value = 'per_year'
     }
+
+    // Watch clustering mode changes and auto-select years for per_year mode
+    watch(clusteringMode, (newMode) => {
+      if (newMode === 'per_year' && dataPreview.value && dataPreview.value.years) {
+        // Auto-select all available years when switching to per_year mode
+        if (Array.isArray(dataPreview.value.years) && dataPreview.value.years.length > 0) {
+          selectedYears.value = [...dataPreview.value.years]
+        }
+      } else if (newMode === 'all_years') {
+        // Clear selection when switching to all_years mode
+        selectedYears.value = []
+      }
+    })
 
     return {
       selectedFile,
