@@ -261,7 +261,10 @@
             Pilih Tahun untuk Di-cluster
           </label>
           <div class="year-selection-info">
-            <p class="form-help">Pilih tahun mana saja yang ingin dianalisis. Kosongkan semua untuk memproses semua tahun.</p>
+            <p class="form-help">
+              <strong>Wajib:</strong> Pilih minimal 1 tahun untuk mode "Per Tahun". 
+              Gunakan "Pilih Semua" untuk memilih semua tahun atau centang tahun yang diinginkan.
+            </p>
           </div>
           <div class="year-checkboxes">
             <label v-for="year in dataPreview.years" :key="year" class="year-checkbox-label">
@@ -275,12 +278,15 @@
               <span class="year-label">{{ year }}</span>
             </label>
             <div class="year-actions">
-              <button type="button" @click="selectAllYears" class="btn-link">Pilih Semua</button>
-              <button type="button" @click="deselectAllYears" class="btn-link">Hapus Semua</button>
+              <button type="button" @click="selectAllYears" class="btn-link">✓ Pilih Semua</button>
+              <button type="button" @click="deselectAllYears" class="btn-link">✗ Hapus Semua</button>
             </div>
           </div>
           <div v-if="selectedYears.length > 0" class="selected-years-summary">
-            <strong>Tahun yang dipilih ({{ selectedYears.length }}):</strong> {{ selectedYears.sort().join(', ') }}
+            <strong>✓ Tahun yang dipilih ({{ selectedYears.length }}):</strong> {{ selectedYears.sort().join(', ') }}
+          </div>
+          <div v-else class="selected-years-warning">
+            <strong>⚠️ Peringatan:</strong> Belum ada tahun yang dipilih! Silakan pilih minimal 1 tahun.
           </div>
         </div>
 
@@ -831,6 +837,12 @@ Surabaya,2018,78.34,420000,6400000`
         return
       }
 
+      // Validate year selection for per_year mode
+      if (clusteringMode.value === 'per_year' && selectedYears.value.length === 0) {
+        uploadError.value = '⚠️ Silakan pilih minimal 1 tahun untuk mode "Per Tahun". Gunakan tombol "Pilih Semua" atau centang tahun yang diinginkan.'
+        return
+      }
+
       // Validate parameters based on algorithm
       if (selectedAlgorithm.value === 'fcm') {
         if (parameters.numClusters < 2 || parameters.numClusters > 10) {
@@ -1301,6 +1313,35 @@ Surabaya,2018,78.34,420000,6400000`
 
 .selected-years-summary strong {
   color: #667eea;
+}
+
+.selected-years-warning {
+  background: #fff3cd;
+  padding: 1rem;
+  border-radius: 8px;
+  border-left: 4px solid #ed8936;
+  margin-top: 1rem;
+  color: #975a16;
+  font-size: 0.95rem;
+  animation: pulse-warning 2s infinite;
+}
+
+.selected-years-warning strong {
+  color: #c05621;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@keyframes pulse-warning {
+  0%, 100% {
+    background-color: #fff3cd;
+    border-color: #ed8936;
+  }
+  50% {
+    background-color: #fef3c7;
+    border-color: #f56565;
+  }
 }
 
 .sample-download {
