@@ -121,7 +121,7 @@ export default {
         }
 
         // Build URL
-        let url = `${API_BASE_URL}/clustering/silhouette-plot/${props.sessionId}/`
+        let url = `${API_BASE_URL}/silhouette-plot/${props.sessionId}/`
         if (props.year) {
           url += `${props.year}/`
         }

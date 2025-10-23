@@ -47,12 +47,12 @@ urlpatterns = [
         name="get-evaluation-metrics",
     ),
     path(
-        "clustering/download-pdf/<uuid:session_id>/",
-        DownloadPDFReportView.as_view(),
-        name="download-pdf-report",
+        "clustering/silhouette-plot/<uuid:session_id>/",
+        GetSilhouettePlotView.as_view(),
+        name="get-silhouette-plot",
     ),
-]
-ing/silhouette-plot/<uuid:session_id>/<str:year>/",
+    path(
+        "clustering/silhouette-plot/<uuid:session_id>/<str:year>/",
         GetSilhouettePlotView.as_view(),
         name="get-silhouette-plot-year",
     ),
