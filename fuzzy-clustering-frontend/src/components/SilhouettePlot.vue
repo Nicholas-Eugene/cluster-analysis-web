@@ -9,13 +9,31 @@
         </div>
       </div>
     </div>
-    <div v-if="!hasValidData" class="no-data-message">
+    
+    <div v-if="loading" class="loading-message">
+      <div class="spinner"></div>
+      <p>Memuat silhouette plot...</p>
+    </div>
+    
+    <div v-else-if="error" class="error-message">
+      <p>⚠️ {{ error }}</p>
+    </div>
+    
+    <div v-else-if="!hasValidData" class="no-data-message">
       <p>⚠️ Tidak ada data untuk ditampilkan. Cluster atau members tidak tersedia.</p>
     </div>
-    <div v-else class="chart-wrapper">
-      <canvas ref="chartCanvas" class="silhouette-plot-canvas"></canvas>
+    
+    <div v-else class="image-wrapper">
+      <img 
+        :src="imageUrl" 
+        :alt="title"
+        class="silhouette-plot-image"
+        @load="onImageLoad"
+        @error="onImageError"
+      />
     </div>
-    <div class="silhouette-legend">
+    
+    <div v-if="!loading && !error" class="silhouette-legend">
       <h4>Interpretasi Silhouette Score:</h4>
       <div class="legend-items">
         <div class="legend-item">
@@ -44,8 +62,8 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
-import Chart from 'chart.js/auto'
+import { ref, computed, watch, onMounted } from 'vue'
+import { API_BASE_URL } from '@/utils/constants'
 
 export default {
   name: 'SilhouettePlot',
@@ -61,361 +79,114 @@ export default {
     silhouetteScore: {
       type: Number,
       default: null
+    },
+    sessionId: {
+      type: String,
+      required: true
+    },
+    year: {
+      type: [String, Number],
+      default: null
     }
   },
   setup(props) {
-    const chartCanvas = ref(null)
-    const chart = ref(null)
-
-    // Consistent cluster colors matching the design system
-    const colors = [
-      '#667eea', // Purple - Primary
-      '#48bb78', // Green - Success
-      '#ed8936', // Orange - Warning
-      '#4299e1', // Blue - Info
-      '#f56565', // Red - Danger
-      '#38b2ac', // Teal
-      '#9f7aea', // Purple Light
-      '#ecc94b', // Yellow
-      '#f687b3', // Pink
-      '#4fd1c5', // Cyan
-    ]
-
-    const getClusterColor = (index) => {
-      return colors[index % colors.length]
-    }
+    const imageUrl = ref('')
+    const loading = ref(true)
+    const error = ref(null)
 
     // Check if we have valid data
     const hasValidData = computed(() => {
       if (!props.clusters || props.clusters.length === 0) {
-        console.log('❌ No clusters provided')
         return false
       }
       
       const hasMembers = props.clusters.some(c => c.members && c.members.length > 0)
-      if (!hasMembers) {
-        console.log('❌ No members in clusters')
-        return false
-      }
-      
-      console.log('✅ Valid data:', props.clusters.length, 'clusters')
-      return true
+      return hasMembers
     })
-
-    // Get silhouette score from member data (calculated by backend)
-    const getSilhouetteScore = (member) => {
-      // Use backend-calculated silhouette score if available
-      if (member.silhouette_score !== undefined && member.silhouette_score !== null) {
-        return member.silhouette_score
-      }
-      // Fallback to approximation if not available (shouldn't happen with new backend)
-      return 0.5
-    }
 
     const averageSilhouetteScore = computed(() => {
-      if (props.silhouetteScore != null) {
-        return props.silhouetteScore
-      }
-      
-      // Calculate approximate average (exclude noise clusters)
-      let total = 0
-      let count = 0
-      
-      props.clusters
-        .filter(c => c.id !== -1 && c.id !== '-1') // Filter noise
-        .forEach(cluster => {
-          if (cluster.members && Array.isArray(cluster.members)) {
-            cluster.members.forEach(member => {
-              const score = getSilhouetteScore(member)
-              total += score
-              count++
-            })
-          }
-        })
-      
-      return count > 0 ? total / count : 0
+      return props.silhouetteScore
     })
 
-    const createChart = async () => {
+    // Fetch silhouette plot image from backend
+    const fetchSilhouettePlot = async () => {
       try {
-        console.log('🎨 Creating silhouette chart...')
-        console.log('Props clusters:', props.clusters)
+        loading.value = true
+        error.value = null
+
+        if (!props.sessionId) {
+          error.value = 'Session ID tidak tersedia'
+          loading.value = false
+          return
+        }
+
+        // Build URL
+        let url = `${API_BASE_URL}/clustering/silhouette-plot/${props.sessionId}/`
+        if (props.year) {
+          url += `${props.year}/`
+        }
+
+        console.log('🖼️ Fetching silhouette plot from:', url)
+
+        const response = await fetch(url)
         
-        if (!chartCanvas.value) {
-          console.error('❌ Canvas ref is null')
-          return
-        }
-        
-        if (!props.clusters || props.clusters.length === 0) {
-          console.error('❌ No clusters data')
-          return
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`)
         }
 
-        await nextTick()
-        
-        if (!chartCanvas.value) {
-          console.error('❌ Canvas lost after nextTick')
-          return
-        }
+        // Get image blob
+        const blob = await response.blob()
+        imageUrl.value = URL.createObjectURL(blob)
 
-        // Destroy existing chart
-        if (chart.value) {
-          try {
-            chart.value.destroy()
-          } catch (e) {
-            console.warn('Error destroying chart:', e)
-          }
-          chart.value = null
-        }
-
-        await new Promise(resolve => setTimeout(resolve, 100))
-        
-        if (!chartCanvas.value) {
-          console.error('❌ Canvas lost after delay')
-          return
-        }
-
-        const ctx = chartCanvas.value.getContext('2d')
-        if (!ctx) {
-          console.error('❌ Cannot get 2d context')
-          return
-        }
-
-        console.log('✅ Canvas and context ready')
-
-        // Filter out noise clusters (id = -1) from OPTICS
-        const validClusters = props.clusters.filter(c => c.id !== -1 && c.id !== '-1')
-        console.log(`Processing ${validClusters.length} valid clusters (filtered out noise)...`)
-        
-        if (validClusters.length === 0) {
-          console.warn('⚠️ No valid clusters to display (all are noise)')
-          return
-        }
-
-        // Prepare silhouette data with better spacing
-        const datasets = []
-        let yPosition = 0
-        const gapBetweenClusters = 10 // Fixed gap
-
-        validClusters.forEach((cluster, clusterIndex) => {
-          console.log(`Cluster ${cluster.id}:`, cluster.members?.length, 'members')
-          
-          if (!cluster.members || cluster.members.length === 0) {
-            console.warn(`⚠️ Cluster ${cluster.id} has no members`)
-            return
-          }
-
-          // Get silhouette scores for members (from backend)
-          const scores = cluster.members.map(member => ({
-            score: getSilhouetteScore(member),
-            name: member.kabupaten_kota || 'Unknown'
-          }))
-
-          // Sort by score descending
-          scores.sort((a, b) => b.score - a.score)
-
-          const data = scores.map((item, index) => ({
-            x: item.score,
-            y: yPosition + index,
-            name: item.name
-          }))
-
-          console.log(`Cluster ${cluster.id} data points:`, data.length)
-
-          // Ensure label is clean string
-          const clusterLabel = cluster.interpretation?.label 
-            ? String(cluster.interpretation.label)
-            : `Cluster ${cluster.id}`
-
-          datasets.push({
-            label: clusterLabel,
-            data: data,
-            backgroundColor: getClusterColor(clusterIndex),
-            borderColor: getClusterColor(clusterIndex),
-            borderWidth: 1,
-            barThickness: 40,
-            barPercentage: 1.0,
-            categoryPercentage: 1.0
-          })
-
-          yPosition += scores.length + gapBetweenClusters
-        })
-
-        console.log(`Total datasets: ${datasets.length}, total Y positions: ${yPosition}`)
-
-        if (datasets.length === 0) {
-          console.error('❌ No datasets created')
-          return
-        }
-
-        console.log('✅ Creating chart with', datasets.length, 'datasets')
-
-        const config = {
-          type: 'bar',
-          data: { datasets },
-          options: {
-            indexAxis: 'y',
-            responsive: true,
-            maintainAspectRatio: false,
-            animation: false,
-            plugins: {
-              title: {
-                display: true,
-                text: 'Silhouette Plot - Kualitas Clustering per Data Point',
-                font: { size: 16, weight: 'bold' },
-                color: '#2d3748',
-                padding: 20
-              },
-              legend: {
-                display: true,
-                position: 'bottom',
-                labels: {
-                  padding: 15,
-                  font: { size: 12 }
-                }
-              },
-              tooltip: {
-                enabled: true,
-                callbacks: {
-                  label: (context) => {
-                    const point = context.raw
-                    // Ensure label is string, not object
-                    const datasetLabel = context.dataset.label 
-                      ? String(context.dataset.label) 
-                      : 'Unknown Cluster'
-                    return [
-                      `Region: ${point.name || 'N/A'}`,
-                      `Score: ${point.x?.toFixed(3) || 'N/A'}`,
-                      `Cluster: ${datasetLabel}`
-                    ]
-                  }
-                }
-              }
-            },
-            scales: {
-              x: {
-                title: {
-                  display: true,
-                  text: 'Silhouette Score',
-                  font: { size: 14, weight: 'bold' },
-                  color: '#2d3748'
-                },
-                min: -1,
-                max: 1,
-                ticks: {
-                  font: { size: 11 }
-                },
-                grid: {
-                  display: true,
-                  color: (context) => {
-                    if (context.tick.value === 0) return 'rgba(0, 0, 0, 0.4)'
-                    return 'rgba(0, 0, 0, 0.1)'
-                  },
-                  lineWidth: (context) => {
-                    return context.tick.value === 0 ? 2 : 1
-                  }
-                }
-              },
-              y: {
-                display: false,
-                offset: true
-              }
-            },
-            elements: {
-              bar: {
-                borderWidth: 0
-              }
-            }
-          }
-        }
-
-        console.log('Creating Chart.js instance...')
-        chart.value = new Chart(ctx, config)
-        console.log('✅ Chart created successfully!')
-        console.log('Chart instance:', chart.value)
-
-      } catch (error) {
-        console.error('❌ Error creating silhouette plot:', error)
-        console.error('Error details:', error.message)
-        console.error('Stack:', error.stack)
-        if (chart.value) {
-          try {
-            chart.value.destroy()
-          } catch (e) {
-            console.error('Error destroying chart:', e)
-          }
-          chart.value = null
-        }
+        console.log('✅ Silhouette plot loaded successfully')
+        loading.value = false
+      } catch (err) {
+        console.error('❌ Error fetching silhouette plot:', err)
+        error.value = `Gagal memuat silhouette plot: ${err.message}`
+        loading.value = false
       }
     }
 
-    let updateTimeout = null
-    let isUpdating = false
-
-    const updateChart = () => {
-      if (isUpdating) return
-      
-      if (updateTimeout) {
-        clearTimeout(updateTimeout)
-      }
-      
-      updateTimeout = setTimeout(async () => {
-        if (!chartCanvas.value) return
-        
-        isUpdating = true
-        try {
-          await createChart()
-        } catch (error) {
-          console.error('Error during chart update:', error)
-        } finally {
-          isUpdating = false
-        }
-      }, 300)
+    const onImageLoad = () => {
+      console.log('✅ Image loaded successfully')
     }
 
-    onMounted(async () => {
-      console.log('📊 SilhouettePlot mounted')
-      console.log('Clusters prop:', props.clusters)
-      console.log('Has valid data:', hasValidData.value)
-      
+    const onImageError = () => {
+      console.error('❌ Image failed to load')
+      error.value = 'Gagal memuat gambar silhouette plot'
+    }
+
+    // Fetch on mount and when props change
+    onMounted(() => {
       if (hasValidData.value) {
-        await createChart()
+        fetchSilhouettePlot()
       } else {
-        console.warn('⚠️ No valid data to create chart')
+        loading.value = false
       }
     })
 
-    onUnmounted(() => {
-      console.log('📊 SilhouettePlot unmounting')
-      if (updateTimeout) {
-        clearTimeout(updateTimeout)
-        updateTimeout = null
-      }
-      
-      isUpdating = true
-      
-      if (chart.value) {
-        try {
-          chart.value.destroy()
-        } catch (e) {}
-        chart.value = null
-      }
-      
-      chartCanvas.value = null
-    })
-
-    watch(() => props.clusters, (newClusters) => {
-      console.log('👀 Clusters changed:', newClusters)
+    // Watch for changes in sessionId or year
+    watch([() => props.sessionId, () => props.year], () => {
       if (hasValidData.value) {
-        updateChart()
+        fetchSilhouettePlot()
       }
-    }, { deep: true })
+    })
+
+    // Clean up object URL on unmount
+    watch(() => imageUrl.value, (newUrl, oldUrl) => {
+      if (oldUrl && oldUrl.startsWith('blob:')) {
+        URL.revokeObjectURL(oldUrl)
+      }
+    })
 
     return {
-      chartCanvas,
+      imageUrl,
+      loading,
+      error,
+      hasValidData,
       averageSilhouetteScore,
-      getClusterColor,
-      hasValidData
+      onImageLoad,
+      onImageError
     }
   }
 }
@@ -426,21 +197,24 @@ export default {
   background: white;
   border-radius: 12px;
   padding: 1.5rem;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  margin-bottom: 1.5rem;
 }
 
 .chart-header {
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .chart-header h3 {
   color: #2d3748;
-  margin: 0 0 0.5rem 0;
+  margin: 0 0 0.75rem 0;
   font-size: 1.25rem;
+  font-weight: 600;
 }
 
 .silhouette-info {
+  display: flex;
+  justify-content: flex-start;
   margin-top: 0.5rem;
 }
 
@@ -448,43 +222,90 @@ export default {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  background: #f7fafc;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e9f0ff 100%);
   padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border-left: 3px solid #667eea;
-  font-size: 0.9rem;
-  color: #4a5568;
+  border-radius: 8px;
+  border: 1px solid #cbd5e0;
 }
 
 .info-icon {
-  font-size: 1rem;
+  font-size: 1.2rem;
 }
 
-.chart-wrapper {
-  height: 600px;
-  position: relative;
-  min-height: 400px;
-  width: 100%;
+.info-text {
+  color: #4a5568;
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 
-.silhouette-plot-canvas {
-  width: 100% !important;
-  height: 100% !important;
-}
-
+.loading-message,
+.error-message,
 .no-data-message {
-  padding: 3rem 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
   text-align: center;
   background: #f7fafc;
   border-radius: 8px;
-  border: 2px dashed #e2e8f0;
-  margin: 2rem 0;
+  border: 2px dashed #cbd5e0;
 }
 
+.loading-message {
+  background: linear-gradient(135deg, #f0f4ff 0%, #e9f0ff 100%);
+  border-color: #90cdf4;
+}
+
+.error-message {
+  background: linear-gradient(135deg, #fff5f5 0%, #fed7d7 100%);
+  border-color: #fc8181;
+}
+
+.spinner {
+  border: 4px solid #e2e8f0;
+  border-top: 4px solid #667eea;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.loading-message p,
+.error-message p,
 .no-data-message p {
   color: #718096;
   font-size: 1rem;
   margin: 0;
+}
+
+.error-message p {
+  color: #c53030;
+  font-weight: 500;
+}
+
+.image-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f7fafc;
+  border-radius: 8px;
+  padding: 1rem;
+  min-height: 400px;
+}
+
+.silhouette-plot-image {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .silhouette-legend {
@@ -556,12 +377,26 @@ export default {
 }
 
 @media (max-width: 768px) {
-  .chart-wrapper {
-    height: 300px;
+  .silhouette-plot-container {
+    padding: 1rem;
+  }
+
+  .image-wrapper {
+    min-height: 300px;
+    padding: 0.5rem;
   }
   
   .legend-items {
     grid-template-columns: 1fr;
+  }
+
+  .average-score {
+    padding: 0.75rem;
+    font-size: 0.875rem;
+  }
+
+  .score-value {
+    font-size: 1.25rem;
   }
 }
 </style>

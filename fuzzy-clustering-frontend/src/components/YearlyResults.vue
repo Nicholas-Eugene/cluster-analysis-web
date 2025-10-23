@@ -240,6 +240,8 @@
             :clusters="selectedYearResults.clusters" 
             :title="`Silhouette Plot - ${selectedYearResults.algorithm} (${selectedYear})`"
             :silhouetteScore="selectedYearResults.evaluation.silhouette_score"
+            :sessionId="sessionId"
+            :year="selectedYear"
           />
         </div>
         <div class="header-actions" style="margin-bottom: 2rem;">

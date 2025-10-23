@@ -7,6 +7,7 @@ from .views import (
     GetGeographicalDataView,
     GetClusterDetailsView,
     GetEvaluationMetricsView,
+    GetSilhouettePlotView,
     DownloadPDFReportView,
 )
 
@@ -44,6 +45,16 @@ urlpatterns = [
         "clustering/evaluation/<uuid:session_id>/",
         GetEvaluationMetricsView.as_view(),
         name="get-evaluation-metrics",
+    ),
+    path(
+        "clustering/download-pdf/<uuid:session_id>/",
+        DownloadPDFReportView.as_view(),
+        name="download-pdf-report",
+    ),
+]
+ing/silhouette-plot/<uuid:session_id>/<str:year>/",
+        GetSilhouettePlotView.as_view(),
+        name="get-silhouette-plot-year",
     ),
     path(
         "clustering/download-pdf/<uuid:session_id>/",

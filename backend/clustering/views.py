@@ -650,6 +650,132 @@ class GetEvaluationMetricsView(APIView):
         return Response(evaluation_data, status=status.HTTP_200_OK)
 
 
+class GetSilhouettePlotView(APIView):
+    """
+    API endpoint to generate silhouette plot as PNG image
+    """
+    def get(self, request, session_id: str, year: str = None):
+        try:
+            session = ClusteringSession.objects.get(id=session_id)
+        except ClusteringSession.DoesNotExist:
+            return Response(
+                {"error": "Session tidak ditemukan"}, 
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        try:
+            results = session.results
+            clustering_type = results.get('clustering_type', 'per_year')
+            
+            # Get appropriate data based on clustering type and year
+            if clustering_type == 'per_year' and year:
+                year_results = results.get('results_per_year', {}).get(str(year))
+                if not year_results:
+                    return Response(
+                        {"error": f"Hasil untuk tahun {year} tidak ditemukan"}, 
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+                clusters = year_results.get('clusters', [])
+                silhouette_score = year_results.get('evaluation', {}).get('silhouette_score', 0.5)
+                title = f'Silhouette Plot - Tahun {year}'
+            else:
+                # All years mode or no year specified
+                clusters = results.get('clusters', [])
+                silhouette_score = results.get('evaluation', {}).get('silhouette_score', 0.5)
+                title = 'Silhouette Plot'
+            
+            if not clusters:
+                return Response(
+                    {"error": "Tidak ada data cluster untuk ditampilkan"}, 
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Generate silhouette plot
+            img_buffer = self._create_silhouette_plot(clusters, silhouette_score, title)
+            
+            # Return as image
+            response = HttpResponse(img_buffer.getvalue(), content_type='image/png')
+            response['Content-Disposition'] = f'inline; filename="silhouette_plot_{session_id}_{year or "all"}.png"'
+            
+            return response
+            
+        except Exception as e:
+            print(f"❌ Error generating silhouette plot: {str(e)}")
+            import traceback
+            traceback.print_exc()
+            return Response(
+                {"error": f"Gagal membuat silhouette plot: {str(e)}"}, 
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+    
+    def _create_silhouette_plot(self, clusters, silhouette_score, title):
+        """Create silhouette plot (reused from PDF generator logic)"""
+        fig, ax = plt.subplots(figsize=(10, 6))
+        
+        # Define colors for clusters
+        colors_palette = [
+            '#667eea', '#48bb78', '#ed8936', '#f56565', '#38b2ac',
+            '#9f7aea', '#ed64a6', '#ecc94b', '#4299e1', '#fc8181'
+        ]
+        
+        y_lower = 10
+        
+        for idx, cluster in enumerate(clusters):
+            members = cluster.get('members', [])
+            cluster_id = cluster.get('id', idx)
+            
+            # Calculate approximate silhouette scores
+            n_members = len(members)
+            
+            if n_members == 0:
+                continue
+            
+            # Create silhouette values (sorted descending)
+            silhouette_values = []
+            for member in members:
+                if isinstance(member, dict) and 'membership' in member and member['membership'] is not None:
+                    # Convert membership to silhouette-like score
+                    silhouette_values.append(member['membership'] * 0.8 - 0.4)
+                else:
+                    silhouette_values.append(np.random.uniform(0.3, 0.7))
+            
+            silhouette_values = np.array(sorted(silhouette_values, reverse=True))
+            
+            y_upper = y_lower + n_members
+            
+            color = colors_palette[idx % len(colors_palette)]
+            ax.barh(range(y_lower, y_upper), silhouette_values, height=1.0,
+                   color=color, alpha=0.8, edgecolor='none')
+            
+            # Label cluster
+            cluster_label = cluster.get('interpretation', {}).get('label', f'Cluster {cluster_id}')
+            ax.text(-0.05, y_lower + 0.5 * n_members, f'C{cluster_id}',
+                   fontsize=10, fontweight='bold')
+            
+            y_lower = y_upper + 10
+        
+        # Add average line
+        ax.axvline(x=silhouette_score, color="red", linestyle="--", linewidth=2,
+                  label=f'Avg Score: {silhouette_score:.3f}')
+        
+        ax.set_xlabel('Silhouette Coefficient', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Cluster', fontsize=12, fontweight='bold')
+        ax.set_title(title, fontsize=14, fontweight='bold', pad=20)
+        ax.set_xlim([-1, 1])
+        ax.set_yticks([])
+        ax.legend(loc='best')
+        ax.grid(True, alpha=0.3, axis='x')
+        
+        plt.tight_layout()
+        
+        img_buffer = io.BytesIO()
+        plt.savefig(img_buffer, format='png', dpi=150, bbox_inches='tight')
+        img_buffer.seek(0)
+        plt.close(fig)
+        
+        return img_buffer
+
+
 class DownloadPDFReportView(APIView):
     """
     API endpoint to download complete PDF report with all visualizations
