@@ -98,12 +98,6 @@
                 <p class="metric-description">
                   Semakin rendah semakin baik. Mengukur rasio antara jarak dalam cluster dan antar cluster.
                 </p>
-                <div class="metric-quality">
-                  <span class="quality-label">Kualitas:</span>
-                  <span :class="getDBIQuality(singleResultData.evaluation.davies_bouldin)">
-                    {{ getDBIQualityText(singleResultData.evaluation.davies_bouldin) }}
-                  </span>
-                </div>
               </div>
               
               <div class="metric-card">
@@ -114,12 +108,6 @@
                 <p class="metric-description">
                   Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.
                 </p>
-                <div class="metric-quality">
-                  <span class="quality-label">Kualitas:</span>
-                  <span :class="getSilhouetteQuality(singleResultData.evaluation.silhouette_score)">
-                    {{ getSilhouetteQualityText(singleResultData.evaluation.silhouette_score) }}
-                  </span>
-                </div>
               </div>
             </div>
           </div>

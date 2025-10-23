@@ -68,11 +68,6 @@
             <div class="metric-value">
               {{ results.overall_summary.average_evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
             </div>
-            <div class="metric-quality">
-              <span :class="getDBIQuality(results.overall_summary.average_evaluation.davies_bouldin)">
-                {{ getDBIQualityText(results.overall_summary.average_evaluation.davies_bouldin) }}
-              </span>
-            </div>
           </div>
           <div class="metric-card">
             <div class="metric-header">
@@ -93,11 +88,6 @@
             </div>
             <div class="metric-value">
               {{ results.overall_summary.average_evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
-            </div>
-            <div class="metric-quality">
-              <span :class="getSilhouetteQuality(results.overall_summary.average_evaluation.silhouette_score)">
-                {{ getSilhouetteQualityText(results.overall_summary.average_evaluation.silhouette_score) }}
-              </span>
             </div>
           </div>
         </div>
@@ -178,11 +168,6 @@
                 <div class="metric-value">
                   {{ selectedYearResults.evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
                 </div>
-                <div class="metric-quality">
-                  <span :class="getDBIQuality(selectedYearResults.evaluation.davies_bouldin)">
-                    {{ getDBIQualityText(selectedYearResults.evaluation.davies_bouldin) }}
-                  </span>
-                </div>
               </div>
               <div class="metric-card">
                 <div class="metric-header">
@@ -203,11 +188,6 @@
                 </div>
                 <div class="metric-value">
                   {{ selectedYearResults.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
-                </div>
-                <div class="metric-quality">
-                  <span :class="getSilhouetteQuality(selectedYearResults.evaluation.silhouette_score)">
-                    {{ getSilhouetteQualityText(selectedYearResults.evaluation.silhouette_score) }}
-                  </span>
                 </div>
               </div>
             </div>

@@ -105,12 +105,6 @@
             <div class="metric-value">
               {{ (resultData.evaluation?.davies_bouldin !== undefined ? resultData.evaluation.davies_bouldin?.toFixed(4) : (resultData.summary?.davies_bouldin?.toFixed(4) || 'N/A')) || 'N/A' }}
             </div>
-            <div class="metric-quality">
-              <span class="quality-label">Kualitas:</span>
-              <span :class="getDBIQuality(resultData.evaluation.davies_bouldin)">
-                {{ getDBIQualityText(resultData.evaluation.davies_bouldin) }}
-              </span>
-            </div>
           </div>
           
           <div class="metric-card">
@@ -132,12 +126,6 @@
             </div>
             <div class="metric-value">
               {{ resultData.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
-            </div>
-            <div class="metric-quality">
-              <span class="quality-label">Kualitas:</span>
-              <span :class="getSilhouetteQuality(resultData.evaluation.silhouette_score)">
-                {{ getSilhouetteQualityText(resultData.evaluation.silhouette_score) }}
-              </span>
             </div>
           </div>
         </div>
