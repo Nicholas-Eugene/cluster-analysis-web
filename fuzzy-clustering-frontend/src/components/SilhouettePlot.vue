@@ -32,32 +32,6 @@
         @error="onImageError"
       />
     </div>
-    
-    <div v-if="!loading && !error" class="silhouette-legend">
-      <h4>Interpretasi Silhouette Score:</h4>
-      <div class="legend-items">
-        <div class="legend-item">
-          <div class="legend-marker excellent"></div>
-          <span>> 0.7: Sangat Baik - Data sangat cocok dengan clusternya</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-marker good"></div>
-          <span>0.5 - 0.7: Baik - Data cocok dengan clusternya</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-marker fair"></div>
-          <span>0.25 - 0.5: Cukup - Data cukup cocok dengan clusternya</span>
-        </div>
-        <div class="legend-item">
-          <div class="legend-marker poor"></div>
-          <span>< 0.25: Perlu Review - Data mungkin salah cluster</span>
-        </div>
-      </div>
-      <div class="average-score">
-        <strong>Average Silhouette Score:</strong> 
-        <span class="score-value">{{ averageSilhouetteScore?.toFixed(4) || 'N/A' }}</span>
-      </div>
-    </div>
   </div>
 </template>
 

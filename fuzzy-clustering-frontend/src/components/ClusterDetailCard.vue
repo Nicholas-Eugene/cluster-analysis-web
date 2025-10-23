@@ -101,7 +101,6 @@
               <tr>
                 <th class="col-no">No</th>
                 <th class="col-name">Kabupaten/Kota</th>
-                <th class="col-province">Provinsi</th>
                 <th class="col-ipm">IPM</th>
                 <th class="col-poverty">Garis Kemiskinan</th>
                 <th class="col-expenditure">Pengeluaran/Kapita</th>
@@ -117,7 +116,6 @@
                 <td class="col-name">
                   <strong>{{ member.kabupaten_kota }}</strong>
                 </td>
-                <td class="col-province">{{ member.provinsi || '-' }}</td>
                 <td class="col-ipm">{{ member.ipm?.toFixed(2) || 'N/A' }}</td>
                 <td class="col-poverty">{{ formatCurrency(member.garis_kemiskinan) }}</td>
                 <td class="col-expenditure">{{ formatCurrency(member.pengeluaran_per_kapita * 1000) }}</td>
@@ -826,14 +824,12 @@ export default {
 
 .col-province {
   min-width: 150px;
-  color: #718096;
 }
 
 .col-ipm {
   width: 100px;
   text-align: center;
   font-weight: 600;
-  color: #667eea;
 }
 
 .col-poverty,
@@ -841,7 +837,6 @@ export default {
   min-width: 140px;
   text-align: right;
   font-weight: 500;
-  color: #2d3748;
 }
 
 .col-membership {
