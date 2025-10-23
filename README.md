@@ -1,282 +1,451 @@
-# Indonesian Regional Clustering Web Application
+# 🌏 Fuzzy Clustering Analysis - Indonesian Regions
 
-A comprehensive web application for clustering Indonesian kabupaten/kota based on Human Development Index (IPM), Poverty Line (Garis Kemiskinan), and Per Capita Expenditure data from 2015-2024 using Fuzzy C-Means and OPTICS algorithms.
+<div align="center">
 
-## 🌟 Features
+**Analisis Clustering Wilayah Indonesia menggunakan Fuzzy C-Means & OPTICS**
 
-### Clustering Algorithms
-- **Fuzzy C-Means (FCM)**: Provides membership degrees for each data point across clusters
-- **OPTICS**: Density-based clustering that can find arbitrary-shaped clusters and handle noise
+[![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)](https://www.python.org)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3.0+-green.svg)](https://vuejs.org)
+[![Django](https://img.shields.io/badge/Django-5.2+-darkgreen.svg)](https://djangoproject.com)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-### Visualizations
-- **Interactive Scatter Plots**: Customizable axis selection for exploring relationships
-- **Box Plots**: Statistical distribution analysis per cluster
-- **Interactive Maps**: Geographic visualization using Leaflet with cluster coloring
-- **Evaluation Metrics**: Davies-Bouldin Index and Silhouette Score
+[Features](#-features) • [Demo](#-demo) • [Installation](#-installation) • [Documentation](#-documentation) • [Screenshots](#-screenshots)
 
-### Data Analysis
-- **Multi-year Analysis**: Support for data from 2015-2024
-- **Year Filtering**: Analyze specific years or all years combined
-- **Export Options**: CSV, JSON, and comprehensive reports
-- **Real-time Processing**: Live clustering with parameter adjustment
-
-## 🏗️ Architecture
-
-### Backend (Django)
-- **Framework**: Django 5.2.5 with Django REST Framework
-- **Clustering**: scikit-fuzzy, scikit-learn
-- **Data Processing**: pandas, numpy
-- **Visualization**: matplotlib, seaborn, plotly
-- **Geographic**: geopandas, folium
-
-### Frontend (Vue.js)
-- **Framework**: Vue 3 with Composition API
-- **Routing**: Vue Router 4
-- **Charts**: Chart.js with vue-chartjs
-- **Maps**: Leaflet with vue-leaflet
-- **HTTP Client**: Axios
-- **Build Tool**: Vite
-
-## 📊 Data Structure
-
-The application supports both **CSV (.csv)** and **Excel (.xlsx, .xls)** files in **wide format** with the following structure:
-
-| Column Pattern | Description | Example |
-|----------------|-------------|---------|
-| `kabupaten/kota` | District/City name | Jakarta Pusat |
-| `ipm_YYYY` | Human Development Index for year YYYY | `ipm_2016`, `ipm_2017`, ..., `ipm_2024` |
-| `pengeluaran_YYYY` | Per capita expenditure (IDR) for year YYYY | `pengeluaran_2016`, `pengeluaran_2017`, ..., `pengeluaran_2024` |
-| `garis_kemiskinan_YYYY` | Poverty line (IDR) for year YYYY | `garis_kemiskinan_2016`, `garis_kemiskinan_2017`, ..., `garis_kemiskinan_2024` |
-
-### Example File Structure:
-
-**CSV Format:**
-```csv
-kabupaten/kota,ipm_2016,pengeluaran_2016,garis_kemiskinan_2016,ipm_2017,pengeluaran_2017,garis_kemiskinan_2017,...
-Jakarta Pusat,79.32,7800000,540000,79.78,8100000,560000,...
-Jakarta Utara,78.91,7200000,540000,79.45,7500000,560000,...
-```
-
-**Excel Format:**
-- Column A: `kabupaten/kota`
-- Columns B-J: `ipm_2016`, `ipm_2017`, ..., `ipm_2024`
-- Columns K-S: `pengeluaran_2016`, `pengeluaran_2017`, ..., `pengeluaran_2024`
-- Columns T-AB: `garis_kemiskinan_2016`, `garis_kemiskinan_2017`, ..., `garis_kemiskinan_2024`
-
-**Note**: The application automatically converts this wide format to long format internally for processing.
-
-## 🚀 Installation & Setup
-
-### Prerequisites
-- Python 3.8+
-- Node.js 16+
-- npm or yarn
-
-### Backend Setup
-
-1. **Navigate to backend directory**
-   ```bash
-   cd backend
-   ```
-
-2. **Create virtual environment**
-   ```bash
-   python -m venv venv
-   source venv/bin/activate  # On Windows: venv\Scripts\activate
-   ```
-
-3. **Install dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Run migrations**
-   ```bash
-   python manage.py migrate
-   ```
-
-5. **Start development server**
-   ```bash
-   python manage.py runserver
-   ```
-
-The backend will be available at `http://localhost:8000`
-
-### Frontend Setup
-
-1. **Navigate to frontend directory**
-   ```bash
-   cd fuzzy-clustering-frontend
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   ```
-
-3. **Start development server**
-   ```bash
-   npm run dev
-   ```
-
-The frontend will be available at `http://localhost:5173`
-
-## 📈 Usage
-
-### 1. Upload Dataset
-- Navigate to the Upload page
-- Choose between FCM or OPTICS algorithm
-- Upload your CSV or Excel file (or use sample data)
-- Choose clustering mode:
-  - **Per Year Mode**: Clustering dilakukan terpisah untuk setiap tahun (2016-2024) - **DEFAULT**
-  - **Single Year Mode**: Clustering hanya untuk tahun tertentu
-- Configure algorithm parameters:
-  - **FCM**: Number of clusters, fuzzy coefficient, max iterations, tolerance
-  - **OPTICS**: Min samples, xi parameter, min cluster size
-
-### 2. View Results
-
-#### **Per Year Mode (Default)**
-- **Overall Summary**: Statistics across all years
-- **Year Selection**: Choose specific year to analyze in detail
-- **Per-Year Metrics**: Davies-Bouldin Index and Silhouette Score for each year
-- **Year Comparison**: Compare clustering patterns across years
-- **Temporal Analysis**: Track how regions move between clusters over time
-
-#### **Single Year Mode**
-- **Summary**: Total regions, clusters, execution time for selected year
-- **Evaluation Metrics**: Davies-Bouldin Index and Silhouette Score
-- **Visualizations**: 
-  - Scatter plots with customizable axes
-  - Box plots for statistical analysis
-  - Interactive map with cluster coloring
-- **Cluster Details**: Detailed information about each cluster and its members
-
-### 3. Visualizations (Available for Each Year)
-- **Interactive Scatter Plots**: Explore relationships between IPM, Garis Kemiskinan, Pengeluaran Per Kapita
-- **Box Plots**: Statistical distribution analysis per cluster
-- **Interactive Maps**: Geographic visualization with cluster coloring and detailed popups
-
-### 4. Export Results
-- Export to CSV for further analysis
-- Download JSON format for programmatic use
-- Generate comprehensive text reports
-
-## 🔧 API Endpoints
-
-### Clustering Operations
-- `POST /api/clustering/upload/` - Upload dataset and run clustering
-- `GET /api/clustering/results/{session_id}/` - Get clustering results
-- `GET /api/clustering/status/{session_id}/` - Check processing status
-
-### Data Management
-- `POST /api/clustering/validate/` - Validate dataset format
-- `GET /api/clustering/years/{session_id}/` - Get available years
-- `POST /api/clustering/rerun/{session_id}/` - Rerun with different parameters
-
-### Export & Analysis
-- `GET /api/clustering/export/{session_id}/` - Export results
-- `GET /api/clustering/cluster/{session_id}/{cluster_id}/` - Cluster details
-- `POST /api/clustering/report/{session_id}/` - Generate reports
-
-## 📊 Sample Data
-
-The application includes sample data for 30 major Indonesian cities from 2015-2024 with:
-- Human Development Index values
-- Poverty line figures
-- Per capita expenditure data
-- Geographic coordinates for mapping
-
-## 🎯 Clustering Algorithms
-
-### Fuzzy C-Means (FCM)
-- **Advantages**: Handles overlapping clusters, provides uncertainty information
-- **Parameters**: 
-  - Number of clusters (2-10)
-  - Fuzzy coefficient (1.1-5.0)
-  - Max iterations (50-1000)
-  - Tolerance (0.0001-0.1)
-
-### OPTICS
-- **Advantages**: Finds arbitrary-shaped clusters, handles noise automatically
-- **Parameters**:
-  - Min samples (2-50)
-  - Xi parameter (0.01-1.0)
-  - Min cluster size (0.01-0.5)
-
-## 📏 Evaluation Metrics
-
-### Davies-Bouldin Index
-- **Range**: 0 to ∞ (lower is better)
-- **Quality Indicators**:
-  - < 1.0: Excellent
-  - 1.0-1.5: Good
-  - 1.5-2.0: Fair
-  - > 2.0: Needs improvement
-
-### Silhouette Score
-- **Range**: -1 to 1 (higher is better)
-- **Quality Indicators**:
-  - > 0.7: Excellent
-  - 0.5-0.7: Good
-  - 0.25-0.5: Fair
-  - < 0.25: Needs improvement
-
-## 🗂️ Project Structure
-
-```
-├── backend/
-│   ├── backend/           # Django project settings
-│   ├── clustering/        # Main clustering app
-│   │   ├── algorithms.py  # FCM and OPTICS implementations
-│   │   ├── models.py      # Database models
-│   │   ├── views.py       # API endpoints
-│   │   └── urls.py        # URL routing
-│   ├── requirements.txt   # Python dependencies
-│   └── sample_data_indonesia.csv  # Sample dataset
-├── fuzzy-clustering-frontend/
-│   ├── src/
-│   │   ├── components/    # Vue components
-│   │   │   ├── ScatterPlot.vue
-│   │   │   ├── BoxPlot.vue
-│   │   │   └── InteractiveMap.vue
-│   │   ├── views/         # Page components
-│   │   │   ├── Home.vue
-│   │   │   ├── UploadEnhanced.vue
-│   │   │   └── AnalysisEnhanced.vue
-│   │   ├── services/      # API services
-│   │   └── router/        # Vue Router configuration
-│   ├── package.json       # Node.js dependencies
-│   └── vite.config.js     # Vite configuration
-└── README.md
-```
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📝 License
-
-This project is licensed under the ISC License - see the LICENSE file for details.
-
-## 🙏 Acknowledgments
-
-- Indonesian Central Statistics Agency (BPS) for data structure reference
-- scikit-learn and scikit-fuzzy communities for algorithm implementations
-- Vue.js and Django communities for excellent documentation
-- Leaflet and Chart.js for visualization capabilities
-
-## 📞 Support
-
-For questions, issues, or contributions, please:
-1. Check the existing issues on GitHub
-2. Create a new issue with detailed description
-3. Include sample data and error messages when reporting bugs
+</div>
 
 ---
 
-**Note**: This application is designed for research and educational purposes. Ensure you have proper permissions for any real-world data analysis.
+## 📖 Overview
+
+Aplikasi web untuk analisis clustering wilayah Indonesia berdasarkan indikator pembangunan:
+- **IPM** (Indeks Pembangunan Manusia)
+- **Garis Kemiskinan**  
+- **Pengeluaran Per Kapita**
+
+Menggunakan algoritma **Fuzzy C-Means** dan **OPTICS** untuk mengelompokkan 514 kabupaten/kota di Indonesia menjadi cluster dengan karakteristik serupa.
+
+---
+
+## ✨ Features
+
+### 🎯 Core Features
+
+- **📊 Dual Algorithm Support**
+  - Fuzzy C-Means (FCM) - Soft clustering
+  - OPTICS - Density-based clustering with noise detection
+
+- **📈 Dual Analysis Mode**
+  - **All Years Mode** - Aggregate analysis across all years
+  - **Per Year Mode** - Year-by-year trend analysis
+
+- **🤖 Auto-Interpretation**
+  - Automatically labels clusters (e.g., "Daerah Maju Biaya Tinggi")
+  - Generates descriptions based on characteristics
+  - 8 category classifications
+
+- **🗺️ Geographic Visualization**
+  - Interactive map with 495 Indonesian cities
+  - Auto-mapped coordinates for all regions
+  - Color-coded cluster distribution
+
+### 📊 Visualizations
+
+- **Scatter Plots** - Feature correlation analysis
+- **Box Plots** - Distribution comparison across clusters
+- **Silhouette Plots** - Cluster quality assessment
+- **Correlation Heatmaps** - Feature relationship matrix
+- **Geographic Maps** - Spatial distribution visualization
+
+### 📄 PDF Export
+
+- **Comprehensive Reports** - All visualizations included
+- **Cluster Details** - Interpretation labels, members list
+- **Quality Metrics** - Davies-Bouldin, Silhouette scores
+- **Memory Efficient** - Works on 500MB RAM (no Playwright)
+
+### 💅 UI/UX
+
+- **Modern Design** - Purple gradient theme
+- **Responsive Layout** - Works on mobile, tablet, desktop
+- **Real-time Updates** - Live clustering status
+- **Interactive Charts** - Zoom, pan, tooltips
+- **Error Handling** - Clear error messages
+
+---
+
+## 🚀 Quick Start
+
+### Prerequisites
+
+- **Python 3.8+**
+- **Node.js 16+**
+- **npm or yarn**
+
+### Installation
+
+#### Option 1: Automated Setup
+
+**Linux/Mac:**
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+**Windows:**
+```bash
+setup.bat
+```
+
+#### Option 2: Manual Setup
+
+**1. Clone Repository**
+```bash
+git clone <repository-url>
+cd cluster-analysis-web
+```
+
+**2. Backend Setup**
+```bash
+cd backend
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+```
+
+**3. Frontend Setup** (new terminal)
+```bash
+cd fuzzy-clustering-frontend
+npm install
+npm run dev
+```
+
+**4. Open Browser**
+```
+http://localhost:5173
+```
+
+---
+
+## 📚 Documentation
+
+### Essential Docs
+
+- **[Setup Guide](docs/SETUP_GUIDE.md)** - Detailed installation
+- **[Features](docs/COMPLETE_SUMMARY_ALL_FEATURES.md)** - Complete feature list
+- **[Project Structure](docs/PROJECT_STRUCTURE.md)** - Directory organization
+- **[API Documentation](docs/API_DOCUMENTATION.md)** - API reference
+
+### Development Docs
+
+- **[Clean Code Guide](docs/CLEAN_CODE_GUIDE.md)** - Best practices
+- **[Code Cleanup](docs/CODE_CLEANUP_COMPLETE.md)** - Organization changes
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Common commands
+
+### Feature Docs
+
+- **[Cluster Interpretation](docs/CLUSTER_INTERPRETATION_FEATURE.md)**
+- **[PDF Export](docs/PDF_EXPORT_FEATURE.md)**
+- **[Geographic Mapping](docs/FOLIUM_MAP_IMPLEMENTATION.md)**
+- **[Per-Year Analysis](docs/CLUSTERING_PER_TAHUN.md)**
+
+**See [docs/README.md](docs/README.md) for complete index** (50+ documents)
+
+---
+
+## 🖼️ Screenshots
+
+### Upload Page
+Modern interface untuk upload data dan konfigurasi parameter
+
+### Analysis Results
+Comprehensive visualizations dengan interpretasi otomatis
+
+### Interactive Map
+Geographic distribution 495 kota di Indonesia
+
+### PDF Report
+Professional quality report dengan semua visualizations
+
+*(Screenshots akan ditambahkan)*
+
+---
+
+## 🏗️ Tech Stack
+
+### Backend
+- **Django 5.2** - Web framework
+- **Django REST Framework** - API endpoints
+- **scikit-learn** - Machine learning algorithms
+- **scikit-fuzzy** - Fuzzy C-Means implementation
+- **pandas** - Data processing
+- **matplotlib** - Visualizations
+- **ReportLab** - PDF generation
+
+### Frontend
+- **Vue.js 3** - Progressive framework
+- **Vue Router** - Page routing
+- **Chart.js** - Interactive charts
+- **Axios** - HTTP client
+- **Vite** - Build tool
+
+---
+
+## 📊 Algorithms
+
+### Fuzzy C-Means (FCM)
+
+**Soft clustering** - Each data point has membership degree to all clusters
+
+**Parameters:**
+- Number of clusters (2-10)
+- Fuzzy coefficient (1.0-3.0, default: 2.0)
+- Maximum iterations (default: 150)
+- Error tolerance (default: 0.0001)
+
+**Use Case:** When boundaries between groups are fuzzy
+
+### OPTICS
+
+**Density-based** - Automatically finds clusters and detects noise/outliers
+
+**Parameters:**
+- Minimum samples (default: 5)
+- Maximum epsilon (default: auto)
+- Minimum cluster size (default: 10)
+
+**Use Case:** When you don't know number of clusters beforehand
+
+---
+
+## 📈 Auto-Interpretation System
+
+Automatically labels clusters into 8 categories:
+
+| Category | IPM | Garis Kemiskinan | Pengeluaran |
+|----------|-----|------------------|-------------|
+| 🏆 **Daerah Maju Biaya Tinggi** | Tinggi | Tinggi | Tinggi |
+| 💰 **Daerah Maju Biaya Rendah** | Tinggi | Rendah | Tinggi |
+| 📈 **Daerah Berkembang Potensial** | Sedang | Sedang | Tinggi |
+| 🎯 **Daerah Berkembang Stabil** | Sedang | Sedang | Sedang |
+| ⚠️ **Daerah Berkembang Tertantang** | Sedang | Tinggi | Rendah |
+| 📉 **Daerah Tertinggal Berat** | Rendah | Rendah | Rendah |
+| 🆘 **Daerah Tertinggal Sangat Berat** | Rendah | Tinggi | Rendah |
+| ❓ **Daerah Karakteristik Campuran** | Mixed | Mixed | Mixed |
+
+---
+
+## 🗺️ Geographic Coverage
+
+**495 Indonesian Cities/Regencies** mapped with coordinates
+
+Coverage includes:
+- ✅ All 38 provinces
+- ✅ All major cities
+- ✅ Most regencies (kabupaten)
+- ✅ Jakarta administrative regions
+- ✅ Special autonomous regions
+
+**Coordinate Source:** `fuzzy-clustering-frontend/src/data/cityCoordinates.js`
+
+---
+
+## 🎯 Use Cases
+
+### Research
+- Analisis kesenjangan pembangunan regional
+- Identifikasi pola geografis kemiskinan
+- Evaluasi efektivitas kebijakan
+
+### Government
+- Prioritasi alokasi anggaran
+- Perencanaan pembangunan daerah
+- Monitoring progress SDGs
+
+### Education
+- Pembelajaran machine learning
+- Studi kasus clustering algorithms
+- Visualisasi data geospasial
+
+---
+
+## 💻 Development
+
+### Project Structure
+
+```
+cluster-analysis-web/
+├── backend/              # Django backend
+│   ├── clustering/      # Main app (algorithms, PDF, API)
+│   ├── tests/           # Test files
+│   └── sample-data/     # Sample datasets
+├── frontend/            # Vue.js frontend
+│   └── src/
+│       ├── components/  # Vue components
+│       ├── views/       # Main pages
+│       ├── services/    # API services
+│       └── utils/       # Utilities
+└── docs/                # Documentation (50+ files)
+```
+
+See [docs/PROJECT_STRUCTURE.md](docs/PROJECT_STRUCTURE.md) for detailed structure.
+
+### Code Quality
+
+✅ **Clean Code** - Following best practices  
+✅ **Well Documented** - 50+ documentation files  
+✅ **Tested** - Unit & integration tests  
+✅ **Organized** - Clear folder structure  
+✅ **Maintainable** - ~13,000 lines, clean architecture  
+
+---
+
+## 🚀 Deployment
+
+### Low Memory (500MB RAM)
+
+Application optimized for deployment on:
+- Heroku (Free/Eco tier)
+- Railway
+- Render
+- Fly.io
+- DigitalOcean App Platform
+
+**Memory Usage:** ~150-250 MB at peak
+
+See [docs/LOW_MEMORY_DEPLOYMENT.md](docs/LOW_MEMORY_DEPLOYMENT.md)
+
+### Production Checklist
+
+- [ ] Set `DEBUG=False` in settings.py
+- [ ] Configure `ALLOWED_HOSTS`
+- [ ] Set `SECRET_KEY` environment variable
+- [ ] Run `python manage.py collectstatic`
+- [ ] Run `python manage.py migrate`
+- [ ] Setup process manager (Gunicorn)
+- [ ] Configure reverse proxy (Nginx)
+
+---
+
+## 🧪 Testing
+
+### Run Tests
+
+```bash
+# Backend tests
+cd backend/tests
+python test_endpoints.py
+python test_optics.py
+
+# All tests
+cd backend/tests
+python -m pytest
+```
+
+### Test Coverage
+
+- ✅ API endpoints
+- ✅ Clustering algorithms
+- ✅ Data processing
+- ✅ PDF generation
+- ✅ Cluster interpretation
+
+---
+
+## 🤝 Contributing
+
+Contributions welcome! Please:
+
+1. Fork repository
+2. Create feature branch
+3. Make changes
+4. Add tests
+5. Update documentation
+6. Submit pull request
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+
+---
+
+## 📝 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file.
+
+---
+
+## 👥 Authors
+
+**Development Team**
+- Backend Development
+- Frontend Development  
+- Algorithm Implementation
+- Documentation
+
+---
+
+## 🙏 Acknowledgments
+
+- **Data Source:** BPS (Badan Pusat Statistik)
+- **Algorithms:** scikit-learn, scikit-fuzzy
+- **Frameworks:** Django, Vue.js
+- **Libraries:** Chart.js, ReportLab, matplotlib
+
+---
+
+## 📞 Support
+
+### Documentation
+- **Full Docs:** [docs/README.md](docs/README.md)
+- **FAQ:** [docs/FAQ.md](docs/FAQ.md)
+- **Troubleshooting:** [docs/QUICK_DEBUG_GUIDE.md](docs/QUICK_DEBUG_GUIDE.md)
+
+### Issues
+Found a bug? [Create an issue](../../issues)
+
+### Questions
+Have questions? [Start a discussion](../../discussions)
+
+---
+
+## 🗺️ Roadmap
+
+### Completed ✅
+- [x] Fuzzy C-Means algorithm
+- [x] OPTICS algorithm
+- [x] Auto-interpretation system
+- [x] Geographic visualization
+- [x] PDF export
+- [x] Per-year analysis
+- [x] Low memory optimization
+
+### Planned 🚧
+- [ ] User authentication
+- [ ] Save analysis sessions
+- [ ] Export to Excel
+- [ ] Advanced filtering
+- [ ] Comparison between years
+- [ ] API documentation (Swagger)
+- [ ] Docker deployment
+
+---
+
+## 📊 Statistics
+
+- **Lines of Code:** ~13,000
+- **Backend Files:** 15 core files
+- **Frontend Components:** 8 components
+- **Documentation Pages:** 50+
+- **Supported Cities:** 495
+- **Supported Provinces:** 38
+- **Algorithms:** 2 (FCM, OPTICS)
+- **Chart Types:** 5
+- **Export Formats:** PDF
+
+---
+
+<div align="center">
+
+**Made with ❤️ for Indonesian Development Analysis**
+
+[⬆ Back to Top](#-fuzzy-clustering-analysis---indonesian-regions)
+
+</div>

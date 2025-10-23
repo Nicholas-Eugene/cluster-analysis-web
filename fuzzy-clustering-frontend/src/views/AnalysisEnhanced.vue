@@ -175,6 +175,7 @@
               :clusters="filteredClusters" 
               :title="`Silhouette Plot - ${singleResultData.algorithm}`"
               :silhouetteScore="singleResultData.evaluation.silhouette_score"
+              :sessionId="sessionId"
             />
           </div>
 

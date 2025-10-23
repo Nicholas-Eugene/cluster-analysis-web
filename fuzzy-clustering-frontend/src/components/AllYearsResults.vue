@@ -180,9 +180,10 @@
         :clusters="resultData.clusters" 
         :title="`Silhouette Plot - ${resultData.algorithm || 'Clustering'}`"
         :silhouetteScore="resultData.evaluation?.silhouette_score"
+        :sessionId="sessionId"
       />
 
-      <div class="header-actions", style="margin-bottom: 2rem;">
+      <div class="header-actions" style="margin-bottom: 2rem;">
         <button 
           @click="downloadPDF" 
           :disabled="isDownloadingPDF"

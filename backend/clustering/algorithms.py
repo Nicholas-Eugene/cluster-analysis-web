@@ -268,6 +268,10 @@ class ClusteringAlgorithms:
                     }
                 )
 
+        # Add cluster interpretations
+        results["clusters"] = add_cluster_interpretations(results["clusters"])
+        results["interpretation_summary"] = get_cluster_summary_stats(results["clusters"])
+
         return results
 
     def optics_clustering(

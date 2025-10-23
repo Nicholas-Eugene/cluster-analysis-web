@@ -6,6 +6,16 @@ Uses NORMALIZED data for comparison across all 3 variables: IPM, Pengeluaran, Ga
 
 import numpy as np
 from typing import Dict, List, Any
+from .constants import (
+    COLUMN_IPM,
+    COLUMN_GARIS_KEMISKINAN,
+    COLUMN_PENGELUARAN_PER_KAPITA,
+    THRESHOLD_LOW,
+    THRESHOLD_HIGH,
+    RATIO_BELOW_POVERTY,
+    RATIO_SLIGHTLY_ABOVE,
+    RATIO_WELL_ABOVE,
+)
 
 
 def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict[str, float]]) -> Dict[str, Any]:
@@ -22,17 +32,17 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
     """
     
     # Extract values
-    ipm = centroid.get('ipm', 0)
-    garis_kemiskinan = centroid.get('garis_kemiskinan', 0)  # rupiah/kapita/bulan
-    pengeluaran = centroid.get('pengeluaran_per_kapita', 0)  # ribu rupiah/orang/tahun
+    ipm = centroid.get(COLUMN_IPM, 0)
+    garis_kemiskinan = centroid.get(COLUMN_GARIS_KEMISKINAN, 0)  # rupiah/kapita/bulan
+    pengeluaran = centroid.get(COLUMN_PENGELUARAN_PER_KAPITA, 0)  # ribu rupiah/orang/tahun
     
     # Convert pengeluaran to rupiah/kapita/bulan for comparison
     pengeluaran_per_bulan = (pengeluaran * 1000) / 12  # rupiah/kapita/bulan
     
     # Calculate relative values across all clusters (NORMALIZED DATA)
-    ipm_values = [c.get('ipm', 0) for c in all_centroids]
-    pengeluaran_values = [c.get('pengeluaran_per_kapita', 0) for c in all_centroids]
-    garis_kemiskinan_values = [c.get('garis_kemiskinan', 0) for c in all_centroids]
+    ipm_values = [c.get(COLUMN_IPM, 0) for c in all_centroids]
+    pengeluaran_values = [c.get(COLUMN_PENGELUARAN_PER_KAPITA, 0) for c in all_centroids]
+    garis_kemiskinan_values = [c.get(COLUMN_GARIS_KEMISKINAN, 0) for c in all_centroids]
     
     ipm_min = min(ipm_values)
     ipm_max = max(ipm_values)
@@ -71,14 +81,14 @@ def interpret_cluster_label(centroid: Dict[str, float], all_centroids: List[Dict
     category = ""
     color_code = ""
     
-    # Thresholds (normalized 0-1 scale)
-    LOW = 0.33
-    HIGH = 0.67
+    # Use thresholds from constants
+    LOW = THRESHOLD_LOW
+    HIGH = THRESHOLD_HIGH
     
     # Poverty line ratio thresholds (untuk fallback case)
-    BELOW_POVERTY = 1.0
-    SLIGHTLY_ABOVE = 1.3
-    WELL_ABOVE = 2.0
+    BELOW_POVERTY = RATIO_BELOW_POVERTY
+    SLIGHTLY_ABOVE = RATIO_SLIGHTLY_ABOVE
+    WELL_ABOVE = RATIO_WELL_ABOVE
     
     # NEW LOGIC: Use normalized values for all variables
     # Case 1: Daerah Maju dengan Biaya Hidup Mahal
