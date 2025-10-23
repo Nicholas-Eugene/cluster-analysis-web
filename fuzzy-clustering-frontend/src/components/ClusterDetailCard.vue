@@ -43,10 +43,51 @@
       </div>
       
       <div class="cluster-members">
-        <h5>Daftar Daerah ({{ activeCluster.members.length }}):</h5>
-        <div class="members-grid">
+        <div class="members-header">
+          <h5>Daftar Daerah ({{ filteredMembers.length }} dari {{ activeCluster.members.length }}):</h5>
+          <div class="members-controls">
+            <div class="search-box">
+              <span class="search-icon">🔍</span>
+              <input 
+                v-model="searchQuery" 
+                type="text" 
+                placeholder="Cari daerah..." 
+                class="search-input"
+              />
+              <button 
+                v-if="searchQuery" 
+                @click="searchQuery = ''" 
+                class="clear-search"
+                title="Hapus pencarian"
+              >
+                ✕
+              </button>
+            </div>
+            <div class="sort-box">
+              <label for="sort-select">Urutkan:</label>
+              <select v-model="sortBy" id="sort-select" class="sort-select">
+                <option value="name-asc">Nama (A-Z)</option>
+                <option value="name-desc">Nama (Z-A)</option>
+                <option value="ipm-asc">IPM (Terendah)</option>
+                <option value="ipm-desc">IPM (Tertinggi)</option>
+                <option value="poverty-asc">Kemiskinan (Terendah)</option>
+                <option value="poverty-desc">Kemiskinan (Tertinggi)</option>
+                <option value="expenditure-asc">Pengeluaran (Terendah)</option>
+                <option value="expenditure-desc">Pengeluaran (Tertinggi)</option>
+                <option v-if="showMembership" value="membership-desc">Membership (Tertinggi)</option>
+                <option v-if="showMembership" value="membership-asc">Membership (Terendah)</option>
+              </select>
+            </div>
+          </div>
+        </div>
+        
+        <div v-if="filteredMembers.length === 0" class="no-results">
+          <p>🔍 Tidak ada daerah yang cocok dengan pencarian "{{ searchQuery }}"</p>
+        </div>
+        
+        <div v-else class="members-grid">
           <div 
-            v-for="member in activeCluster.members" 
+            v-for="member in filteredMembers" 
             :key="`${member.kabupaten_kota}-${member.tahun || 'all'}`"
             class="member-card"
           >
@@ -103,6 +144,8 @@ export default {
   },
   setup(props) {
     const selectedClusterId = ref(null)
+    const searchQuery = ref('')
+    const sortBy = ref('name-asc')
 
     // Consistent cluster colors matching the design system
     const colors = [
@@ -174,6 +217,55 @@ export default {
       return found || null
     })
 
+    // Filtered and sorted members
+    const filteredMembers = computed(() => {
+      if (!activeCluster.value || !activeCluster.value.members) {
+        return []
+      }
+
+      let members = [...activeCluster.value.members]
+
+      // Apply search filter
+      if (searchQuery.value.trim()) {
+        const query = searchQuery.value.toLowerCase().trim()
+        members = members.filter(member => {
+          const cityName = (member.kabupaten_kota || '').toLowerCase()
+          const provinceName = (member.provinsi || '').toLowerCase()
+          return cityName.includes(query) || provinceName.includes(query)
+        })
+      }
+
+      // Apply sorting
+      members.sort((a, b) => {
+        switch (sortBy.value) {
+          case 'name-asc':
+            return (a.kabupaten_kota || '').localeCompare(b.kabupaten_kota || '')
+          case 'name-desc':
+            return (b.kabupaten_kota || '').localeCompare(a.kabupaten_kota || '')
+          case 'ipm-asc':
+            return (a.ipm || 0) - (b.ipm || 0)
+          case 'ipm-desc':
+            return (b.ipm || 0) - (a.ipm || 0)
+          case 'poverty-asc':
+            return (a.garis_kemiskinan || 0) - (b.garis_kemiskinan || 0)
+          case 'poverty-desc':
+            return (b.garis_kemiskinan || 0) - (a.garis_kemiskinan || 0)
+          case 'expenditure-asc':
+            return (a.pengeluaran_per_kapita || 0) - (b.pengeluaran_per_kapita || 0)
+          case 'expenditure-desc':
+            return (b.pengeluaran_per_kapita || 0) - (a.pengeluaran_per_kapita || 0)
+          case 'membership-asc':
+            return (a.membership || 0) - (b.membership || 0)
+          case 'membership-desc':
+            return (b.membership || 0) - (a.membership || 0)
+          default:
+            return 0
+        }
+      })
+
+      return members
+    })
+
     const formatCurrency = (value) => {
       if (!value) return 'N/A'
       return new Intl.NumberFormat('id-ID', {
@@ -205,6 +297,9 @@ export default {
     return {
       selectedClusterId,
       activeCluster,
+      searchQuery,
+      sortBy,
+      filteredMembers,
       getClusterColor,
       formatCurrency,
       selectCluster,
@@ -330,10 +425,126 @@ export default {
   color: #2d3748;
 }
 
-.cluster-members h5 {
+.members-header {
+  margin-bottom: 1.5rem;
+}
+
+.members-header h5 {
   font-size: 1.2rem;
   color: #2d3748;
-  margin-bottom: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.members-controls {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.search-box {
+  position: relative;
+  flex: 1;
+  min-width: 250px;
+}
+
+.search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1rem;
+  color: #718096;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 0.75rem 2.5rem 0.75rem 2.75rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  transition: all 0.3s ease;
+  background: white;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-input::placeholder {
+  color: #a0aec0;
+}
+
+.clear-search {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  color: #718096;
+  font-size: 1.25rem;
+  cursor: pointer;
+  padding: 0.25rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  line-height: 1;
+}
+
+.clear-search:hover {
+  background: #f7fafc;
+  color: #e53e3e;
+}
+
+.sort-box {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sort-box label {
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.sort-select {
+  padding: 0.75rem 1rem;
+  border: 2px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  background: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 200px;
+}
+
+.sort-select:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.sort-select:hover {
+  border-color: #cbd5e0;
+}
+
+.no-results {
+  text-align: center;
+  padding: 3rem 1.5rem;
+  background: #f7fafc;
+  border-radius: 8px;
+  border: 2px dashed #cbd5e0;
+}
+
+.no-results p {
+  color: #718096;
+  font-size: 1rem;
+  margin: 0;
 }
 
 .members-grid {
@@ -438,6 +649,28 @@ export default {
   }
   
   .cluster-tab {
+    width: 100%;
+  }
+
+  .members-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .search-box {
+    min-width: 100%;
+  }
+
+  .sort-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .sort-box label {
+    font-size: 0.875rem;
+  }
+
+  .sort-select {
     width: 100%;
   }
 }
