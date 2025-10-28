@@ -102,7 +102,6 @@
           </div>
         </div>
       </div>
-
       <!-- File Upload Section -->
       <div class="card">
         <h2>📤 Upload File Dataset</h2>
@@ -230,15 +229,33 @@
       <!-- Parameters Configuration Section -->
       <div class="card">
         <h2>⚙️ Konfigurasi Parameter</h2>
-        
+
+        <!-- Clustering Mode Dropdown -->
+        <div class="form-group">
+          <label class="form-label">Mode Clustering</label>
+          <select v-model="clusteringMode" class="form-input">
+            <option value="per_year">Per Tahun (default)</option>
+            <option value="all_years">Semua Tahun Sekaligus</option>
+          </select>
+          <small class="form-help">Pilih apakah ingin clustering per tahun atau semua tahun sekaligus.</small>
+        </div>
+
         <!-- Clustering Mode Info -->
         <div class="clustering-mode-info">
-          <div class="mode-info per-year">
+          <div v-if="clusteringMode === 'per_year'" class="mode-info per-year">
             <span class="mode-icon">🗓️</span>
             <div class="mode-text">
               <strong>Mode Clustering Per Tahun:</strong> Sistem akan melakukan clustering secara terpisah untuk setiap tahun yang tersedia dalam data.
               <br>
               <small>Contoh: Data 2016 akan di-cluster menjadi grup A,B,C - Data 2017 akan di-cluster menjadi grup A,B,C - dan seterusnya.</small>
+            </div>
+          </div>
+          <div v-else class="mode-info all-years">
+            <span class="mode-icon">📅</span>
+            <div class="mode-text">
+              <strong>Mode Clustering Semua Tahun (Gabung Kolom):</strong> Sistem akan menggabungkan semua data tahun menjadi satu baris per kabupaten/kota, dengan kolom berbeda untuk setiap tahun (misal: ipm_2016, ipm_2017, ...), lalu melakukan clustering satu kali pada data gabungan ini.
+              <br>
+              <small>Contoh: Data 2016-2021 akan digabung menjadi satu baris per kabupaten/kota dengan kolom ipm_2016, ipm_2017, ..., pengeluaran_per_kapita_2021, lalu di-cluster menjadi grup A,B,C tanpa pemisahan tahun.</small>
             </div>
           </div>
         </div>
@@ -408,6 +425,8 @@ export default {
     const dataPreview = ref(null)
     const fileInput = ref(null)
     const selectedAlgorithm = ref('fcm')
+    // Clustering mode: 'per_year' or 'all_years'
+    const clusteringMode = ref('per_year')
 
     const parameters = reactive({
       // FCM parameters
@@ -748,6 +767,7 @@ Surabaya,2018,78.34,420000,6400000`
         const formData = new FormData()
         formData.append('file', selectedFile.value)
         formData.append('algorithm', selectedAlgorithm.value)
+      formData.append('clustering_mode', clusteringMode.value)
         
         // Always use per-year clustering (no selected_year parameter)
 
@@ -792,6 +812,7 @@ Surabaya,2018,78.34,420000,6400000`
       parameters.minSamples = 5
       parameters.xi = 0.05
       parameters.minClusterSize = 0.05
+      clusteringMode.value = 'per_year'
     }
 
     return {
@@ -803,6 +824,7 @@ Surabaya,2018,78.34,420000,6400000`
       dataPreview,
       fileInput,
       selectedAlgorithm,
+      clusteringMode,
       parameters,
       canProcess,
       triggerFileInput,

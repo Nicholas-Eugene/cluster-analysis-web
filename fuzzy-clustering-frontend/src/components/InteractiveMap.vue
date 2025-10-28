@@ -3,36 +3,43 @@
     <div class="map-header">
       <h3>{{ title }}</h3>
       <div class="map-controls">
-        <select v-model="selectedMetric" @change="updateMapColors" class="metric-select">
-          <option value="cluster">Cluster</option>
-          <option value="ipm">IPM</option>
-          <option value="garis_kemiskinan">Garis Kemiskinan</option>
-          <option value="pengeluaran_per_kapita">Pengeluaran Per Kapita</option>
-        </select>
-        <button @click="fitMapToBounds" class="btn btn-sm">
-          🎯 Fit to Indonesia
-        </button>
+        <div class="cluster-filter">
+          <label>Filter Cluster:</label>
+          <select v-model="selectedClusterFilter" @change="updateMapView">
+            <option value="all">Semua Cluster</option>
+            <option v-for="cluster in clusters" :key="cluster.id" :value="cluster.id">
+              Cluster {{ cluster.id }}
+            </option>
+          </select>
+        </div>
+        <div class="map-info">
+          <span>{{ filteredMarkers.length }} daerah ditampilkan</span>
+        </div>
       </div>
     </div>
+    
     <div class="map-wrapper">
-      <div ref="mapContainer" class="map"></div>
+      <div id="map" ref="mapContainer"></div>
     </div>
+    
     <div class="map-legend">
-      <div v-if="selectedMetric === 'cluster'" class="cluster-legend">
+      <h4>Legenda Cluster</h4>
+      <div class="legend-items">
         <div v-for="(cluster, index) in clusters" :key="cluster.id" class="legend-item">
-          <div class="legend-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
+          <div class="legend-marker" :style="{ backgroundColor: getClusterColor(index) }"></div>
           <span>Cluster {{ cluster.id }} ({{ cluster.size }} daerah)</span>
         </div>
       </div>
-      <div v-else class="metric-legend">
-        <div class="legend-gradient">
-          <div class="gradient-bar" :style="{ background: getGradientStyle() }"></div>
-          <div class="gradient-labels">
-            <span>{{ formatValue(metricRange.min) }}</span>
-            <span>{{ formatValue(metricRange.max) }}</span>
-          </div>
+      <div class="map-stats">
+        <div class="stat-item">
+          <strong>Total Daerah:</strong> {{ totalRegions }}
         </div>
-        <div class="legend-title">{{ getMetricLabel(selectedMetric) }}</div>
+        <div class="stat-item">
+          <strong>Daerah Terplot:</strong> {{ mappedRegions }}
+        </div>
+        <div class="stat-item">
+          <strong>Coverage:</strong> {{ coveragePercentage }}%
+        </div>
       </div>
     </div>
   </div>
@@ -41,15 +48,571 @@
 <script>
 import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
 import L from 'leaflet'
-import 'leaflet/dist/leaflet.css'
 
-// Fix for default markers in Leaflet
+// Fix for default markers in Leaflet with Vite
 delete L.Icon.Default.prototype._getIconUrl
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
   iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
   shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
 })
+
+// Indonesian city coordinates - comprehensive dataset
+const cityCoords = {
+    'Aceh Barat': [4.4531, 96.1265],
+    'Aceh Barat Daya': [3.8335, 96.8417],
+    'Aceh Besar': [5.3686, 95.4678],
+    'Aceh Jaya': [4.8028, 95.7369],
+    'Aceh Selatan': [3.2081, 97.2608],
+    'Aceh Singkil': [2.4988, 97.8398],
+    'Aceh Tamiang': [4.2694, 98.0194],
+    'Aceh Tengah': [4.5165, 96.8417],
+    'Aceh Tenggara': [3.3769, 97.7124],
+    'Aceh Timur': [4.6401, 97.6256],
+    'Aceh Utara': [4.9961, 97.2144],
+    'Bener Meriah': [4.7479, 96.8601],
+    'Bireuen': [5.0872, 96.6559],
+    'Gayo Lues': [3.9789, 97.3592],
+    'Nagan Raya': [4.1557, 96.5369],
+    'Pidie': [5.0244, 96.0968],
+    'Pidie Jaya': [5.1278, 96.2238],
+    'Simeulue': [2.6052, 96.0791],
+    'Banda Aceh': [5.5501, 95.3187],
+    'Langsa': [4.4735, 97.9702],
+    'Lhokseumawe': [5.1764, 97.1436],
+    'Sabang': [5.8824, 95.3245],
+    'Subulussalam': [2.7667, 97.9167],
+
+    'Asahan': [2.7699, 99.5303],
+    'Batu Bara': [3.2000, 99.4167],
+    'Dairi': [2.8167, 98.2500],
+    'Deli Serdang': [3.5333, 98.7167],
+    'Humbang Hasundutan': [2.2612, 98.5137],
+    'Karo': [3.1000, 98.3000],
+    'Labuhanbatu': [2.1667, 100.1667],
+    'Labuhanbatu Selatan': [2.0333, 100.1333],
+    'Labuhanbatu Utara': [2.5167, 99.7500],
+    'Langkat': [3.7333, 98.2167],
+    'Mandailing Natal': [0.7833, 99.2500],
+    'Nias': [1.0833, 97.7500],
+    'Nias Barat': [1.0000, 97.4167],
+    'Nias Selatan': [0.5500, 97.7833],
+    'Nias Utara': [1.3333, 97.3333],
+    'Padang Lawas': [1.4167, 99.8333],
+    'Padang Lawas Utara': [1.6667, 99.6667],
+    'Pakpak Bharat': [2.5667, 98.3000],
+    'Samosir': [2.6167, 98.7167],
+    'Serdang Bedagai': [3.3333, 99.0000],
+    'Simalungun': [2.8667, 99.0000],
+    'Tapanuli Selatan': [1.5833, 99.2500],
+    'Tapanuli Tengah': [1.9000, 98.6667],
+    'Tapanuli Utara': [2.0000, 99.0667],
+    'Toba': [2.3667, 99.2167],
+    'Binjai': [3.6000, 98.4833],
+    'Gunungsitoli': [1.2833, 97.6167],
+    'Medan': [3.5833, 98.6667],
+    'Padangsidimpuan': [1.3833, 99.2667],
+    'Pematangsiantar': [2.9667, 99.0667],
+    'Sibolga': [1.7333, 98.7833],
+    'Tanjungbalai': [2.9667, 99.8000],
+    'Tebing Tinggi': [3.3333, 99.1667],
+
+    'Agam': [-0.3167, 100.0000],
+    'Dharmasraya': [-1.0667, 101.3667],
+    'Kepulauan Mentawai': [-2.0833, 99.5000],
+    'Lima Puluh Kota': [0.1333, 100.5833],
+    'Padang Pariaman': [-0.6000, 100.2500],
+    'Pasaman': [0.7833, 100.0833],
+    'Pasaman Barat': [0.3333, 99.5833],
+    'Pesisir Selatan': [-1.6667, 100.8333],
+    'Sijunjung': [-0.7167, 101.0000],
+    'Solok': [-0.9500, 100.8333],
+    'Solok Selatan': [-1.3167, 101.3500],
+    'Tanah Datar': [-0.4167, 100.5667],
+    'Bukittinggi': [-0.3000, 100.3667],
+    'Padang': [-0.9500, 100.3500],
+    'Padangpanjang': [-0.4667, 100.4167],
+    'Pariaman': [-0.6167, 100.1167],
+    'Payakumbuh': [-0.2167, 100.6333],
+    'Sawahlunto': [-0.6833, 100.7833],
+    'Solok': [-0.7833, 100.6500],
+
+    'Bengkalis': [1.4833, 101.6667],
+    'Indragiri Hilir': [-0.3333, 103.1667],
+    'Indragiri Hulu': [-0.5333, 102.3333],
+    'Kampar': [0.3333, 101.0000],
+    'Kepulauan Meranti': [0.9667, 102.6667],
+    'Kuantan Singingi': [-0.5167, 101.5000],
+    'Pelalawan': [0.3500, 102.1667],
+    'Rokan Hilir': [2.1667, 100.8333],
+    'Rokan Hulu': [0.9167, 100.5000],
+    'Siak': [0.8333, 101.6667],
+    'Dumai': [1.6667, 101.4500],
+    'Pekanbaru': [0.5333, 101.4500],
+
+    'Batanghari': [-1.7167, 103.1000],
+    'Bungo': [-1.5167, 101.9667],
+    'Kerinci': [-2.0833, 101.4833],
+    'Merangin': [-2.1167, 102.1333],
+    'Muaro Jambi': [-1.5833, 103.5833],
+    'Sarolangun': [-2.2833, 102.6333],
+    'Tanjung Jabung Barat': [-1.0000, 103.3333],
+    'Tanjung Jabung Timur': [-1.1333, 103.9167],
+    'Tebo': [-1.4167, 102.3167],
+    'Jambi': [-1.6000, 103.6167],
+    'Sungai Penuh': [-2.0667, 101.3833],
+
+    'Banyuasin': [-2.8833, 104.3833],
+    'Empat Lawang': [-3.8333, 103.0833],
+    'Lahat': [-3.8000, 103.5333],
+    'Muara Enim': [-3.6500, 103.7833],
+    'Musi Banyuasin': [-2.5000, 103.7500],
+    'Musi Rawas': [-3.1667, 103.1667],
+    'Musi Rawas Utara': [-2.6000, 103.3000],
+    'Ogan Ilir': [-3.2500, 104.6500],
+    'Ogan Komering Ilir': [-3.3833, 105.3667],
+    'Ogan Komering Ulu': [-4.1333, 104.0333],
+    'Ogan Komering Ulu Selatan': [-4.6333, 104.1333],
+    'Ogan Komering Ulu Timur': [-3.8667, 104.7500],
+    'Penukal Abab Lematang Ilir': [-3.2513, 104.0906],
+    'Lubuklinggau': [-3.3000, 102.8667],
+    'Pagar Alam': [-4.1333, 103.2500],
+    'Palembang': [-2.9833, 104.7667],
+    'Prabumulih': [-3.4333, 104.2333],
+
+    'Bengkulu Selatan': [-4.3333, 103.0000],
+    'Bengkulu Tengah': [-3.5333, 102.4333],
+    'Bengkulu Utara': [-3.2000, 102.2167],
+    'Kaur': [-4.7833, 103.4167],
+    'Kepahiang': [-3.6167, 102.5833],
+    'Lebong': [-3.1500, 102.3333],
+    'Mukomuko': [-2.5500, 101.5000],
+    'Rejang Lebong': [-3.4667, 102.5333],
+    'Seluma': [-4.0000, 102.5000],
+    'Bengkulu': [-3.8000, 102.2667],
+
+    'Lampung Barat': [-5.0833, 104.1667],
+    'Lampung Selatan': [-5.5667, 105.5000],
+    'Lampung Tengah': [-4.8667, 105.2667],
+    'Lampung Timur': [-5.1167, 105.7333],
+    'Lampung Utara': [-4.8333, 104.7500],
+    'Mesuji': [-4.0500, 105.4167],
+    'Pesawaran': [-5.4500, 105.1833],
+    'Pesisir Barat': [-5.1833, 103.9500],
+    'Pringsewu': [-5.3500, 104.9667],
+    'Tanggamus': [-5.4167, 104.6667],
+    'Tulang Bawang': [-4.4167, 105.5833],
+    'Tulang Bawang Barat': [-4.4000, 105.0833],
+    'Way Kanan': [-4.5000, 104.5333],
+    'Bandar Lampung': [-5.4333, 105.2667],
+    'Metro': [-5.1167, 105.3000],
+
+    'Bangka': [-1.9167, 105.9000],
+    'Bangka Barat': [-2.0833, 105.4500],
+    'Bangka Selatan': [-2.7500, 106.3333],
+    'Bangka Tengah': [-2.3333, 106.1667],
+    'Belitung': [-2.8333, 107.6667],
+    'Belitung Timur': [-2.8333, 108.1667],
+    'Pangkal Pinang': [-2.1333, 106.1167],
+
+    'Bintan': [1.1333, 104.4500],
+    'Karimun': [0.8333, 103.4167],
+    'Kepulauan Anambas': [3.2000, 106.0000],
+    'Lingga': [-0.2000, 104.5833],
+    'Natuna': [4.0000, 108.2500],
+    'Batam': [1.0500, 104.0000],
+    'Tanjung Pinang': [0.9167, 104.4500],
+
+    'Administrasi Kepulauan Seribu': [-5.6167, 106.5833],
+    'Administrasi Jakarta Barat': [-6.1667, 106.7833],
+    'Administrasi Jakarta Pusat': [-6.1833, 106.8333],
+    'Administrasi Jakarta Selatan': [-6.2667, 106.8167],
+    'Administrasi Jakarta Timur': [-6.2333, 106.8833],
+    'Administrasi Jakarta Utara': [-6.1333, 106.8500],
+
+    'Bandung': [-7.0177, 107.6167],
+    'Bandung Barat': [-6.8667, 107.4167],
+    'Bekasi': [-6.2383, 107.1347],
+    'Bogor': [-6.5950, 106.7892],
+    'Ciamis': [-7.3264, 108.3537],
+    'Cianjur': [-6.8193, 107.1397],
+    'Cirebon': [-6.7063, 108.5617],
+    'Garut': [-7.2167, 107.9066],
+    'Indramayu': [-6.3253, 108.3237],
+    'Karawang': [-6.3050, 107.3496],
+    'Kuningan': [-6.9789, 108.4855],
+    'Majalengka': [-6.8394, 108.2254],
+    'Pangandaran': [-7.6907, 108.6543],
+    'Purwakarta': [-6.5589, 107.4429],
+    'Subang': [-6.5765, 107.7618],
+    'Sukabumi': [-6.9238, 106.9280],
+    'Sumedang': [-6.8374, 107.9168],
+    'Tasikmalaya': [-7.3949, 108.2087],
+    'Bandung': [-6.9175, 107.6191],
+    'Banjar': [-7.3706, 108.5346],
+    'Bekasi': [-6.2409, 106.9921],
+    'Bogor': [-6.5944, 106.7896],
+    'Cimahi': [-6.8723, 107.5427],
+    'Cirebon': [-6.7263, 108.5522],
+    'Depok': [-6.4025, 106.7942],
+    'Sukabumi': [-6.9285, 106.9287],
+    'Tasikmalaya': [-7.3274, 108.2206],
+
+    'Banjarnegara': [-7.4000, 109.7000],
+    'Banyumas': [-7.4167, 109.2333],
+    'Batang': [-7.0833, 109.8333],
+    'Blora': [-7.0000, 111.4167],
+    'Boyolali': [-7.5167, 110.6000],
+    'Brebes': [-7.0333, 108.8500],
+    'Cilacap': [-7.6333, 109.0167],
+    'Demak': [-6.9000, 110.6333],
+    'Grobogan': [-7.0833, 110.9167],
+    'Jepara': [-6.5833, 110.6667],
+    'Karanganyar': [-7.6000, 110.9500],
+    'Kebumen': [-7.6667, 109.6667],
+    'Kendal': [-7.0333, 110.1833],
+    'Klaten': [-7.7000, 110.6000],
+    'Kudus': [-6.8000, 110.8333],
+    'Magelang': [-7.4667, 110.2167],
+    'Pati': [-6.7500, 111.0333],
+    'Pekalongan': [-7.0833, 109.6667],
+    'Pemalang': [-6.9167, 109.3833],
+    'Purbalingga': [-7.3833, 109.3667],
+    'Purworejo': [-7.7167, 109.9167],
+    'Rembang': [-6.7167, 111.3333],
+    'Semarang': [-7.2167, 110.4333],
+    'Sragen': [-7.4167, 111.0167],
+    'Sukoharjo': [-7.6833, 110.8333],
+    'Tegal': [-7.0333, 109.1333],
+    'Temanggung': [-7.3167, 110.1833],
+    'Wonogiri': [-7.9167, 110.9167],
+    'Wonosobo': [-7.3667, 109.9000],
+    'Magelang': [-7.4833, 110.2167],
+    'Pekalongan': [-6.8833, 109.6667],
+    'Salatiga': [-7.3333, 110.5000],
+    'Semarang': [-7.0000, 110.4167],
+    'Surakarta': [-7.5667, 110.8167],
+    'Tegal': [-6.8667, 109.1333],
+
+    'Bantul': [-7.8833, 110.3333],
+    'Gunung Kidul': [-7.9667, 110.6000],
+    'Kulon Progo': [-7.8500, 110.1667],
+    'Sleman': [-7.7833, 110.3667],
+    'Yogyakarta': [-7.8000, 110.3667],
+
+    'Bangkalan': [-7.0500, 112.9333],
+    'Banyuwangi': [-8.2167, 114.3667],
+    'Blitar': [-8.1000, 112.1667],
+    'Bojonegoro': [-7.1500, 111.8833],
+    'Bondowoso': [-7.9167, 113.8167],
+    'Gresik': [-7.1500, 112.6500],
+    'Jember': [-8.1667, 113.7000],
+    'Jombang': [-7.5500, 112.2333],
+    'Kediri': [-7.8333, 112.0167],
+    'Lamongan': [-7.1167, 112.4167],
+    'Lumajang': [-8.1333, 113.2167],
+    'Madiun': [-7.6333, 111.6500],
+    'Magetan': [-7.6500, 111.3500],
+    'Malang': [-8.1667, 112.6167],
+    'Mojokerto': [-7.4667, 112.4333],
+    'Nganjuk': [-7.6000, 111.9000],
+    'Ngawi': [-7.4000, 111.4500],
+    'Pacitan': [-8.2000, 111.1000],
+    'Pamekasan': [-7.1500, 113.4667],
+    'Pasuruan': [-7.6500, 112.9000],
+    'Ponorogo': [-7.8667, 111.4667],
+    'Probolinggo': [-7.7500, 113.2167],
+    'Sampang': [-7.1833, 113.2500],
+    'Sidoarjo': [-7.4500, 112.7167],
+    'Situbondo': [-7.7000, 114.0000],
+    'Sumenep': [-7.0167, 113.8500],
+    'Trenggalek': [-8.0667, 111.7167],
+    'Tuban': [-6.9000, 112.0500],
+    'Tulungagung': [-8.0667, 111.9000],
+    'Batu': [-7.8833, 112.5333],
+    'Blitar': [-8.1000, 112.1667],
+    'Kediri': [-7.8167, 112.0167],
+    'Madiun': [-7.6333, 111.5167],
+    'Malang': [-7.9833, 112.6167],
+    'Mojokerto': [-7.4667, 112.4333],
+    'Pasuruan': [-7.6500, 112.9000],
+    'Probolinggo': [-7.7500, 113.2167],
+    'Surabaya': [-7.2500, 112.7500],
+
+    'Lebak': [-6.5500, 106.2500],
+    'Pandeglang': [-6.6667, 105.8333],
+    'Serang': [-6.1167, 106.1500],
+    'Tangerang': [-6.1667, 106.6333],
+    'Cilegon': [-6.0167, 106.0500],
+    'Serang': [-6.1167, 106.1500],
+    'Tangerang': [-6.1667, 106.6333],
+    'Tangerang Selatan': [-6.2833, 106.7167],
+
+    'Badung': [-8.5333, 115.2167],
+    'Bangli': [-8.2833, 115.3500],
+    'Buleleng': [-8.1167, 115.0833],
+    'Gianyar': [-8.5333, 115.2667],
+    'Jembrana': [-8.3500, 114.6500],
+    'Karangasem': [-8.3333, 115.5833],
+    'Klungkung': [-8.5333, 115.4000],
+    'Tabanan': [-8.5333, 115.1167],
+    'Denpasar': [-8.6500, 115.2167],
+
+    'Bima': [-8.5000, 118.5000],
+    'Dompu': [-8.5333, 118.4667],
+    'Lombok Barat': [-8.6500, 116.1167],
+    'Lombok Tengah': [-8.7000, 116.2833],
+    'Lombok Timur': [-8.5167, 116.4167],
+    'Lombok Utara': [-8.3500, 116.2500],
+    'Sumbawa': [-8.7500, 117.4167],
+    'Sumbawa Barat': [-8.7167, 116.8500],
+    'Bima': [-8.4667, 118.7333],
+    'Mataram': [-8.5833, 116.1167],
+
+    'Alor': [-8.2500, 124.5000],
+    'Belu': [-9.4167, 124.9167],
+    'Ende': [-8.8333, 121.6667],
+    'Flores Timur': [-8.3333, 122.9667],
+    'Kupang': [-10.1667, 123.5833],
+    'Lembata': [-8.3333, 123.5000],
+    'Malaka': [-9.5667, 124.9000],
+    'Manggarai': [-8.6333, 120.4667],
+    'Manggarai Barat': [-8.6500, 119.8833],
+    'Manggarai Timur': [-8.5833, 120.5833],
+    'Nagekeo': [-8.8333, 121.2167],
+    'Ngada': [-8.8000, 121.0000],
+    'Rote Ndao': [-10.7333, 123.1333],
+    'Sabu Raijua': [-10.5667, 121.8333],
+    'Sikka': [-8.6667, 122.3333],
+    'Sumba Barat': [-9.6500, 119.3333],
+    'Sumba Barat Daya': [-9.6000, 119.1667],
+    'Sumba Tengah': [-9.6667, 119.6667],
+    'Sumba Timur': [-9.8333, 120.3333],
+    'Timor Tengah Selatan': [-9.8333, 124.3333],
+    'Timor Tengah Utara': [-9.4167, 124.5000],
+    'Kupang': [-10.1667, 123.5833],
+
+    'Bengkayang': [1.0333, 109.9667],
+    'Kapuas Hulu': [0.8333, 112.9333],
+    'Kayong Utara': [-1.2167, 110.1667],
+    'Ketapang': [-1.8500, 109.9667],
+    'Kubu Raya': [-0.0333, 109.3333],
+    'Landak': [0.5000, 109.8333],
+    'Melawi': [-0.7833, 111.7500],
+    'Mempawah': [0.4500, 108.9667],
+    'Sambas': [1.3500, 109.3000],
+    'Sanggau': [0.1333, 110.5833],
+    'Sekadau': [-0.0500, 110.9500],
+    'Sintang': [0.0667, 111.4833],
+    'Pontianak': [-0.0167, 109.3333],
+    'Singkawang': [0.9167, 108.9833],
+
+    'Barito Selatan': [-1.9167, 114.7000],
+    'Barito Timur': [-1.9333, 115.1000],
+    'Barito Utara': [-0.9667, 114.9000],
+    'Gunung Mas': [-0.9500, 113.5833],
+    'Kapuas': [-2.0000, 114.3833],
+    'Katingan': [-2.0667, 113.3833],
+    'Kotawaringin Barat': [-2.1000, 111.7500],
+    'Kotawaringin Timur': [-1.8333, 112.7500],
+    'Lamandau': [-2.0000, 111.4500],
+    'Murung Raya': [-0.0333, 114.3333],
+    'Pulang Pisau': [-2.7500, 114.2500],
+    'Sukamara': [-2.6333, 111.2333],
+    'Seruyan': [-2.3333, 112.2500],
+    'Palangka Raya': [-2.2167, 113.9167],
+
+    'Balangan': [-2.3333, 115.5833],
+    'Banjar': [-3.3000, 114.8333],
+    'Barito Kuala': [-3.1000, 114.5000],
+    'Hulu Sungai Selatan': [-2.7667, 115.1667],
+    'Hulu Sungai Tengah': [-2.5833, 115.2500],
+    'Hulu Sungai Utara': [-2.4333, 115.1500],
+    'Kotabaru': [-3.2500, 116.2167],
+    'Tabalong': [-1.8333, 115.4167],
+    'Tanah Bumbu': [-3.4500, 115.6667],
+    'Tanah Laut': [-3.8000, 114.7667],
+    'Tapin': [-2.8333, 115.0000],
+    'Banjarbaru': [-3.4500, 114.8333],
+    'Banjarmasin': [-3.3167, 114.5833],
+
+    'Berau': [2.1667, 117.5000],
+    'Kutai Barat': [-0.2500, 115.0000],
+    'Kutai Kartanegara': [-0.4333, 116.9833],
+    'Kutai Timur': [1.1667, 117.5000],
+    'Mahakam Ulu': [0.5333, 115.5000],
+    'Paser': [-1.8333, 116.1667],
+    'Penajam Paser Utara': [-1.2500, 116.7000],
+    'Balikpapan': [-1.2500, 116.8333],
+    'Bontang': [0.1333, 117.5000],
+    'Samarinda': [-0.5000, 117.1500],
+    'Nusantara': [-0.9796, 116.7028],
+
+    'Bulungan': [2.8333, 117.3333],
+    'Malinau': [2.8333, 116.1333],
+    'Nunukan': [4.1333, 117.6667],
+    'Tana Tidung': [3.5000, 117.0000],
+    'Tarakan': [3.3000, 117.6333],
+
+    'Bolaang Mongondow': [0.7500, 124.0000],
+    'Bolaang Mongondow Selatan': [0.4167, 123.6667],
+    'Bolaang Mongondow Timur': [0.7500, 124.5833],
+    'Bolaang Mongondow Utara': [0.8167, 123.3333],
+    'Kepulauan Sangihe': [3.5833, 125.5000],
+    'Kepulauan Siau Tagulandang Biaro': [2.0833, 125.4000],
+    'Kepulauan Talaud': [4.2500, 126.7500],
+    'Minahasa': [1.2500, 124.8333],
+    'Minahasa Selatan': [1.1667, 124.5833],
+    'Minahasa Tenggara': [1.0833, 124.8333],
+    'Minahasa Utara': [1.4167, 125.0000],
+    'Bitung': [1.4500, 125.1833],
+    'Kotamobagu': [0.7333, 124.3167],
+    'Manado': [1.4833, 124.8500],
+    'Tomohon': [1.3333, 124.8333],
+
+    'Banggai': [-1.4167, 122.5833],
+    'Banggai Kepulauan': [-1.6667, 123.5000],
+    'Banggai Laut': [-1.8333, 123.5000],
+    'Buol': [1.1667, 121.4167],
+    'Donggala': [-0.7000, 119.7500],
+    'Morowali': [-2.8333, 122.1667],
+    'Morowali Utara': [-1.9167, 121.3333],
+    'Parigi Moutong': [-1.1667, 120.1667],
+    'Poso': [-1.3833, 120.7500],
+    'Sigi': [-1.4000, 120.0000],
+    'Tojo Una-Una': [-1.0000, 121.5000],
+    'Tolitoli': [1.0000, 120.8167],
+    'Palu': [-0.8833, 119.8667],
+
+    'Bantaeng': [-5.5333, 120.0000],
+    'Barru': [-4.4167, 119.6667],
+    'Bone': [-4.5333, 120.3333],
+    'Bulukumba': [-5.4500, 120.1667],
+    'Enrekang': [-3.5667, 119.7667],
+    'Gowa': [-5.3333, 119.6667],
+    'Jeneponto': [-5.6667, 119.7500],
+    'Kepulauan Selayar': [-6.3333, 120.5000],
+    'Luwu': [-3.3667, 120.1667],
+    'Luwu Timur': [-2.5833, 121.1667],
+    'Luwu Utara': [-2.5000, 120.1667],
+    'Maros': [-5.0000, 119.5667],
+    'Pangkajene dan Kepulauan': [-4.8333, 119.5500],
+    'Pinrang': [-3.8000, 119.6500],
+    'Sidenreng Rappang': [-3.9167, 119.8333],
+    'Sinjai': [-5.2000, 120.2500],
+    'Soppeng': [-4.3500, 119.8833],
+    'Takalar': [-5.4167, 119.4500],
+    'Tana Toraja': [-3.0500, 119.7500],
+    'Toraja Utara': [-2.9667, 119.8833],
+    'Wajo': [-4.1167, 120.0333],
+    'Makassar': [-5.1333, 119.4167],
+    'Palopo': [-3.0000, 120.2000],
+    'Parepare': [-4.0167, 119.6333],
+
+    'Bombana': [-4.6000, 121.8333],
+    'Buton': [-5.4500, 122.9167],
+    'Buton Selatan': [-5.6333, 122.6667],
+    'Buton Tengah': [-5.3833, 122.4167],
+    'Buton Utara': [-4.7500, 123.0833],
+    'Kolaka': [-4.0833, 121.5833],
+    'Kolaka Timur': [-4.0167, 121.8833],
+    'Kolaka Utara': [-3.3667, 121.1667],
+    'Konawe': [-3.9167, 122.0833],
+    'Konawe Kepulauan': [-4.1667, 123.0833],
+    'Konawe Selatan': [-4.2500, 122.4167],
+    'Konawe Utara': [-3.4167, 122.0000],
+    'Muna': [-4.8333, 122.6667],
+    'Muna Barat': [-4.8667, 122.4833],
+    'Wakatobi': [-5.3167, 123.5833],
+    'Bau-Bau': [-5.4667, 122.6000],
+    'Kendari': [-3.9833, 122.5167],
+
+    'Boalemo': [0.7500, 122.3333],
+    'Bone Bolango': [0.5333, 123.2500],
+    'Gorontalo': [0.7000, 122.8333],
+    'Gorontalo Utara': [0.8167, 122.3167],
+    'Pohuwato': [0.7000, 121.6667],
+    'Gorontalo': [0.5333, 123.0667],
+
+    'Majene': [-3.5333, 118.9667],
+    'Mamasa': [-2.9500, 119.3833],
+    'Mamuju': [-2.6667, 118.8833],
+    'Mamuju Tengah': [-2.3333, 119.3333],
+    'Pasangkayu': [-1.3167, 119.3667],
+    'Polewali Mandar': [-3.4333, 119.3333],
+
+    'Buru': [-3.3500, 126.6667],
+    'Buru Selatan': [-3.6667, 126.3333],
+    'Kepulauan Aru': [-6.1667, 134.5000],
+    'Kepulauan Tanimbar': [-7.5000, 131.5000],
+    'Maluku Barat Daya': [-7.8333, 127.8333],
+    'Maluku Tengah': [-3.0000, 129.0000],
+    'Maluku Tenggara': [-5.6667, 132.7500],
+    'Seram Bagian Barat': [-3.3333, 128.3333],
+    'Seram Bagian Timur': [-3.6667, 130.5000],
+    'Ambon': [-3.7000, 128.1667],
+    'Tual': [-5.6333, 132.7500],
+
+    'Halmahera Barat': [1.5000, 127.5000],
+    'Halmahera Tengah': [0.5000, 128.5000],
+    'Halmahera Timur': [1.3333, 128.3333],
+    'Halmahera Selatan': [-0.5000, 127.5000],
+    'Halmahera Utara': [1.8333, 128.0000],
+    'Kepulauan Sula': [-2.0000, 125.0000],
+    'Pulau Morotai': [2.2500, 128.4167],
+    'Pulau Taliabu': [-1.8333, 124.6667],
+    'Ternate': [0.7833, 127.3833],
+    'Tidore Kepulauan': [0.6833, 127.4167],
+
+    'Fakfak': [-2.9167, 132.3000],
+    'Kaimana': [-3.6667, 133.7500],
+    'Manokwari': [-0.8667, 134.0833],
+    'Manokwari Selatan': [-1.3333, 134.0000],
+    'Pegunungan Arfak': [-1.5000, 133.5000],
+    'Teluk Bintuni': [-2.1667, 133.3333],
+    'Teluk Wondama': [-2.6667, 134.5000],
+
+    'Maybrat': [-1.3333, 132.4167],
+    'Raja Ampat': [-0.5000, 130.5000],
+    'Sorong': [-1.0000, 131.2500],
+    'Sorong Selatan': [-1.5000, 132.2500],
+    'Tambrauw': [-0.8667, 132.6667],
+    'Sorong': [-0.8833, 131.2500],
+
+    'Biak Numfor': [-1.0000, 136.0000],
+    'Jayapura': [-2.5333, 140.7167],
+    'Keerom': [-3.3500, 140.6667],
+    'Kepulauan Yapen': [-1.7500, 136.2500],
+    'Mamberamo Raya': [-2.3333, 138.0000],
+    'Sarmi': [-1.8333, 138.7500],
+    'Supiori': [-0.7500, 135.5000],
+    'Waropen': [-2.7500, 136.5833],
+    'Jayapura': [-2.5333, 140.7167],
+
+    'Deiyai': [-4.0833, 136.3333],
+    'Dogiyai': [-4.0500, 135.4333],
+    'Intan Jaya': [-3.7500, 136.6667],
+    'Mimika': [-4.6333, 136.4167],
+    'Nabire': [-3.3667, 135.5000],
+    'Paniai': [-3.8333, 136.0000],
+    'Puncak': [-4.0000, 137.4833],
+    'Puncak Jaya': [-3.7500, 138.0000],
+    
+    'Jayawijaya': [-4.0833, 138.9167],
+    'Lanny Jaya': [-3.8333, 138.4167],
+    'Mamberamo Tengah': [-3.0000, 138.5000],
+    'Nduga': [-4.4500, 138.0833],
+    'Pegunungan Bintang': [-4.5000, 140.5000],
+    'Tolikara': [-3.5000, 138.5000],
+    'Yahukimo': [-4.5000, 139.5000],
+    'Yalimo': [-3.8333, 139.5000],
+    
+    'Asmat': [-5.3333, 138.3333],
+    'Boven Digoel': [-6.0833, 140.3333],
+    'Mappi': [-6.5000, 139.3333],
+    'Merauke': [-8.4833, 140.3333],
+}
+
 
 export default {
   name: 'InteractiveMap',
@@ -60,14 +623,14 @@ export default {
     },
     title: {
       type: String,
-      default: 'Peta Interaktif Clustering'
+      default: 'Peta Sebaran Cluster'
     }
   },
   setup(props) {
     const mapContainer = ref(null)
     const map = ref(null)
-    const markers = ref([])
-    const selectedMetric = ref('cluster')
+    const markersLayer = ref(null)
+    const selectedClusterFilter = ref('all')
 
     const colors = [
       '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', 
@@ -78,168 +641,266 @@ export default {
       return colors[index % colors.length]
     }
 
-    const allMembers = computed(() => {
-      return props.clusters.flatMap((cluster, clusterIndex) => 
-        cluster.members.map(member => ({
-          ...member,
-          clusterIndex,
-          clusterId: cluster.id
-        }))
+    // Helper function to normalize city names for coordinate lookup
+    const normalizeCityName = (cityName) => {
+      if (!cityName) return ''
+      
+      // Convert to string and clean up
+      let normalized = String(cityName).trim()
+      
+      // Handle common variations
+      const replacements = {
+        'Kab. ': '',
+        'Kabupaten ': '',
+        'Kota ': '',
+        'Administrasi ': '',
+        'DKI ': '',
+      }
+      
+      for (const [key, value] of Object.entries(replacements)) {
+        normalized = normalized.replace(new RegExp(key, 'gi'), value)
+      }
+      
+      return normalized.trim()
+    }
+
+    // Get coordinates for a city
+    const getCityCoordinates = (cityName) => {
+      const normalized = normalizeCityName(cityName)
+      
+      // Direct lookup
+      if (cityCoords[normalized]) {
+        console.log(`✅ Found exact match for: ${cityName} -> ${normalized}`)
+        return cityCoords[normalized]
+      }
+      
+      // Fuzzy matching - try to find partial matches
+      const cityKeys = Object.keys(cityCoords)
+      
+      // Try different matching strategies
+      let fuzzyMatch = null
+      
+      // Strategy 1: Exact substring match
+      fuzzyMatch = cityKeys.find(key => 
+        key.toLowerCase().includes(normalized.toLowerCase()) ||
+        normalized.toLowerCase().includes(key.toLowerCase())
       )
-    })
-
-    const metricRange = computed(() => {
-      if (selectedMetric.value === 'cluster') return { min: 0, max: props.clusters.length }
       
-      const values = allMembers.value
-        .map(member => member[selectedMetric.value])
-        .filter(val => val != null && !isNaN(val))
-      
-      return {
-        min: Math.min(...values),
-        max: Math.max(...values)
-      }
-    })
-
-    const formatValue = (value) => {
-      if (selectedMetric.value === 'garis_kemiskinan' || selectedMetric.value === 'pengeluaran_per_kapita') {
-        return new Intl.NumberFormat('id-ID', {
-          style: 'currency',
-          currency: 'IDR',
-          minimumFractionDigits: 0
-        }).format(value)
-      }
-      return value.toFixed(2)
-    }
-
-    const getMetricLabel = (metric) => {
-      const labels = {
-        'cluster': 'Cluster',
-        'ipm': 'IPM',
-        'garis_kemiskinan': 'Garis Kemiskinan',
-        'pengeluaran_per_kapita': 'Pengeluaran Per Kapita'
-      }
-      return labels[metric] || metric
-    }
-
-    const getGradientStyle = () => {
-      if (selectedMetric.value === 'cluster') return ''
-      return 'linear-gradient(to right, #3182ce, #63b3ed, #90cdf4, #bee3f8)'
-    }
-
-    const getMarkerColor = (member) => {
-      if (selectedMetric.value === 'cluster') {
-        return getClusterColor(member.clusterIndex)
+      if (fuzzyMatch) {
+        console.log(`✅ Found fuzzy match for: ${cityName} -> ${fuzzyMatch}`)
+        return cityCoords[fuzzyMatch]
       }
       
-      // Color based on metric value
-      const value = member[selectedMetric.value]
-      const range = metricRange.value
-      const normalized = (value - range.min) / (range.max - range.min)
+      // Strategy 2: Remove common words and try again
+      const cleanNormalized = normalized
+        .replace(/\b(kota|kabupaten|kab|administrasi)\b/gi, '')
+        .trim()
       
-      // Create color gradient from blue to red
-      const hue = (1 - normalized) * 240 // 240 = blue, 0 = red
-      return `hsl(${hue}, 70%, 50%)`
-    }
-
-    const createCustomIcon = (color, size = 'medium') => {
-      const sizes = {
-        small: [20, 20],
-        medium: [25, 25],
-        large: [30, 30]
-      }
-      
-      const [width, height] = sizes[size] || sizes.medium
-      
-      return L.divIcon({
-        className: 'custom-marker',
-        html: `<div style="
-          background-color: ${color};
-          width: ${width}px;
-          height: ${height}px;
-          border-radius: 50%;
-          border: 3px solid white;
-          box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        "></div>`,
-        iconSize: [width, height],
-        iconAnchor: [width/2, height/2]
+      fuzzyMatch = cityKeys.find(key => {
+        const cleanKey = key
+          .replace(/\b(kota|kabupaten|kab|administrasi)\b/gi, '')
+          .trim()
+        return cleanKey.toLowerCase() === cleanNormalized.toLowerCase()
       })
-    }
-
-    const createPopupContent = (member) => {
-      const membershipText = member.membership && member.membership < 1.0 
-        ? `<br><strong>Membership:</strong> ${(member.membership * 100).toFixed(1)}%`
-        : ''
       
-      return `
-        <div class="map-popup">
-          <h4>${member.kabupaten_kota}</h4>
-          <p><strong>Provinsi:</strong> ${member.provinsi || 'N/A'}</p>
-          <p><strong>Tahun:</strong> ${member.tahun}</p>
-          <p><strong>Cluster:</strong> ${member.clusterId}</p>
-          <hr>
-          <p><strong>IPM:</strong> ${member.ipm?.toFixed(2) || 'N/A'}</p>
-          <p><strong>Garis Kemiskinan:</strong> ${formatValue(member.garis_kemiskinan || 0)}</p>
-          <p><strong>Pengeluaran Per Kapita:</strong> ${formatValue(member.pengeluaran_per_kapita || 0)}</p>
-          ${membershipText}
-        </div>
-      `
+      if (fuzzyMatch) {
+        console.log(`✅ Found clean match for: ${cityName} -> ${fuzzyMatch}`)
+        return cityCoords[fuzzyMatch]
+      }
+      
+      // Strategy 3: Use fallback coordinates based on region
+      const fallbackCoords = getFallbackCoordinates(normalized)
+      if (fallbackCoords) {
+        console.log(`⚠️ Using fallback coordinates for: ${cityName}`)
+        return fallbackCoords
+      }
+      
+      // Log missing coordinates for debugging
+      console.warn(`❌ Coordinates not found for: "${cityName}" (normalized: "${normalized}")`)
+      return null
+    }
+    
+    // Get fallback coordinates based on province or region
+    const getFallbackCoordinates = (cityName) => {
+      const fallbacks = {
+        // Jakarta area
+        'jakarta': [-6.2, 106.8],
+        // Java
+        'bandung': [-6.9, 107.6],
+        'surabaya': [-7.25, 112.75],
+        'semarang': [-7.0, 110.4],
+        'yogyakarta': [-7.8, 110.4],
+        // Sumatra
+        'medan': [3.58, 98.67],
+        'palembang': [-2.98, 104.77],
+        'padang': [-0.95, 100.35],
+        'pekanbaru': [0.53, 101.45],
+        'bandar lampung': [-5.43, 105.27],
+        // Kalimantan
+        'pontianak': [-0.02, 109.33],
+        'banjarmasin': [-3.32, 114.58],
+        'samarinda': [-0.5, 117.15],
+        'balikpapan': [-1.25, 116.83],
+        // Sulawesi
+        'makassar': [-5.13, 119.42],
+        'manado': [1.48, 124.85],
+        'palu': [-0.88, 119.87],
+        'kendari': [-3.98, 122.52],
+        // Eastern Indonesia
+        'denpasar': [-8.65, 115.22],
+        'mataram': [-8.58, 116.12],
+        'kupang': [-10.17, 123.58],
+        'ambon': [-3.7, 128.17],
+        'jayapura': [-2.53, 140.72],
+      }
+      
+      const cityLower = cityName.toLowerCase()
+      for (const [key, coords] of Object.entries(fallbacks)) {
+        if (cityLower.includes(key) || key.includes(cityLower)) {
+          return coords
+        }
+      }
+      
+      return null
     }
 
-    const initializeMap = () => {
+    const filteredMarkers = computed(() => {
+      let allMarkers = []
+      
+      props.clusters.forEach((cluster, clusterIndex) => {
+        if (selectedClusterFilter.value !== 'all' && cluster.id !== selectedClusterFilter.value) {
+          return
+        }
+        
+        cluster.members.forEach(member => {
+          const coords = getCityCoordinates(member.kabupaten_kota)
+          if (coords) {
+            allMarkers.push({
+              ...member,
+              cluster: cluster,
+              clusterIndex: clusterIndex,
+              coordinates: coords
+            })
+          }
+        })
+      })
+      
+      return allMarkers
+    })
+
+    const totalRegions = computed(() => {
+      return props.clusters.reduce((total, cluster) => total + cluster.size, 0)
+    })
+
+    const mappedRegions = computed(() => {
+      return filteredMarkers.value.length
+    })
+
+    const coveragePercentage = computed(() => {
+      if (totalRegions.value === 0) return 0
+      return Math.round((mappedRegions.value / totalRegions.value) * 100)
+    })
+
+    const initMap = () => {
       if (!mapContainer.value) return
 
       // Initialize map centered on Indonesia
       map.value = L.map(mapContainer.value).setView([-2.5, 118], 5)
 
-      // Add tile layer
+      // Add OpenStreetMap tiles with better styling
       L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 18
       }).addTo(map.value)
 
-      // Add markers
-      updateMarkers()
+      // Initialize markers layer
+      markersLayer.value = L.layerGroup().addTo(map.value)
+
+      // Load initial markers
+      updateMapView()
     }
 
-    const updateMarkers = () => {
-      if (!map.value) return
+    const updateMapView = () => {
+      if (!map.value || !markersLayer.value) return
 
       // Clear existing markers
-      markers.value.forEach(marker => map.value.removeLayer(marker))
-      markers.value = []
+      markersLayer.value.clearLayers()
 
-      // Add new markers
-      allMembers.value.forEach(member => {
-        if (member.latitude && member.longitude) {
-          const color = getMarkerColor(member)
-          const size = member.membership ? 
-            (member.membership > 0.7 ? 'large' : member.membership > 0.4 ? 'medium' : 'small') : 
-            'medium'
-          
-          const marker = L.marker([member.latitude, member.longitude], {
-            icon: createCustomIcon(color, size)
-          })
-          .bindPopup(createPopupContent(member))
-          .addTo(map.value)
+      console.log(`🗺️ Updating map with ${filteredMarkers.value.length} markers`)
+      console.log('📊 Clusters data:', props.clusters)
+      console.log('🎯 Filtered markers:', filteredMarkers.value.slice(0, 3)) // Show first 3 for debugging
 
-          markers.value.push(marker)
-        }
+      // Add markers for filtered data
+      filteredMarkers.value.forEach((markerData, index) => {
+        const { coordinates, cluster, clusterIndex } = markerData
+        const color = getClusterColor(clusterIndex)
+        
+        console.log(`📍 Creating marker ${index + 1}: ${markerData.kabupaten_kota} at [${coordinates[0]}, ${coordinates[1]}] - Cluster ${cluster.id}`)
+        
+        const marker = L.circleMarker(coordinates, {
+          radius: 10,
+          fillColor: color,
+          color: '#fff',
+          weight: 3,
+          opacity: 1,
+          fillOpacity: 0.9
+        })
+
+        // Create popup content with better formatting
+        const popupContent = `
+          <div class="marker-popup">
+            <h4>${markerData.kabupaten_kota}</h4>
+            <div class="popup-cluster">
+              <span class="cluster-badge" style="background-color: ${color}">
+                Cluster ${cluster.id}
+              </span>
+            </div>
+            <div class="popup-stats">
+              <div class="stat-row">
+                <span class="stat-label">IPM:</span>
+                <span class="stat-value">${markerData.ipm?.toFixed(2) || 'N/A'}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Garis Kemiskinan:</span>
+                <span class="stat-value">Rp ${markerData.garis_kemiskinan?.toLocaleString('id-ID') || 'N/A'}</span>
+              </div>
+              <div class="stat-row">
+                <span class="stat-label">Pengeluaran per Kapita:</span>
+                <span class="stat-value">Rp ${markerData.pengeluaran_per_kapita?.toLocaleString('id-ID') || 'N/A'}</span>
+              </div>
+              ${markerData.membership ? `
+                <div class="stat-row">
+                  <span class="stat-label">Membership:</span>
+                  <span class="stat-value">${(markerData.membership * 100).toFixed(1)}%</span>
+                </div>
+              ` : ''}
+              ${markerData.tahun ? `
+                <div class="stat-row">
+                  <span class="stat-label">Tahun:</span>
+                  <span class="stat-value">${markerData.tahun}</span>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `
+
+        marker.bindPopup(popupContent, {
+          maxWidth: 300,
+          className: 'custom-popup'
+        })
+        
+        markersLayer.value.addLayer(marker)
       })
-    }
 
-    const updateMapColors = () => {
-      updateMarkers()
-    }
-
-    const fitMapToBounds = () => {
-      if (!map.value || markers.value.length === 0) return
-
-      const group = new L.featureGroup(markers.value)
-      map.value.fitBounds(group.getBounds().pad(0.1))
+      // Auto-fit map bounds if there are markers
+      if (filteredMarkers.value.length > 0) {
+        const group = new L.featureGroup(markersLayer.value.getLayers())
+        map.value.fitBounds(group.getBounds().pad(0.1))
+      }
     }
 
     onMounted(() => {
-      initializeMap()
+      initMap()
     })
 
     onUnmounted(() => {
@@ -249,19 +910,18 @@ export default {
     })
 
     watch(() => props.clusters, () => {
-      updateMarkers()
+      updateMapView()
     }, { deep: true })
 
     return {
       mapContainer,
-      selectedMetric,
-      metricRange,
+      selectedClusterFilter,
+      filteredMarkers,
+      totalRegions,
+      mappedRegions,
+      coveragePercentage,
       getClusterColor,
-      formatValue,
-      getMetricLabel,
-      getGradientStyle,
-      updateMapColors,
-      fitMapToBounds
+      updateMapView
     }
   }
 }
@@ -295,30 +955,38 @@ export default {
   display: flex;
   align-items: center;
   gap: 1rem;
+  flex-wrap: wrap;
 }
 
-.metric-select {
+.cluster-filter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.cluster-filter label {
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.875rem;
+}
+
+.cluster-filter select {
   padding: 0.5rem;
   border: 1px solid #e2e8f0;
   border-radius: 6px;
   background: white;
   color: #4a5568;
   font-size: 0.875rem;
+  min-width: 150px;
 }
 
-.btn-sm {
+.map-info {
+  background: #f7fafc;
   padding: 0.5rem 1rem;
-  font-size: 0.875rem;
-  background: #667eea;
-  color: white;
-  border: none;
   border-radius: 6px;
-  cursor: pointer;
-  transition: background 0.3s ease;
-}
-
-.btn-sm:hover {
-  background: #5a67d8;
+  font-size: 0.875rem;
+  color: #4a5568;
+  border: 1px solid #e2e8f0;
 }
 
 .map-wrapper {
@@ -326,9 +994,10 @@ export default {
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #e2e8f0;
+  position: relative;
 }
 
-.map {
+#map {
   height: 100%;
   width: 100%;
 }
@@ -339,10 +1008,17 @@ export default {
   border-top: 1px solid #e2e8f0;
 }
 
-.cluster-legend {
+.map-legend h4 {
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+}
+
+.legend-items {
   display: flex;
   flex-wrap: wrap;
   gap: 1rem;
+  margin-bottom: 1rem;
 }
 
 .legend-item {
@@ -353,68 +1029,35 @@ export default {
   color: #4a5568;
 }
 
-.legend-color {
+.legend-marker {
   width: 12px;
   height: 12px;
   border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.1);
 }
 
-.metric-legend {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.legend-gradient {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.gradient-bar {
-  width: 200px;
-  height: 20px;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-}
-
-.gradient-labels {
-  display: flex;
-  justify-content: space-between;
-  width: 200px;
-  font-size: 0.75rem;
-  color: #718096;
-}
-
-.legend-title {
-  font-size: 0.875rem;
-  color: #4a5568;
-  font-weight: 600;
-}
-
-/* Custom popup styles */
-:deep(.map-popup) {
-  font-family: inherit;
-}
-
-:deep(.map-popup h4) {
-  color: #2d3748;
-  margin: 0 0 0.5rem 0;
-  font-size: 1.1rem;
-}
-
-:deep(.map-popup p) {
-  margin: 0.25rem 0;
-  font-size: 0.875rem;
-  color: #4a5568;
-}
-
-:deep(.map-popup hr) {
-  border: none;
+.map-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
   border-top: 1px solid #e2e8f0;
-  margin: 0.5rem 0;
+}
+
+.stat-item {
+  background: #f7fafc;
+  padding: 0.75rem;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.875rem;
+}
+
+.stat-item strong {
+  color: #2d3748;
+  display: block;
+  margin-bottom: 0.25rem;
 }
 
 @media (max-width: 768px) {
@@ -425,19 +1068,81 @@ export default {
   
   .map-controls {
     justify-content: center;
+    flex-direction: column;
+    gap: 0.5rem;
   }
   
   .map-wrapper {
     height: 400px;
   }
   
-  .cluster-legend {
+  .legend-items {
     justify-content: center;
   }
   
-  .gradient-bar,
-  .gradient-labels {
-    width: 150px;
+  .map-stats {
+    grid-template-columns: 1fr;
   }
+}
+
+/* Custom popup styles */
+:global(.custom-popup .leaflet-popup-content) {
+  margin: 0;
+  padding: 0;
+}
+
+:global(.marker-popup) {
+  min-width: 250px;
+}
+
+:global(.marker-popup h4) {
+  margin: 0 0 0.5rem 0;
+  color: #2d3748;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+:global(.popup-cluster) {
+  margin-bottom: 0.75rem;
+}
+
+:global(.cluster-badge) {
+  display: inline-block;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+:global(.popup-stats) {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+:global(.stat-row) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+:global(.stat-row:last-child) {
+  border-bottom: none;
+}
+
+:global(.stat-label) {
+  font-weight: 500;
+  color: #64748b;
+  font-size: 0.875rem;
+}
+
+:global(.stat-value) {
+  font-weight: 600;
+  color: #1e293b;
+  font-size: 0.875rem;
 }
 </style>

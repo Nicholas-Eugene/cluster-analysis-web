@@ -267,6 +267,107 @@ const apiService = {
   },
 
   /**
+   * Download clustering results as PDF
+   * @param {Object} clusteringResults - Clustering results to include in PDF
+   * @returns {Promise} PDF blob for download
+   */
+  async downloadPDF(clusteringResults) {
+    try {
+      // Format the data properly for the PDF generator
+      const formattedData = {
+        algorithm: clusteringResults.overall_summary?.algorithm || clusteringResults.algorithm || "Fuzzy C-Means",
+        yearly_results: {}
+      }
+      if (clusteringResults.clustering_type === 'per_year') {
+        // Process each year's data for per-year clustering
+        for (const [year, yearData] of Object.entries(clusteringResults.results_per_year)) {
+          if (!yearData.error) {
+            formattedData.yearly_results[year] = {
+              data: yearData.data_with_clusters,
+              evaluation: {
+                davies_bouldin: yearData.davies_bouldin_score,
+                silhouette_score: yearData.silhouette_score
+              },
+              clusters: yearData.clusters.map(cluster => ({
+                id: cluster.id,
+                size: cluster.members ? cluster.members.length : 0,
+                members: cluster.members || [],
+                centroid: cluster.centroid || {}
+              }))
+            }
+          }
+        }
+      } else {
+        // Handle single-year clustering results
+        const year = clusteringResults.summary?.selectedYear || new Date().getFullYear().toString()
+        formattedData.yearly_results[year] = {
+          data: clusteringResults.data_with_clusters || clusteringResults.data,
+          evaluation: {
+            davies_bouldin: clusteringResults.evaluation?.davies_bouldin,
+            silhouette_score: clusteringResults.evaluation?.silhouette_score
+          },
+          clusters: (clusteringResults.clusters || []).map(cluster => ({
+            id: cluster.id,
+            size: cluster.members ? cluster.members.length : 0,
+            members: cluster.members || [],
+            centroid: cluster.centroid || {}
+          }))
+        }
+      }
+      
+      const response = await axios.post(
+        `${API_BASE_URL}/clustering/download-pdf/`,
+        { clustering_results: formattedData },
+        { 
+          responseType: 'blob',
+          headers: {
+            'Accept': '*/*',
+            'Content-Type': 'application/json'
+          }
+        }
+      )
+
+      // Check if the response is actually a PDF
+      const contentType = response.headers['content-type']
+      if (contentType && contentType.includes('application/json')) {
+        // If we got JSON instead of PDF, it's probably an error
+        const reader = new FileReader()
+        const textResult = await new Promise((resolve) => {
+          reader.onload = () => resolve(reader.result)
+          reader.readAsText(response.data)
+        })
+        const errorData = JSON.parse(textResult)
+        throw new Error(errorData.error || 'Error generating PDF')
+      }
+
+      // Get filename from the Content-Disposition header or use default
+      const contentDisposition = response.headers['content-disposition']
+      let filename = 'cluster_analysis_report.pdf'
+      if (contentDisposition) {
+        const filenameMatch = contentDisposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/)
+        if (filenameMatch && filenameMatch[1]) {
+          filename = filenameMatch[1].replace(/['"]/g, '')
+        }
+      }
+
+      // Create blob and trigger download
+      const blob = new Blob([response.data], { type: 'application/pdf' })
+      const downloadUrl = window.URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = downloadUrl
+      link.download = filename
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      window.URL.revokeObjectURL(downloadUrl)
+      
+      return response
+    } catch (error) {
+      throw error
+    }
+  },
+
+  /**
    * Get demo results for showcase (when no real data uploaded)
    * @returns {Promise} Demo clustering results
    */

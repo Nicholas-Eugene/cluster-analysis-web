@@ -1,28 +1,39 @@
 <template>
   <div class="analysis-page">
     <div class="container">
-      <!-- Header Section -->
       <div class="page-header">
-        <h1>Hasil Analisis Clustering</h1>
-        <p v-if="results">
-          <span v-if="results.clustering_type === 'per_year'">
-            Analisis menggunakan algoritma <strong>{{ results.overall_summary.algorithm }}</strong>
-            untuk semua tahun ({{ results.overall_summary.years_processed.join(', ') }})
-          </span>
-          <span v-else>
-            Analisis menggunakan algoritma <strong>{{ results.algorithm }}</strong>
-            {{ results.summary?.selectedYear ? `untuk tahun ${results.summary.selectedYear}` : 'untuk semua tahun' }}
-          </span>
-        </p>
+        <div class="header-content">
+          <div>
+            <h1>Hasil Analisis Clustering</h1>
+            <p v-if="results">
+              <span v-if="results.clustering_type === 'per_year'">
+                Analisis menggunakan algoritma <strong>{{ results.overall_summary.algorithm }}</strong>
+                untuk semua tahun ({{ results.overall_summary.years_processed.join(', ') }})
+              </span>
+              <span v-else-if="results.clustering_type === 'all_years_wide' && singleResultData">
+                Analisis menggunakan algoritma <strong>{{ singleResultData.algorithm }}</strong>
+                untuk semua tahun (Model Wide-Format)
+              </span>
+              <span v-else-if="singleResultData">
+                Analisis menggunakan algoritma <strong>{{ singleResultData.algorithm }}</strong>
+                {{ singleResultData.summary?.selectedYear ? `untuk tahun ${singleResultData.summary.selectedYear}` : '' }}
+              </span>
+            </p>
+          </div>
+          <div class="header-actions" v-if="results">
+            <button @click="downloadPDFReport" class="btn btn-primary">
+              <span class="icon">📥</span>
+              Download PDF Report (All Years)
+            </button>
+          </div>
+        </div>
       </div>
 
-      <!-- Loading State -->
       <div v-if="isLoading" class="loading-container">
         <div class="loading-spinner"></div>
         <p>Memuat hasil analisis...</p>
       </div>
 
-      <!-- Error State -->
       <div v-if="error" class="error-container">
         <div class="alert alert-error">
           <h3>❌ Terjadi Kesalahan</h3>
@@ -33,22 +44,18 @@
         </div>
       </div>
 
-      <!-- Results Section -->
       <div v-if="results && !isLoading" class="results-section">
         
-        <!-- Per Year Results -->
         <div v-if="results.clustering_type === 'per_year'">
           <YearlyResults :results="results" />
         </div>
         
-        <!-- Single Year Results (Legacy) -->
-        <div v-else class="single-year-results">
-          <!-- Summary Cards -->
+        <div v-else-if="singleResultData" class="single-year-results">
           <div class="summary-cards">
             <div class="summary-card">
               <div class="card-icon">📊</div>
               <div class="card-content">
-                <h3>{{ results.summary.total_regions }}</h3>
+                <h3>{{ singleResultData.summary.total_regions }}</h3>
                 <p>Total Daerah</p>
               </div>
             </div>
@@ -56,7 +63,7 @@
             <div class="summary-card">
               <div class="card-icon">🎯</div>
               <div class="card-content">
-                <h3>{{ results.summary.num_clusters }}</h3>
+                <h3>{{ singleResultData.summary.num_clusters }}</h3>
                 <p>Jumlah Cluster</p>
               </div>
             </div>
@@ -64,195 +71,200 @@
             <div class="summary-card">
               <div class="card-icon">⏱️</div>
               <div class="card-content">
-                <h3>{{ results.summary.execution_time?.toFixed(2) }}s</h3>
+                <h3>{{ singleResultData.summary.execution_time?.toFixed(2) }}s</h3>
                 <p>Waktu Eksekusi</p>
               </div>
             </div>
             
-            <div v-if="results.summary.iterations" class="summary-card">
+            <div v-if="singleResultData.summary.iterations" class="summary-card">
               <div class="card-icon">🔄</div>
               <div class="card-content">
-                <h3>{{ results.summary.iterations }}</h3>
+                <h3>{{ singleResultData.summary.iterations }}</h3>
                 <p>Iterasi</p>
               </div>
             </div>
           </div>
+          
+          <div class="card">
+            <h2>📈 Metrik Evaluasi</h2>
+            <div class="evaluation-metrics">
+              <div class="metric-card">
+                <h3>Davies-Bouldin Index</h3>
+                <div class="metric-value">
+                  {{ (singleResultData.evaluation?.davies_bouldin !== undefined ? singleResultData.evaluation.davies_bouldin?.toFixed(4) : (singleResultData.summary?.davies_bouldin?.toFixed(4) || 'N/A')) || 'N/A' }}
+                </div>
+                <p class="metric-description">
+                  Semakin rendah semakin baik. Mengukur rasio antara jarak dalam cluster dan antar cluster.
+                </p>
+                <div class="metric-quality">
+                  <span class="quality-label">Kualitas:</span>
+                  <span :class="getDBIQuality(singleResultData.evaluation.davies_bouldin)">
+                    {{ getDBIQualityText(singleResultData.evaluation.davies_bouldin) }}
+                  </span>
+                </div>
+              </div>
+              
+              <div class="metric-card">
+                <h3>Silhouette Score</h3>
+                <div class="metric-value">
+                  {{ singleResultData.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
+                </div>
+                <p class="metric-description">
+                  Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.
+                </p>
+                <div class="metric-quality">
+                  <span class="quality-label">Kualitas:</span>
+                  <span :class="getSilhouetteQuality(singleResultData.evaluation.silhouette_score)">
+                    {{ getSilhouetteQualityText(singleResultData.evaluation.silhouette_score) }}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <!-- Evaluation Metrics -->
-        <div class="card">
-          <h2>📈 Metrik Evaluasi</h2>
-          <div class="evaluation-metrics">
-            <div class="metric-card">
-              <h3>Davies-Bouldin Index</h3>
-              <div class="metric-value">
-                {{ results.evaluation.davies_bouldin?.toFixed(4) || 'N/A' }}
+          <div v-if="results.clustering_type !== 'per_year' && !singleResultData.summary?.selectedYear && availableYears.length > 1" class="card">
+            <h2>📅 Filter Tahun</h2>
+            <div class="year-selector">
+              <div class="year-controls">
+                <button 
+                  v-for="year in availableYears" 
+                  :key="year"
+                  @click="selectedYear = year"
+                  :class="['year-btn', { active: selectedYear === year }]"
+                >
+                  {{ year }}
+                </button>
+                <button 
+                  @click="selectedYear = null"
+                  :class="['year-btn', { active: selectedYear === null }]"
+                >
+                  Semua Tahun
+                </button>
               </div>
-              <p class="metric-description">
-                Semakin rendah semakin baik. Mengukur rasio antara jarak dalam cluster dan antar cluster.
+              <p class="year-info">
+                {{ selectedYear ? `Menampilkan data untuk tahun ${selectedYear}` : 'Menampilkan data untuk semua tahun' }}
               </p>
-              <div class="metric-quality">
-                <span class="quality-label">Kualitas:</span>
-                <span :class="getDBIQuality(results.evaluation.davies_bouldin)">
-                  {{ getDBIQualityText(results.evaluation.davies_bouldin) }}
-                </span>
-              </div>
+            </div>
+          </div>
+
+          <div class="visualizations">
+            
+            <ScatterPlot 
+              :clusters="filteredClusters" 
+              :title="`Scatter Plot - ${singleResultData.algorithm} Clustering`"
+            />
+            
+            <BoxPlot 
+              :clusters="filteredClusters" 
+              :title="`Analisis Distribusi per Cluster - ${singleResultData.algorithm}`"
+            />
+            
+            <CorrelationHeatmap 
+              :clusters="filteredClusters" 
+              :title="`Heatmap Korelasi Variabel - ${singleResultData.algorithm}`"
+            />
+            
+            <InteractiveMap 
+              :clusters="filteredClusters" 
+              :title="`Peta Sebaran Cluster - ${singleResultData.algorithm}`"
+            />
+            
+          </div>
+
+          <div class="card">
+            <h2>🔍 Detail Cluster</h2>
+            <div class="cluster-tabs">
+              <button 
+                v-for="(cluster, index) in filteredClusters" 
+                :key="cluster.id"
+                @click="selectedCluster = cluster.id"
+                :class="['cluster-tab', { active: selectedCluster === cluster.id }]"
+                :style="{ borderColor: getClusterColor(index) }"
+              >
+                <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
+                Cluster {{ cluster.id }} ({{ cluster.size }})
+              </button>
             </div>
             
-            <div class="metric-card">
-              <h3>Silhouette Score</h3>
-              <div class="metric-value">
-                {{ results.evaluation.silhouette_score?.toFixed(4) || 'N/A' }}
-              </div>
-              <p class="metric-description">
-                Rentang -1 hingga 1. Semakin tinggi semakin baik. Mengukur seberapa mirip objek dengan clusternya.
-              </p>
-              <div class="metric-quality">
-                <span class="quality-label">Kualitas:</span>
-                <span :class="getSilhouetteQuality(results.evaluation.silhouette_score)">
-                  {{ getSilhouetteQualityText(results.evaluation.silhouette_score) }}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Year Selector for Multi-Year Analysis -->
-        <div v-if="results.clustering_type !== 'per_year' && !results.summary?.selectedYear && availableYears.length > 1" class="card">
-          <h2>📅 Filter Tahun</h2>
-          <div class="year-selector">
-            <div class="year-controls">
-              <button 
-                v-for="year in availableYears" 
-                :key="year"
-                @click="selectedYear = year"
-                :class="['year-btn', { active: selectedYear === year }]"
-              >
-                {{ year }}
-              </button>
-              <button 
-                @click="selectedYear = null"
-                :class="['year-btn', { active: selectedYear === null }]"
-              >
-                Semua Tahun
-              </button>
-            </div>
-            <p class="year-info">
-              {{ selectedYear ? `Menampilkan data untuk tahun ${selectedYear}` : 'Menampilkan data untuk semua tahun' }}
-            </p>
-          </div>
-        </div>
-
-        <!-- Visualizations -->
-        <div class="visualizations">
-          
-          <!-- Scatter Plot -->
-          <ScatterPlot 
-            :clusters="filteredClusters" 
-            :title="`Scatter Plot - ${results.algorithm} Clustering`"
-          />
-          
-          <!-- Box Plot -->
-          <BoxPlot 
-            :clusters="filteredClusters" 
-            :title="`Analisis Distribusi per Cluster - ${results.algorithm}`"
-          />
-          
-          <!-- Interactive Map -->
-          <InteractiveMap 
-            :clusters="filteredClusters" 
-            :title="`Peta Sebaran Cluster - ${results.algorithm}`"
-          />
-          
-        </div>
-
-        <!-- Cluster Details -->
-        <div class="card">
-          <h2>🔍 Detail Cluster</h2>
-          <div class="cluster-tabs">
-            <button 
-              v-for="(cluster, index) in filteredClusters" 
-              :key="cluster.id"
-              @click="selectedCluster = cluster.id"
-              :class="['cluster-tab', { active: selectedCluster === cluster.id }]"
-              :style="{ borderColor: getClusterColor(index) }"
-            >
-              <div class="tab-color" :style="{ backgroundColor: getClusterColor(index) }"></div>
-              Cluster {{ cluster.id }} ({{ cluster.size }})
-            </button>
-          </div>
-          
-          <div v-if="activeCluster" class="cluster-detail">
-            <div class="cluster-info">
-              <h3>Cluster {{ activeCluster.id }}</h3>
-              <div class="cluster-stats">
-                <div class="stat-item">
-                  <span class="stat-label">Jumlah Daerah:</span>
-                  <span class="stat-value">{{ activeCluster.size }}</span>
-                </div>
-                <div v-if="activeCluster.centroid" class="centroid-info">
-                  <h4>Centroid (Rata-rata):</h4>
-                  <div class="centroid-values">
-                    <div class="centroid-item">
-                      <span>IPM:</span>
-                      <span>{{ activeCluster.centroid.ipm?.toFixed(2) }}</span>
-                    </div>
-                    <div class="centroid-item">
-                      <span>Garis Kemiskinan:</span>
-                      <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
-                    </div>
-                    <div class="centroid-item">
-                      <span>Pengeluaran Per Kapita:</span>
-                      <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
+            <div v-if="activeCluster" class="cluster-detail">
+              <div class="cluster-info">
+                <h3>Cluster {{ activeCluster.id }}</h3>
+                <div class="cluster-stats">
+                  <div class="stat-item">
+                    <span class="stat-label">Jumlah Daerah:</span>
+                    <span class="stat-value">{{ activeCluster.size }}</span>
+                  </div>
+                  <div v-if="activeCluster.centroid" class="centroid-info">
+                    <h4>Centroid (Rata-rata):</h4>
+                    <div class="centroid-values">
+                      <div class="centroid-item" v-if="activeCluster.centroid.ipm !== undefined">
+                        <span>IPM:</span>
+                        <span>{{ activeCluster.centroid.ipm?.toFixed(2) }}</span>
+                      </div>
+                      <div class="centroid-item" v-if="activeCluster.centroid.garis_kemiskinan !== undefined">
+                        <span>Garis Kemiskinan:</span>
+                        <span>{{ formatCurrency(activeCluster.centroid.garis_kemiskinan) }}</span>
+                      </div>
+                      <div class="centroid-item" v-if="activeCluster.centroid.pengeluaran_per_kapita !== undefined">
+                        <span>Pengeluaran Per Kapita:</span>
+                        <span>{{ formatCurrency(activeCluster.centroid.pengeluaran_per_kapita) }}</span>
+                      </div>
+                      <div 
+                        class="centroid-item"
+                        v-for="key in Object.keys(activeCluster.centroid).filter(k => !['ipm', 'garis_kemiskinan', 'pengeluaran_per_kapita'].includes(k))"
+                        :key="key"
+                       >
+                         <span>{{ key }}:</span>
+                         <span>{{ activeCluster.centroid[key]?.toFixed(2) }}</span>
+                       </div>
                     </div>
                   </div>
                 </div>
               </div>
-            </div>
-            
-            <div class="cluster-members">
-              <h4>Daftar Daerah:</h4>
-              <div class="members-table-container">
-                <table class="members-table">
-                  <thead>
-                    <tr>
-                      <th>Kabupaten/Kota</th>
-                      <th>Provinsi</th>
-                      <th>Tahun</th>
-                      <th>IPM</th>
-                      <th>Garis Kemiskinan</th>
-                      <th>Pengeluaran Per Kapita</th>
-                      <th v-if="results.algorithm === 'Fuzzy C-Means'">Membership</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr v-for="member in activeCluster.members" :key="`${member.kabupaten_kota}-${member.tahun}`">
-                      <td>{{ member.kabupaten_kota }}</td>
-                      <td>{{ member.provinsi || 'N/A' }}</td>
-                      <td>{{ member.tahun }}</td>
-                      <td>{{ member.ipm?.toFixed(2) }}</td>
-                      <td>{{ formatCurrency(member.garis_kemiskinan) }}</td>
-                      <td>{{ formatCurrency(member.pengeluaran_per_kapita) }}</td>
-                      <td v-if="results.algorithm === 'Fuzzy C-Means'">
-                        <div class="membership-bar">
-                          <div 
-                            class="membership-fill" 
-                            :style="{ 
-                              width: `${(member.membership * 100)}%`,
-                              backgroundColor: getClusterColor(filteredClusters.findIndex(c => c.id === activeCluster.id))
-                            }"
-                          ></div>
-                          <span class="membership-text">{{ (member.membership * 100).toFixed(1) }}%</span>
-                        </div>
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
+              
+              <div class="cluster-members">
+                <h4>Daftar Daerah:</h4>
+                <div class="members-table-container">
+                  <table class="members-table">
+                    <thead>
+                      <tr>
+                        <th>Kabupaten/Kota</th>
+                        <th>Provinsi</th>
+                        <th v-if="activeCluster.members[0]?.tahun !== null && activeCluster.members[0]?.tahun !== undefined">Tahun</th>
+                        <th>IPM</th>
+                        <th>Garis Kemiskinan</th>
+                        <th>Pengeluaran Per Kapita</th>
+                        <th v-if="singleResultData.algorithm === 'Fuzzy C-Means'">Membership</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr v-for="member in activeCluster.members" :key="`${member.kabupaten_kota}-${member.tahun}`">
+                        <td>{{ member.kabupaten_kota }}</td>
+                        <td>{{ member.provinsi || 'N/A' }}</td>
+                        <td v-if="member.tahun !== null && member.tahun !== undefined">{{ member.tahun }}</td>
+                        <td>{{ member.ipm?.toFixed(2) }}</td>
+                        <td>{{ formatCurrency(member.garis_kemiskinan) }}</td>
+                        <td>{{ formatCurrency(member.pengeluaran_per_kapita) }}</td>
+                        <td v-if="singleResultData.algorithm === 'Fuzzy C-Means'">
+                          <div class="membership-bar">
+                            <div 
+                              class="membership-fill" 
+                              :style="{ 
+                                width: `${(member.membership * 100)}%`,
+                                backgroundColor: getClusterColor(filteredClusters.findIndex(c => c.id === activeCluster.id))
+                              }"
+                            ></div>
+                            <span class="membership-text">{{ (member.membership * 100).toFixed(1) }}%</span>
+                          </div>
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
           </div>
-        </div>
 
-          <!-- Export Options -->
           <div class="card">
             <h2>📥 Export Hasil</h2>
             <div class="export-options">
@@ -268,27 +280,27 @@
             </div>
           </div>
         </div>
-        <!-- End Single Year Results -->
-
-      </div>
+        </div>
     </div>
   </div>
 </template>
 
 <script>
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, defineComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import ScatterPlot from '../components/ScatterPlot.vue'
 import BoxPlot from '../components/BoxPlot.vue'
+import CorrelationHeatmap from '../components/CorrelationHeatmap.vue'
 import InteractiveMap from '../components/InteractiveMap.vue'
 import YearlyResults from '../components/YearlyResults.vue'
 import apiService from '../services/apiService.js'
 
-export default {
+export default defineComponent({
   name: 'AnalysisEnhanced',
   components: {
     ScatterPlot,
     BoxPlot,
+    CorrelationHeatmap,
     InteractiveMap,
     YearlyResults
   },
@@ -310,6 +322,26 @@ export default {
     const getClusterColor = (index) => {
       return colors[index % colors.length]
     }
+    const singleResultData = computed(() => {
+      if (!results.value) {
+        return null;
+      }
+      
+      const type = results.value.clustering_type;
+      
+      if (type === 'per_year') {
+        return null; // Handled by YearlyResults component
+      }
+      
+      if (type === 'all_years_wide') {
+        // New 'all_years_wide' format
+        return results.value.results_per_year?.all_years || null;
+      }
+      
+      // Legacy "single year" format
+      return results.value;
+    });
+
 
     const availableYears = computed(() => {
       if (!results.value) return []
@@ -319,11 +351,14 @@ export default {
         return results.value.overall_summary?.years_processed || []
       }
       
+      // UPDATED: Use singleResultData
       // For single year clustering, extract years from clusters
-      if (!results.value.clusters) return []
+      // For all_years_wide, members won't have 'tahun', so this will correctly return []
+      const clusters = singleResultData.value?.clusters;
+      if (!clusters) return []
       
       const years = new Set()
-      results.value.clusters.forEach(cluster => {
+      clusters.forEach(cluster => {
         cluster.members.forEach(member => {
           if (member.tahun) years.add(member.tahun)
         })
@@ -333,19 +368,17 @@ export default {
     })
 
     const filteredClusters = computed(() => {
-      if (!results.value) return []
+      // UPDATED: Use singleResultData
+      if (!singleResultData.value) return [] // Handles null, per_year, etc.
       
-      // For per-year clustering, this filtering is handled by YearlyResults component
-      if (results.value.clustering_type === 'per_year') {
-        return []
-      }
+      const clusters = singleResultData.value.clusters
+      if (!clusters) return []
       
-      // For single year clustering
-      if (!results.value.clusters) return []
+      // No year filter active (this will be true for all_years_wide)
+      if (!selectedYear.value) return clusters
       
-      if (!selectedYear.value) return results.value.clusters
-      
-      return results.value.clusters.map(cluster => ({
+      // Year filter is active (for legacy single-year)
+      return clusters.map(cluster => ({
         ...cluster,
         members: cluster.members.filter(member => member.tahun === selectedYear.value),
         size: cluster.members.filter(member => member.tahun === selectedYear.value).length
@@ -409,22 +442,9 @@ export default {
         }
 
         const rawResults = await apiService.getResults(sessionId)
+        results.value = rawResults
         
-        // Handle both single year and per-year clustering results
-        if (rawResults.clustering_type === 'per_year') {
-          results.value = rawResults
-        } else {
-          // Single year clustering results
-          results.value = rawResults
-        }
-        
-        // Set default selected cluster
-        if (results.value.clusters && results.value.clusters.length > 0) {
-          selectedCluster.value = results.value.clusters[0].id
-        } else if (results.value.clustering_type === 'per_year') {
-          // For per-year results, no need to set selected cluster here
-          // YearlyResults component will handle it
-        }
+        // The 'watch' on filteredClusters will handle setting the default selectedCluster
         
       } catch (err) {
         error.value = err.message || 'Gagal memuat hasil analisis'
@@ -434,33 +454,42 @@ export default {
     }
 
     const exportToCSV = () => {
-      if (!results.value) return
+      // UPDATED: Use singleResultData
+      if (!singleResultData.value) {
+        if (results.value?.clustering_type === 'per_year') {
+          // TODO: Implement CSV export for per_year (might need to loop or use a selector)
+          alert('CSV export for "per_year" results is not implemented in this view.');
+        }
+        return;
+      }
       
+      const data = singleResultData.value;
       const csvData = []
       const headers = [
         'Cluster', 'Kabupaten/Kota', 'Provinsi', 'Tahun', 
         'IPM', 'Garis Kemiskinan', 'Pengeluaran Per Kapita'
       ]
       
-      if (results.value.algorithm === 'Fuzzy C-Means') {
+      if (data.algorithm === 'Fuzzy C-Means') {
         headers.push('Membership')
       }
       
       csvData.push(headers.join(','))
       
+      // Use filteredClusters to respect the year filter (if any)
       filteredClusters.value.forEach(cluster => {
         cluster.members.forEach(member => {
           const row = [
             cluster.id,
             `"${member.kabupaten_kota}"`,
             `"${member.provinsi || 'N/A'}"`,
-            member.tahun,
+            member.tahun || 'N/A', // Handle null tahun for wide-format
             member.ipm?.toFixed(2) || 'N/A',
             member.garis_kemiskinan || 'N/A',
             member.pengeluaran_per_kapita || 'N/A'
           ]
           
-          if (results.value.algorithm === 'Fuzzy C-Means') {
+          if (data.algorithm === 'Fuzzy C-Means') {
             row.push((member.membership * 100).toFixed(2))
           }
           
@@ -472,7 +501,7 @@ export default {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `clustering_results_${results.value.algorithm.toLowerCase()}_${Date.now()}.csv`
+      a.download = `clustering_results_${data.algorithm.toLowerCase()}_${Date.now()}.csv`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -480,19 +509,32 @@ export default {
     }
 
     const exportToJSON = () => {
-      if (!results.value) return
+      // UPDATED: Use singleResultData or results
+      if (!results.value) return;
       
-      const exportData = {
-        ...results.value,
-        clusters: filteredClusters.value,
-        export_timestamp: new Date().toISOString()
+      let exportData;
+      if (singleResultData.value) {
+        // Export the single result (all_years_wide or legacy)
+         exportData = {
+          ...singleResultData.value,
+          clusters: filteredClusters.value, // Export filtered data
+          export_timestamp: new Date().toISOString()
+        }
+      } else {
+        // Export the full 'per_year' result object
+        exportData = {
+          ...results.value,
+          export_timestamp: new Date().toISOString()
+        }
       }
+
+      const algorithmName = singleResultData.value?.algorithm || results.value.overall_summary?.algorithm || 'unknown';
       
       const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' })
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `clustering_results_${results.value.algorithm.toLowerCase()}_${Date.now()}.json`
+      a.download = `clustering_results_${algorithmName.toLowerCase()}_${Date.now()}.json`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -500,23 +542,29 @@ export default {
     }
 
     const generateReport = () => {
-      // This would typically generate a PDF report
-      // For now, we'll create a detailed text report
-      if (!results.value) return
+      // UPDATED: Use singleResultData
+      if (!singleResultData.value) {
+         if (results.value?.clustering_type === 'per_year') {
+          alert('Report generation for "per_year" results is not implemented in this view.');
+        }
+        return
+      }
+      
+      const data = singleResultData.value;
       
       const reportLines = [
         `LAPORAN ANALISIS CLUSTERING`,
-        `Algoritma: ${results.value.algorithm}`,
+        `Algoritma: ${data.algorithm}`,
         `Tanggal: ${new Date().toLocaleDateString('id-ID')}`,
         ``,
         `RINGKASAN:`,
-        `- Total Daerah: ${results.value.summary.total_regions}`,
-        `- Jumlah Cluster: ${results.value.summary.num_clusters}`,
-        `- Waktu Eksekusi: ${results.value.summary.execution_time?.toFixed(2)}s`,
+        `- Total Daerah: ${data.summary.total_regions}`,
+        `- Jumlah Cluster: ${data.summary.num_clusters}`,
+        `- Waktu Eksekusi: ${data.summary.execution_time?.toFixed(2)}s`,
         ``,
         `EVALUASI:`,
-        `- Davies-Bouldin Index: ${results.value.evaluation.davies_bouldin?.toFixed(4) || 'N/A'}`,
-        `- Silhouette Score: ${results.value.evaluation.silhouette_score?.toFixed(4) || 'N/A'}`,
+        `- Davies-Bouldin Index: ${data.evaluation.davies_bouldin?.toFixed(4) || 'N/A'}`,
+        `- Silhouette Score: ${data.evaluation.silhouette_score?.toFixed(4) || 'N/A'}`,
         ``,
         `DETAIL CLUSTER:`
       ]
@@ -526,13 +574,14 @@ export default {
         reportLines.push(`Cluster ${cluster.id} (${cluster.size} daerah):`)
         if (cluster.centroid) {
           reportLines.push(`  Centroid:`)
-          reportLines.push(`    IPM: ${cluster.centroid.ipm?.toFixed(2)}`)
-          reportLines.push(`    Garis Kemiskinan: ${formatCurrency(cluster.centroid.garis_kemiskinan)}`)
-          reportLines.push(`    Pengeluaran Per Kapita: ${formatCurrency(cluster.centroid.pengeluaran_per_kapita)}`)
+          // Handle dynamic centroid keys
+          for (const [key, value] of Object.entries(cluster.centroid)) {
+             reportLines.push(`    ${key}: ${value?.toFixed(2)}`)
+          }
         }
         reportLines.push(`  Anggota:`)
         cluster.members.forEach(member => {
-          reportLines.push(`    - ${member.kabupaten_kota} (${member.tahun})`)
+          reportLines.push(`    - ${member.kabupaten_kota} (${member.tahun || 'N/A'})`)
         })
       })
       
@@ -540,7 +589,7 @@ export default {
       const url = window.URL.createObjectURL(blob)
       const a = document.createElement('a')
       a.href = url
-      a.download = `clustering_report_${results.value.algorithm.toLowerCase()}_${Date.now()}.txt`
+      a.download = `clustering_report_${data.algorithm.toLowerCase()}_${Date.now()}.txt`
       document.body.appendChild(a)
       a.click()
       document.body.removeChild(a)
@@ -557,10 +606,87 @@ export default {
       }
     })
 
+    /**
+     * Handles the PDF download request by constructing a payload for the API.
+     * It correctly formats data for both 'per_year' and single analysis types.
+     */
+    const downloadPDFReport = async () => {
+      if (!results.value) {
+        error.value = 'No clustering results available to generate PDF.';
+        return;
+      }
+
+      isLoading.value = true;
+      error.value = '';
+      
+      try {
+        let pdfPayload;
+
+        if (results.value.clustering_type === 'per_year') {
+          // For per-year results, the structure is already prepared.
+          pdfPayload = {
+            algorithm: results.value.overall_summary?.algorithm,
+            yearly_results: results.value.results_per_year // Use 'results_per_year'
+          };
+        } else {
+          // For single analysis (legacy or all_years_wide)
+          const data = singleResultData.value; // Use our computed prop
+          if (!data) throw new Error('Single result data is not available.');
+
+          let yearKey;
+          if (results.value.clustering_type === 'all_years_wide') {
+            yearKey = 'all_years'; // Key from Python for wide format
+          } else {
+            // Legacy single year
+            yearKey = data.summary?.selectedYear || availableYears.value[0] || 'all_years';
+          }
+          
+          // FIX: Build 'data' from clusters, as 'data_with_clusters' doesn't exist
+          const allMembers = data.clusters?.flatMap(c => 
+            c.members.map(m => ({...m, cluster_id: c.id}))
+          ) || [];
+          
+          pdfPayload = {
+            algorithm: data.algorithm,
+            yearly_results: {
+              [yearKey]: {
+                data: allMembers, // Use the constructed member list
+                evaluation: data.evaluation || {},
+                clusters: data.clusters || []
+              }
+            }
+          };
+        }
+          
+        if (!pdfPayload.algorithm || !pdfPayload.yearly_results) {
+            throw new Error('Invalid data structure for PDF generation.');
+        }
+
+        // FIX: Moved hasData check to *after* pdfPayload is defined
+        const hasData = Object.values(pdfPayload.yearly_results).some(
+          yr => yr.clusters && yr.clusters.length > 0
+        );
+        if (!hasData) {
+          throw new Error('Tidak ada data clustering untuk diekspor ke PDF.');
+        }
+
+        await apiService.downloadPDF({ clustering_results: pdfPayload });
+        console.log('PDF generated successfully');
+
+      } catch (err) {
+        console.error('Error downloading PDF:', err);
+        error.value = `Gagal mengunduh laporan PDF: ${err.message}`;
+      } finally {
+        isLoading.value = false;
+      }
+    };
+
+    // Return all reactive values and methods
     return {
       isLoading,
       error,
       results,
+      singleResultData, // Return the new computed prop
       selectedYear,
       selectedCluster,
       availableYears,
@@ -574,31 +700,66 @@ export default {
       getSilhouetteQualityText,
       exportToCSV,
       exportToJSON,
-      generateReport
+      generateReport,
+      downloadPDFReport
     }
   }
-}
+})
 </script>
 
 <style scoped>
+/* Styles remain unchanged */
 .analysis-page {
   padding: 2rem 0;
 }
 
 .page-header {
-  text-align: center;
   margin-bottom: 3rem;
+}
+
+.header-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 2rem;
+  flex-wrap: wrap;
 }
 
 .page-header h1 {
   font-size: 2.5rem;
   color: #2d3748;
   margin-bottom: 1rem;
+  text-align: left;
 }
 
 .page-header p {
   font-size: 1.2rem;
   color: #718096;
+  text-align: left;
+}
+
+.header-actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.header-actions .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.header-actions .btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.header-actions .btn .icon {
+  font-size: 1.2rem;
 }
 
 .loading-container {

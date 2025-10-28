@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chart.js Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            width: 400px;
+            height: 300px;
+            margin: 20px;
+            border: 1px solid #ccc;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+        }
+    </style>
+</head>
+<body>
+    <h1>Chart.js Canvas Null Reference Test</h1>
+    
+    <div class="test-section">
+        <h2>Test 1: Basic Chart Creation</h2>
+        <div class="chart-container">
+            <canvas id="chart1"></canvas>
+        </div>
+        <button onclick="createChart1()">Create Chart</button>
+        <button onclick="destroyChart1()">Destroy Chart</button>
+        <button onclick="rapidUpdate1()">Rapid Update Test</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test 2: Dynamic Canvas</h2>
+        <div id="dynamic-container"></div>
+        <button onclick="createDynamicChart()">Create Dynamic Chart</button>
+        <button onclick="removeDynamicChart()">Remove Dynamic Chart</button>
+    </div>
+
+    <script>
+        let chart1 = null;
+        let dynamicChart = null;
+
+        function createChart1() {
+            const canvas = document.getElementById('chart1');
+            if (!canvas) {
+                console.error('Canvas not found!');
+                return;
+            }
+
+            // Destroy existing chart
+            if (chart1) {
+                try {
+                    chart1.destroy();
+                } catch (e) {
+                    console.error('Error destroying chart:', e);
+                }
+                chart1 = null;
+            }
+
+            const ctx = canvas.getContext('2d');
+            if (!ctx) {
+                console.error('Cannot get 2d context!');
+                return;
+            }
+
+            chart1 = new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Test Data',
+                        data: [
+                            {x: 10, y: 20},
+                            {x: 15, y: 25},
+                            {x: 20, y: 30}
+                        ],
+                        backgroundColor: 'red'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    animation: { duration: 0 }, // Disable animations
+                    hover: { animationDuration: 0 },
+                    responsiveAnimationDuration: 0
+                }
+            });
+            console.log('Chart created successfully');
+        }
+
+        function destroyChart1() {
+            if (chart1) {
+                try {
+                    chart1.destroy();
+                    chart1 = null;
+                    console.log('Chart destroyed successfully');
+                } catch (e) {
+                    console.error('Error destroying chart:', e);
+                }
+            }
+        }
+
+        function rapidUpdate1() {
+            console.log('Starting rapid update test...');
+            for (let i = 0; i < 5; i++) {
+                setTimeout(() => {
+                    console.log(`Update ${i + 1}`);
+                    createChart1();
+                }, i * 100);
+            }
+        }
+
+        function createDynamicChart() {
+            const container = document.getElementById('dynamic-container');
+            
+            // Remove existing canvas
+            const existingCanvas = container.querySelector('canvas');
+            if (existingCanvas) {
+                container.removeChild(existingCanvas);
+            }
+
+            // Create new canvas
+            const canvas = document.createElement('canvas');
+            canvas.id = 'dynamic-chart';
+            canvas.width = 400;
+            canvas.height = 300;
+            container.appendChild(canvas);
+
+            // Wait a bit for DOM to settle
+            setTimeout(() => {
+                const ctx = canvas.getContext('2d');
+                if (!ctx) {
+                    console.error('Cannot get 2d context for dynamic canvas!');
+                    return;
+                }
+
+                dynamicChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['A', 'B', 'C'],
+                        datasets: [{
+                            label: 'Dynamic Data',
+                            data: [12, 19, 3],
+                            backgroundColor: 'blue'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        animation: { duration: 0 },
+                        hover: { animationDuration: 0 },
+                        responsiveAnimationDuration: 0
+                    }
+                });
+                console.log('Dynamic chart created successfully');
+            }, 100);
+        }
+
+        function removeDynamicChart() {
+            if (dynamicChart) {
+                try {
+                    dynamicChart.destroy();
+                    dynamicChart = null;
+                } catch (e) {
+                    console.error('Error destroying dynamic chart:', e);
+                }
+            }
+
+            const container = document.getElementById('dynamic-container');
+            const canvas = container.querySelector('canvas');
+            if (canvas) {
+                container.removeChild(canvas);
+                console.log('Dynamic chart removed');
+            }
+        }
+
+        // Test on page load
+        window.addEventListener('load', () => {
+            console.log('Page loaded, running initial test...');
+            createChart1();
+        });
+    </script>
+</body>
+</html>

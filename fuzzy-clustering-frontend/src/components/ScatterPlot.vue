@@ -17,7 +17,7 @@
       </div>
     </div>
     <div class="chart-wrapper">
-      <canvas ref="chartCanvas"></canvas>
+      <canvas ref="chartCanvas" class="scatter-plot-canvas"></canvas>
     </div>
     <div class="chart-legend">
       <div v-for="(cluster, index) in clusters" :key="cluster.id" class="legend-item">
@@ -81,32 +81,80 @@ export default {
 
     const createChart = async () => {
       try {
-        // Multiple validation checks
-        if (!chartCanvas.value || !props.clusters || props.clusters.length === 0) return
+        // Early validation - check if component is still mounted
+        if (!chartCanvas.value) {
+          console.warn('Chart canvas ref is null, component may be unmounted')
+          return
+        }
+        
+        // Check if we have data to display
+        if (!props.clusters || props.clusters.length === 0) {
+          console.warn('No cluster data available for chart')
+          return
+        }
 
-        // Wait for DOM to be ready
+        // Wait for DOM to be fully ready
         await nextTick()
         
-        // Re-check after nextTick
-        if (!chartCanvas.value || !chartCanvas.value.offsetParent) return
+        // Re-validate after nextTick - component might have unmounted
+        if (!chartCanvas.value) {
+          console.warn('Chart canvas became null after nextTick')
+          return
+        }
         
-        // Destroy existing chart first
+        // Check if canvas is actually in the DOM and visible
+        if (!chartCanvas.value.offsetParent && chartCanvas.value.style.display !== 'none') {
+          console.warn('Canvas not visible in DOM, retrying...')
+          setTimeout(() => createChart(), 200)
+          return
+        }
+        
+        // Destroy existing chart safely
         if (chart.value) {
           try {
-            chart.value.destroy()
+            if (typeof chart.value.destroy === 'function') {
+              chart.value.destroy()
+            }
           } catch (e) {
             console.warn('Error destroying existing chart:', e)
           }
           chart.value = null
         }
         
-        // Get context with additional validation
-        const ctx = chartCanvas.value.getContext('2d')
-        if (!ctx || !ctx.canvas) return
+        // Additional wait to ensure canvas is stable
+        await new Promise(resolve => setTimeout(resolve, 50))
         
-        // Ensure canvas has dimensions
-        if (ctx.canvas.width === 0 || ctx.canvas.height === 0) {
-          setTimeout(() => createChart(), 100)
+        // Final validation before getting context
+        if (!chartCanvas.value) {
+          console.warn('Canvas became null during chart creation')
+          return
+        }
+        
+        // Get context with comprehensive validation
+        let ctx
+        try {
+          ctx = chartCanvas.value.getContext('2d')
+        } catch (e) {
+          console.error('Failed to get 2d context:', e)
+          return
+        }
+        
+        if (!ctx || !ctx.canvas) {
+          console.warn('Invalid canvas context')
+          return
+        }
+        
+        // Ensure canvas has proper dimensions
+        const canvas = ctx.canvas
+        if (canvas.width === 0 || canvas.height === 0) {
+          console.warn('Canvas has zero dimensions, retrying...')
+          setTimeout(() => createChart(), 200)
+          return
+        }
+        
+        // Check if canvas is still attached to DOM
+        if (!document.contains(canvas)) {
+          console.warn('Canvas is not attached to DOM')
           return
         }
       
@@ -140,6 +188,16 @@ export default {
         options: {
           responsive: true,
           maintainAspectRatio: false,
+          // Disable animations to prevent timing issues
+          animation: {
+            duration: 0
+          },
+          // Disable hover animations
+          hover: {
+            animationDuration: 0
+          },
+          // Disable responsiveAnimationDuration
+          responsiveAnimationDuration: 0,
           plugins: {
             title: {
               display: true,
@@ -203,20 +261,49 @@ export default {
       } catch (error) {
         console.warn('Error creating scatter plot chart:', error)
         if (chart.value) {
-          chart.value.destroy()
+          try {
+            if (typeof chart.value.destroy === 'function') {
+              chart.value.destroy()
+            }
+          } catch (destroyError) {
+            console.warn('Error destroying chart after creation error:', destroyError)
+          }
           chart.value = null
         }
       }
     }
 
+    let updateTimeout = null
+    let isUpdating = false
+    
     const updateChart = () => {
-      // Debounce chart updates to prevent rapid recreation
-      if (updateChart.timeout) {
-        clearTimeout(updateChart.timeout)
+      // Prevent multiple simultaneous updates
+      if (isUpdating) {
+        console.warn('Chart update already in progress, skipping')
+        return
       }
-      updateChart.timeout = setTimeout(() => {
-        createChart()
-      }, 100)
+      
+      // Clear any pending updates
+      if (updateTimeout) {
+        clearTimeout(updateTimeout)
+      }
+      
+      // Debounce chart updates with longer delay to prevent rapid recreation
+      updateTimeout = setTimeout(async () => {
+        if (!chartCanvas.value) {
+          console.warn('Canvas not available for update')
+          return
+        }
+        
+        isUpdating = true
+        try {
+          await createChart()
+        } catch (error) {
+          console.error('Error during chart update:', error)
+        } finally {
+          isUpdating = false
+        }
+      }, 300) // Increased debounce time
     }
 
     onMounted(async () => {
@@ -225,17 +312,40 @@ export default {
 
     onUnmounted(() => {
       // Clear any pending timeouts
-      if (updateChart.timeout) {
-        clearTimeout(updateChart.timeout)
+      if (updateTimeout) {
+        clearTimeout(updateTimeout)
+        updateTimeout = null
       }
       
+      // Set updating flag to prevent any ongoing operations
+      isUpdating = true
+      
+      // Destroy chart safely
       if (chart.value) {
-        chart.value.destroy()
+        try {
+          if (typeof chart.value.destroy === 'function') {
+            chart.value.destroy()
+          }
+        } catch (e) {
+          console.warn('Error destroying chart on unmount:', e)
+        }
         chart.value = null
       }
+      
+      // Clear canvas reference
+      chartCanvas.value = null
     })
 
-    watch(() => props.clusters, () => {
+    watch(() => props.clusters, (newClusters) => {
+      console.log('📈 ScatterPlot received new clusters:', newClusters)
+      if (newClusters && newClusters.length > 0) {
+        console.log(`ScatterPlot: ${newClusters.length} clusters received`)
+        newClusters.forEach((cluster, index) => {
+          console.log(`  Cluster ${cluster.id}: ${cluster.size} members`)
+        })
+      } else {
+        console.log('ScatterPlot: No clusters received or empty clusters')
+      }
       updateChart()
     }, { deep: true })
 
